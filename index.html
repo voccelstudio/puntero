@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="slate">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>PresupuestadorPY - Gestión Integral de Obra</title>
+  <meta name="description" content="Herramienta profesional para presupuestos, cronogramas y contratistas en Paraguay.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;700;800&family=Barlow:wght@400;600;700&family=DM+Sans:wght@400;700&family=IBM+Plex+Mono:wght@400;600&family=Playfair+Display:wght@700;800&family=Sora:wght@400;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div id="app" class="app-layout">
+  <aside class="sidebar">
+    <div class="side-logo" onclick="setSection('budget')">
+      <div class="logo"><div class="logo-dot"></div>PRESUPUESTADOR<span>PY</span></div>
+    </div>
+    
+    <div class="side-scroll">
+      <div class="nav-group">
+        <div class="nav-label">Planificación</div>
+        <button id="btn-budget" class="nbtn on" onclick="setSection('budget')">📋 Presupuesto</button>
+        <button id="btn-prices" class="nbtn" onclick="setSection('prices')">💰 Base de Precios</button>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-label">Ejecución de Obra</div>
+        <button id="btn-schedule" class="nbtn" onclick="setSection('schedule')">📅 Cronograma</button>
+        <button id="btn-logs" class="nbtn" onclick="setSection('logs')">📔 Libro de Obra</button>
+        <button id="btn-materials" class="nbtn" onclick="setSection('materials')">🧱 Materiales</button>
+        <button id="btn-contractors" class="nbtn" onclick="setSection('contractors')">👷 Contratistas</button>
+        <button id="btn-documents" class="nbtn" onclick="setSection('documents')">📁 Documentos</button>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-label">Gestión y Análisis</div>
+        <button id="btn-finances" class="nbtn" onclick="setSection('finances')">💰 Finanzas</button>
+        <button id="btn-performance" class="nbtn" onclick="setSection('performance')">📈 Desempeño</button>
+        <button id="btn-dashboard" class="nbtn" onclick="setSection('dashboard')">📊 Panel General</button>
+        <button id="btn-themes" class="nbtn" onclick="setSection('themes')">🎨 Temas Visuales</button>
+        <button class="nbtn" onclick="showModal('profile')">👤 Mi Perfil</button>
+      </div>
+    </div>
+
+    <div class="side-footer">
+      <button class="btn ok-btn full" onclick="showModal('export_project')">📤 Enviar Proyecto</button>
+      <button class="btn pdf-btn full" onclick="generarPDF()">📄 Generar PDF</button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="top-bar">
+      <div id="view-title" style="font-family:var(--font-display); font-weight:800; font-size:1.1rem; text-transform:uppercase; letter-spacing:0.04em">Presupuesto Actual</div>
+      <div style="flex:1"></div>
+      <div class="db-badge" id="db-badge-hdr">Precios mercado PY</div>
+    </header>
+    <div id="section-budget" class="view"></div>
+    <div id="section-schedule" class="view" style="display:none"></div>
+    <div id="section-logs" class="view" style="display:none"></div>
+    <div id="section-materials" class="view" style="display:none"></div>
+    <div id="section-contractors" class="view" style="display:none"></div>
+    <div id="section-finances" class="view" style="display:none"></div>
+    <div id="section-performance" class="view" style="display:none"></div>
+    <div id="section-dashboard" class="view" style="display:none"></div>
+    <div id="section-prices" class="view" style="display:none"></div>
+    <div id="section-themes" class="view" style="display:none"></div> 
+    <div id="section-documents" class="view" style="display:none"></div>
+  </main>
+</div>
+
+<!-- Capas de Interfaz -->
+<div id="modal-area"></div>
+<div id="toast-el" class="toast" style="display:none"></div>
+
+<!-- Navegación Móvil (FAB) -->
+<div class="mobile-fab">
+  <div id="fab-items" class="mobile-fab-items closed">
+    <div class="mobile-fab-item" onclick="setSection('budget');closeFab()">📋 Presupuesto</div>
+    <div class="mobile-fab-item" onclick="setSection('schedule');closeFab()">📅 Cronograma</div>
+    <div class="mobile-fab-item" onclick="setSection('contractors');closeFab()">👷 Contratistas</div>
+    <div class="mobile-fab-item" onclick="setSection('dashboard');closeFab()">📊 Panel</div>
+    <div class="mobile-fab-item" onclick="showModal('export_project');closeFab()" style="color:var(--ok)">📤 Enviar Proy.</div>
+  </div>
+  <button id="fab-btn" class="mobile-fab-main" onclick="toggleFab()">☰</button>
+</div>
+
+<!-- Scripts Externos -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+
+<!-- Lógica de la Aplicación (Carga Secuencial) -->
+<script src="db_precios.js"></script>
+<script src="app.js"></script>
+<script src="schedule.js"></script>
+<script src="logs.js"></script>
+<script src="contractors.js"></script>
+<script src="materials.js"></script>
+<script src="finances.js"></script>
+<script src="performance.js"></script>
+<script src="documents.js"></script>
+
+</body>
+</html>

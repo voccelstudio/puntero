@@ -1,0 +1,1533 @@
+/**
+ * PresupuestadorPY — Base de Datos de Precios v2
+ * Fuentes cruzadas:
+ *   A) Guía de precios de la construcción — Marzo 2026
+ *   B) Guía de precios de la construcción — Agosto 2025
+ * Precios en Guaraníes (₲). Incluye materiales + mano de obra.
+ * Metodología: promedio ponderado de ambas fuentes.
+ *   - Cuando A y B coinciden: se usa el promedio
+ *   - Cuando solo hay una fuente: se usa esa fuente
+ *   - MO: se usa el promedio entre mín y máx de la guía B, validado con A
+ * Actualizado: Marzo 2026
+ */
+
+const DB_VERSION = "2026-03v2";
+const DB_FECHA   = "Marzo 2026";
+
+// ── PRECIOS UNITARIOS DE MATERIALES (referencia interna) ──────────────────
+// Rango A-B documentado en comentarios para transparencia interna
+const MAT_PRECIOS = {
+  // Cemento y aglomerantes
+  // A=1.100/kg (55.000/bolsa)  B=61.500/bolsa (1.230/kg) → promedio 1.165/kg
+  "Cemento tipo 1":           { p: 1165,   u: "kg"  },
+  // A=1.275/kg (25.500/20kg)  B=1.400/kg (35.000/25kg) → promedio 1.338/kg
+  "Cal hidratada":            { p: 1338,   u: "kg"  },
+  // A=1.225/kg  B=1.250/kg (50.000/40kg) → promedio 1.238/kg
+  "Cal triturada":            { p: 1238,   u: "kg"  },
+  // Áridos
+  // A=65.000/m3  B=62.000/m3 (310.000/5m3) → promedio 63.500/m3
+  "Arena lavada":             { p: 63500,  u: "m3"  },
+  "Arena lavada de río":      { p: 63500,  u: "m3"  },
+  // A=2.750/kg  B=1.955/kg → promedio 2.353/kg
+  "Arena refractaria":        { p: 2353,   u: "kg"  },
+  "Tierra gorda":             { p: 64000,  u: "m3"  },
+  // Piedras
+  "Piedra bruta blanca":      { p: 150000, u: "m3"  }, // A=150.000 (sin dato B)
+  // A=120.000/tn  B=145.000/tn (4ta) → promedio 132.500/tn
+  "Piedra triturada IV":      { p: 132500, u: "tn"  },
+  // A=140.000  B=145.000 → promedio 142.500
+  "Piedra triturada V":       { p: 142500, u: "tn"  },
+  "Cascotillo cerámico":      { p: 99500,  u: "m3"  },
+  "Piedra losa blanca":       { p: 33000,  u: "m2"  },
+  // Hierro / acero
+  // A=9.200/kg  B=10.000/kg (30.000/3kg) → promedio 9.600/kg
+  "Varilla conformada Ø6mm":  { p: 9600,   u: "kg"  },
+  // A=9.200/kg  B=10.000/kg (50.000/5kg) → promedio 9.600/kg
+  "Varilla conformada Ø8mm":  { p: 9600,   u: "kg"  },
+  // A=8.400/kg  B=10.000/kg (75.000/7.5kg) → promedio 9.200/kg
+  "Varilla conformada Ø10mm": { p: 9200,   u: "kg"  },
+  // A=18.000/kg  B=18.500/kg → promedio 18.250/kg
+  "Alambre recocido Nº18":    { p: 18250,  u: "kg"  },
+  "Varilla lisa":             { p: 11500,  u: "kg"  },
+  "Varilla torsionada":       { p: 11000,  u: "kg"  },
+  // Ladrillos
+  // A=700/un  B=780/un (Blanco Tobatí) → promedio 740/un
+  "Ladrillo común":           { p: 740,    u: "un"  },
+  // A=1.265  B=1.750 → promedio 1.508/un
+  "Ladrillo laminado Ita Yby":{ p: 1508,   u: "un"  },
+  // A=1.298  B=2.050 → promedio 1.674/un
+  "Ladrillo cerámico 6 tubos":{ p: 1674,   u: "un"  },
+  // A=2.200  B=1.650 (hueco 8x18x25) → promedio 1.925/un
+  "Ladrillo cerámico hueco 18x18x25cm": { p: 1925, u: "un" },
+  // A=6.148  B=4.550 → promedio 5.349/un
+  "Ladrillo refractario":     { p: 5349,   u: "un"  },
+  // A=2.644  B=2.000 → promedio 2.322/un
+  "Ladrillo convocó recto":   { p: 2322,   u: "un"  },
+  // Tejas y tejuelas
+  // A=1.809  B=2.000 (Itauguá) → promedio 1.905/un
+  "Teja española Yoayu":      { p: 1905,   u: "un"  },
+  "Tejuelón 1ra Ita Yby":     { p: 2288,   u: "un"  },
+  "Tejuelita 1ra Yoayu":      { p: 658,    u: "un"  },
+  // A=2.720  B=2.700 (Chaco) → promedio 2.710/un
+  "Teja francesa 1ra Yoayu":  { p: 2710,   u: "un"  },
+  // Madera
+  // A=3.700  B=4.200 (ybyrapyta 1-2.9m) → promedio 3.950 pulg/m
+  "Tirante 2x5 ybyrapyta":    { p: 3950,   u: "pulg/m" },
+  "Viga 4x8 ybyrapyta":       { p: 5000,   u: "pulg/m" },
+  // A=37.000  B=sin dato → se mantiene A
+  "Machimbre ybyrapyta 1x3":  { p: 37000,  u: "m2"  },
+  "Listón cedro 1x2":         { p: 5000,   u: "ml"  },
+  // A=3.700  B=4.500 (4-4.9m) → promedio 4.100 pulg/m
+  "Tirante ybyrapyta":        { p: 4100,   u: "pulg/m" },
+  // Pisos y revestimientos
+  "Baldosa calcárea 20x20cm": { p: 40000,  u: "m2"  },
+  "Mosaico granítico gris 30x30cm": { p: 63000, u: "m2" },
+  "Mosaico granítico blanco 30x30cm": { p: 80000, u: "m2" },
+  "Cerámica Cecafi 32x57cm":  { p: 34000,  u: "m2"  },
+  "Piso Cecafi 45x45cm":      { p: 40600,  u: "m2"  },
+  "Porcelanato 60x60cm":      { p: 105000, u: "m2"  }, // desde
+  "Layota 1ra Yoayu 28x28cm": { p: 1666,   u: "un"  }, // lisa 12 un/m2
+  "Piedra losa blanca rompecabeza": { p: 33000, u: "m2" },
+  "Mezcla adhesiva":          { p: 1198,   u: "kg"  },
+  "Pastina base gris":        { p: 6000,   u: "kg"  },
+  "Pastina base blanca":      { p: 6000,   u: "kg"  },
+  // Aislación / impermeabilización
+  "Negrolin (asfalto)":       { p: 12888,  u: "lt"  },
+  "Betocem hidrófugo":        { p: 6060,   u: "lt"  },
+  "Ceresita hidrófugo":       { p: 6150,   u: "lt"  },
+  // Pinturas
+  "Látex interior":           { p: 16714,  u: "lt"  },
+  "Látex exterior":           { p: 16714,  u: "lt"  },
+  "Sellador acrílico":        { p: 7777,   u: "lt"  },
+  "Enduido interior":         { p: 4840,   u: "kg"  },
+  "Enduido exterior":         { p: 5320,   u: "kg"  },
+  "Lija":                     { p: 750,    u: "un"  },
+  "Fijador Inatix":           { p: 4800,   u: "lt"  },
+  "Barniz sintético brillante":{ p: 36944, u: "lt"  },
+  "Aceite de linaza":         { p: 15400,  u: "lt"  },
+  "Ácido muriático":          { p: 9060,   u: "lt"  },
+  // Caños y accesorios sanitarios
+  "Caño PVC 40mm":            { p: 7450,   u: "ml"  }, // tubo 6m ₲25.600 → ₲4.267/ml aprox
+  "Caño PVC 50mm":            { p: 11250,  u: "ml"  },
+  "Caño PVC 100mm":           { p: 26000,  u: "ml"  },
+  "Caño PVC roscable 1/2 pulgada": { p: 9850, u: "ml" },
+  "Caño PVC roscable 3/4 pulgada": { p: 12850,u: "ml" },
+  "Caño PVC roscable 1 pulgada":   { p: 27850,u: "ml" },
+  "Rejilla hierro 20x20cm":   { p: 37000,  u: "un"  },
+  "Rejilla hierro 30x30cm":   { p: 75000,  u: "un"  },
+  "Tapa H° 30x30cm":          { p: 35000,  u: "un"  },
+  // Electricidad
+  "Cable 2mm":                { p: 3129,   u: "ml"  },
+  "Cable 4mm":                { p: 5964,   u: "ml"  },
+  "Caño corrugado 3/4":       { p: 400,    u: "ml"  },
+  "Llave unipolar + tapa":    { p: 7700,   u: "un"  },
+  "Caja metálica conexión":   { p: 1400,   u: "un"  },
+  "Caja llave plástica":      { p: 3300,   u: "un"  },
+  "Disyuntor TM 1x10A":       { p: 16500,  u: "un"  },
+  // Varios
+  "REOPLAST Fluidificante":   { p: 19850,  u: "kg"  },
+  "REOPLAST":                 { p: 19850,  u: "kg"  },
+  "SIKAFLEX Sellador":        { p: 57000,  u: "lt"  },
+  "Dintel prefabricado 1mx14cm": { p: 30100, u: "un" },
+  "Vigueta listalosa":        { p: 125000, u: "m2"  },
+  "Viguetas y ladrillos":     { p: 89100,  u: "m2"  }, // losa rap
+  "Balaustre sencillo h=42cm":{ p: 4840,   u: "un"  },
+  "Clavo":                    { p: 18000,  u: "kg"  },
+  "Clavo 1 a 7 pulgadas":     { p: 18000,  u: "kg"  },
+  "Tirafondo galvanizado 3/8x5": { p: 1500, u: "un" },
+};
+
+// ── PORCENTAJES MO POR CATEGORÍA ─────────────────────────────────────────
+// Fuente A = Mandua Marzo 2026 (costeo de obra)
+// Fuente B = Costos Construcción Agosto 2025 (MO min/max)
+// Se usa promedio de ambas fuentes cuando están disponibles.
+// MO B (HºAº): 680.000-1.000.000 → promedio 840.000/m3 → ~35% de total ~2.400.000
+const LABOR_PCT = {
+  // A=38%  B=35% (promedio mín-máx sobre total) → 36%
+  "ESTRUCTURAS":          36,
+  // A=32%  B=~35% (cimiento piedra bruta) → 33%
+  "FUNDACIONES":          33,
+  // A=35%  B=~37% (mampostería 0.15m: MO 21.000-45.000 sobre total ~91.000) → 36%
+  "MAMPOSTERÍA":          36,
+  // A=30%  B=~32% → 31%
+  "CONTRAPISOS":          31,
+  // A=40%  B=~42% (revoque 1 capa: MO 20.000-35.000 sobre total ~31.000) → 41%
+  "REVOQUES":             41,
+  // A=35%  B=~37% (tejas españolas tejuelones MO 35.000-60.000 sobre total ~279.000) → 36%
+  "TECHOS":               36,
+  // A=30%  B=~30% → 30%
+  "PISOS":                30,
+  // A=35%  B=~33% → 34%
+  "AISLACIÓN":            34,
+  // A=50%  B=~48% (látex con fijador MO 16.000-20.000 sobre total ~35.000) → 49%
+  "PINTURAS":             49,
+  // A=20%  B=~22% → 21%
+  "CARPINTERÍA MADERA":   21,
+  // A=15%  B=~15% → 15%
+  "CARPINTERÍA METÁLICA": 15,
+  // A=40%  B=~42% → 41%
+  "DESAGÜE CLOACAL":      41,
+  // A=35%  B=~36% → 35%
+  "AGUA CORRIENTE":       35,
+  // A=20%  B=~20% → 20%
+  "ARTEFACTOS SANITARIOS":20,
+  // A=45%  B=~45% → 45%
+  "INSTALACIÓN ELÉCTRICA":45,
+  // A=30%  B=~30% → 30%
+  "VARIOS":               30,
+};
+
+// ── IVA POR TIPO ──────────────────────────────────────────────────────────
+// Paraguay: IVA 10% materiales, 5% MO (servicios personales)
+const IVA_MAT = 0.10;
+const IVA_LAB = 0.05;
+
+// ── BASE DE DATOS DE RUBROS ───────────────────────────────────────────────
+// Formato: { u: unidad, m: costo materiales (₲), mats: [{n, q, u}], y: rendimiento por día (unidades/día) }
+// Precios recalculados con promedio de ambas fuentes (Mandua Mar-2026 + Costos Ago-2025)
+// El costo de MO se calcula automáticamente al construir la DB
+
+const DB_RAW = {
+
+// ════════════════════════════════════════════════════════════════════════
+"ESTRUCTURAS": {
+// ════════════════════════════════════════════════════════════════════════
+  "Zapata fck=18 MPa": {
+    u:"m3", m:1960000, y: 1.5,
+    // Mandua Costeo pág 36: Mat ₲1.201.000 + MO ₲650.000 = ₲1.851.000
+    mats:[
+      {n:"Cemento tipo 1",q:300,u:"kg"},
+      {n:"Arena lavada",q:0.70,u:"m3"},
+      {n:"Piedra triturada IV",q:1.40,u:"tn"},
+      {n:"Varilla conformada Ø8mm",q:65,u:"kg"},
+      {n:"Alambre recocido Nº18",q:0.30,u:"kg"},
+      {n:"REOPLAST Fluidificante",q:3.50,u:"kg"},
+    ]
+  },
+  "Columna fck=21 MPa": {
+    u:"m3", m:2520000, y: 0.8,
+    // Mandua Costeo pág 36: total ₲2.380.175
+    mats:[
+      {n:"Cemento tipo 1",q:300,u:"kg"},
+      {n:"Arena lavada",q:0.70,u:"m3"},
+      {n:"Piedra triturada IV",q:1.40,u:"tn"},
+      {n:"Varilla conformada Ø8mm",q:95,u:"kg"},
+      {n:"Alambre recocido Nº18",q:0.40,u:"kg"},
+      {n:"Clavo 1 a 7 pulgadas",q:0.40,u:"kg"},
+      {n:"REOPLAST Fluidificante",q:3.50,u:"kg"},
+    ]
+  },
+  "Viga fck=21 MPa": {
+    u:"m3", m:2455000, y: 0.8,
+    // Mandua Costeo pág 36: total ₲2.320.250
+    mats:[
+      {n:"Cemento tipo 1",q:300,u:"kg"},
+      {n:"Arena lavada",q:0.70,u:"m3"},
+      {n:"Piedra triturada IV",q:1.40,u:"tn"},
+      {n:"Varilla conformada Ø8mm",q:90,u:"kg"},
+      {n:"Alambre recocido Nº18",q:0.40,u:"kg"},
+      {n:"REOPLAST",q:3,u:"kg"},
+    ]
+  },
+  "Losa fck=21MPa": {
+    u:"m3", m:2415000, y: 1.2,
+    // Mandua Costeo pág 36: total ₲2.281.300
+    mats:[
+      {n:"Cemento tipo 1",q:350,u:"kg"},
+      {n:"Arena lavada",q:0.70,u:"m3"},
+      {n:"Piedra triturada IV",q:1.30,u:"tn"},
+      {n:"Varilla conformada Ø8mm",q:80,u:"kg"},
+      {n:"Alambre recocido Nº18",q:0.40,u:"kg"},
+      {n:"REOPLAST",q:4,u:"kg"},
+    ]
+  },
+  "Encadenado 13x20 cm": {
+    u:"ml", m:119000,
+    // Mandua pág 36: ₲113.400
+    mats:[
+      {n:"Cemento tipo 1",q:10,u:"kg"},
+      {n:"Arena lavada",q:0.02,u:"m3"},
+      {n:"Piedra triturada IV",q:0.04,u:"tn"},
+      {n:"Varilla conformada Ø6mm",q:3.20,u:"kg"},
+      {n:"Alambre recocido Nº18",q:0.10,u:"kg"},
+    ]
+  },
+  "Encadenado 13x30 cm": {
+    u:"ml", m:145000,
+    // Mandua pág 36: ₲137.800
+    mats:[
+      {n:"Cemento tipo 1",q:12,u:"kg"},
+      {n:"Arena lavada",q:0.02,u:"m3"},
+      {n:"Piedra triturada IV",q:0.05,u:"tn"},
+      {n:"Varilla conformada Ø8mm",q:3.60,u:"kg"},
+    ]
+  },
+  "Encadenado 30x30 cm": {
+    u:"ml", m:180000,
+    // Mandua pág 36: ₲171.000
+    mats:[
+      {n:"Cemento tipo 1",q:27,u:"kg"},
+      {n:"Arena lavada",q:0.06,u:"m3"},
+      {n:"Piedra triturada IV",q:0.13,u:"tn"},
+      {n:"Varilla conformada Ø10mm",q:4.00,u:"kg"},
+    ]
+  },
+  "Losa Rap h=17cm (12+5)": {
+    u:"m2", m:240000,
+    // Mandua Costeo pág 37: ₲227.080
+    mats:[
+      {n:"Cemento tipo 1",q:22.8,u:"kg"},
+      {n:"Arena lavada",q:0.04,u:"m3"},
+      {n:"Piedra triturada V",q:0.09,u:"tn"},
+      {n:"Varilla conformada Ø6mm",q:1.80,u:"kg"},
+      {n:"Alambre recocido Nº18",q:0.06,u:"kg"},
+      {n:"Viguetas y ladrillos",q:1,u:"m2"},
+    ]
+  },
+  "Losa Rap h=24cm (20+4)": {
+    u:"m2", m:252000,
+    // Mandua Costeo pág 37: ₲239.070
+    mats:[
+      {n:"Cemento tipo 1",q:24.2,u:"kg"},
+      {n:"Arena lavada",q:0.05,u:"m3"},
+      {n:"Piedra triturada V",q:0.11,u:"tn"},
+      {n:"Varilla conformada Ø8mm",q:1.80,u:"kg"},
+      {n:"Viguetas y ladrillos",q:1,u:"m2"},
+    ]
+  },
+  "Losa Listalosa": {
+    u:"m2", m:233000,
+    // Mandua Costeo pág 37: ₲220.400
+    mats:[
+      {n:"Cemento tipo 1",q:18,u:"kg"},
+      {n:"Piedra triturada V",q:0.08,u:"tn"},
+      {n:"Arena lavada",q:0.03,u:"m3"},
+      {n:"Varilla conformada Ø6mm",q:1.87,u:"kg"},
+      {n:"Vigueta listalosa",q:1,u:"m2"},
+    ]
+  },
+  "Piso H°A° fck=21MPa 10cm": {
+    u:"m2", m:220000,
+    // Mandua Costeo pág 37: ₲208.087
+    mats:[
+      {n:"Cemento tipo 1",q:35,u:"kg"},
+      {n:"Arena lavada de río",q:0.07,u:"m3"},
+      {n:"Piedra triturada IV",q:0.13,u:"tn"},
+      {n:"Varilla conformada Ø8mm",q:5,u:"kg"},
+      {n:"Varilla lisa",q:1,u:"kg"},
+      {n:"REOPLAST",q:0.35,u:"kg"},
+      {n:"SIKAFLEX Sellador",q:0.33,u:"lt"},
+    ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"FUNDACIONES": {
+// ════════════════════════════════════════════════════════════════════════
+  "Cimiento PBC con cal (1/2:1:4)": {
+    u:"m3", m:440000,
+    // Mandua Costeo pág 37: ₲419.850
+    mats:[
+      {n:"Piedra bruta blanca",q:1.20,u:"m3"},
+      {n:"Cemento tipo 1",q:46,u:"kg"},
+      {n:"Cal triturada",q:30,u:"kg"},
+      {n:"Arena lavada",q:0.30,u:"m3"},
+    ]
+  },
+  "Cimiento PBC sin cal (1:12)": {
+    u:"m3", m:370000,
+    // Mandua Costeo pág 37: ₲353.920
+    mats:[
+      {n:"Piedra bruta blanca",q:1.20,u:"m3"},
+      {n:"Cemento tipo 1",q:80,u:"kg"},
+      {n:"Arena lavada",q:0.60,u:"m3"},
+    ]
+  },
+  "Cimiento H° Cascotes - Tierra Gorda": {
+    u:"m3", m:322000,
+    // Mandua Costeo pág 37: ₲310.000
+    mats:[
+      {n:"Tierra gorda",q:0.60,u:"m3"},
+      {n:"Cemento tipo 1",q:80,u:"kg"},
+      {n:"Cascotillo cerámico",q:0.80,u:"m3"},
+    ]
+  },
+  "Cimiento H° Cascotes - Arena Lavada": {
+    u:"m3", m:458000,
+    // Mandua Costeo pág 37: ₲442.600
+    mats:[
+      {n:"Arena lavada",q:0.60,u:"m3"},
+      {n:"Cemento tipo 1",q:200,u:"kg"},
+      {n:"Cascotillo cerámico",q:0.80,u:"m3"},
+    ]
+  },
+  "Hormigón Ciclópeo (1:3:6)": {
+    u:"m3", m:716000,
+    // Mandua Costeo pág 37: ₲685.500
+    mats:[
+      {n:"Piedra bruta blanca",q:0.40,u:"m3"},
+      {n:"Cemento tipo 1",q:225,u:"kg"},
+      {n:"Arena lavada",q:0.40,u:"m3"},
+      {n:"Piedra triturada IV",q:1.05,u:"tn"},
+    ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"MAMPOSTERÍA": {
+// ════════════════════════════════════════════════════════════════════════
+  "Nivelación 0.30m ladrillo común": {
+    u:"m2", m:178000,
+    // Mandua Costeo pág 37: ₲169.703
+    mats:[
+      {n:"Ladrillo común",q:122,u:"un"},
+      {n:"Cemento tipo 1",q:14.1,u:"kg"},
+      {n:"Cal triturada",q:13.3,u:"kg"},
+      {n:"Arena lavada",q:0.10,u:"m3"},
+    ]
+  },
+  "Elevación 0.15m ladrillo común": {
+    u:"m2", m:96000,
+    // Mandua Costeo pág 38: ₲91.838
+    mats:[
+      {n:"Ladrillo común",q:65,u:"un"},
+      {n:"Cemento tipo 1",q:5.74,u:"kg"},
+      {n:"Cal triturada",q:5.53,u:"kg"},
+      {n:"Arena lavada",q:0.05,u:"m3"},
+    ]
+  },
+  "Elevación 0.20m ladrillo común": {
+    u:"m2", m:135000,
+    // Mandua Costeo pág 38: ₲128.443
+    mats:[
+      {n:"Ladrillo común",q:95,u:"un"},
+      {n:"Cemento tipo 1",q:8.80,u:"kg"},
+      {n:"Cal triturada",q:8.50,u:"kg"},
+      {n:"Arena lavada",q:0.09,u:"m3"},
+    ]
+  },
+  "Elevación 0.30m ladrillo común": {
+    u:"m2", m:173000,
+    // Mandua Costeo pág 38: ₲164.845
+    mats:[
+      {n:"Ladrillo común",q:122,u:"un"},
+      {n:"Cemento tipo 1",q:11.8,u:"kg"},
+      {n:"Cal triturada",q:11.4,u:"kg"},
+      {n:"Arena lavada",q:0.10,u:"m3"},
+    ]
+  },
+  "Elevación 0.15m ladrillo cerámico 6 tubos": {
+    u:"m2", m:62000,
+    // Mandua Costeo pág 38: ₲54.868
+    mats:[
+      {n:"Ladrillo cerámico 6 tubos",q:20,u:"un"},
+      {n:"Cemento tipo 1",q:1.80,u:"kg"},
+      {n:"Cal triturada",q:1.70,u:"kg"},
+      {n:"Arena lavada",q:0.01,u:"m3"},
+    ]
+  },
+  "Elevación 0.20m ladrillo cerámico hueco": {
+    u:"m2", m:88000,
+    // Mandua Costeo pág 38: ₲83.423
+    mats:[
+      {n:"Ladrillo cerámico hueco 18x18x25cm",q:19,u:"un"},
+      {n:"Cemento tipo 1",q:2.80,u:"kg"},
+      {n:"Cal triturada",q:2.70,u:"kg"},
+      {n:"Arena lavada",q:0.02,u:"m3"},
+    ]
+  },
+  "Sardinel ladrillo común": {
+    u:"ml", m:64000,
+    // Mandua Costeo pág 38: ₲61.263
+    mats:[
+      {n:"Ladrillo común",q:16,u:"un"},
+      {n:"Cemento tipo 1",q:2.10,u:"kg"},
+      {n:"Cal triturada",q:0.90,u:"kg"},
+      {n:"Arena lavada",q:0.01,u:"m3"},
+    ]
+  },
+  "Sardinel ladrillo laminado": {
+    u:"ml", m:78000,
+    // Mandua Costeo pág 39: ₲67.773
+    mats:[
+      {n:"Ladrillo laminado Ita Yby",q:14,u:"un"},
+      {n:"Cemento tipo 1",q:2.10,u:"kg"},
+      {n:"Cal triturada",q:0.90,u:"kg"},
+      {n:"Arena lavada",q:0.01,u:"m3"},
+    ]
+  },
+  "Muro piedra bruta 30cm": {
+    u:"m2", m:160000,
+    // Mandua Costeo pág 39: ₲153.850
+    mats:[
+      {n:"Piedra bruta blanca",q:0.30,u:"m3"},
+      {n:"Cemento tipo 1",q:12,u:"kg"},
+      {n:"Cal triturada",q:14,u:"kg"},
+      {n:"Arena lavada",q:0.10,u:"m3"},
+    ]
+  },
+  "Pilar ladrillo común 30x30": {
+    u:"ml", m:79000,
+    // Mandua Costeo pág 39: ₲75.350
+    mats:[
+      {n:"Ladrillo común",q:35,u:"un"},
+      {n:"Cemento tipo 1",q:10,u:"kg"},
+      {n:"Cal triturada",q:4,u:"kg"},
+      {n:"Arena lavada",q:0.03,u:"m3"},
+    ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"CONTRAPISOS": {
+// ════════════════════════════════════════════════════════════════════════
+  "Contrapiso 7cm cascotes (1/4:1:4:6)": {
+    u:"m2", m:36000,
+    // Mandua Costeo pág 40: ₲34.440
+    mats:[
+      {n:"Cemento tipo 1",q:4,u:"kg"},
+      {n:"Cal triturada",q:5,u:"kg"},
+      {n:"Arena lavada",q:0.03,u:"m3"},
+      {n:"Cascotillo cerámico",q:0.07,u:"m3"},
+    ]
+  },
+  "Contrapiso 10cm cascotes (1/4:1:4:6)": {
+    u:"m2", m:44500,
+    // Mandua Costeo pág 40: ₲42.405
+    mats:[
+      {n:"Cemento tipo 1",q:5,u:"kg"},
+      {n:"Cal triturada",q:6,u:"kg"},
+      {n:"Arena lavada",q:0.04,u:"m3"},
+      {n:"Cascotillo cerámico",q:0.09,u:"m3"},
+    ]
+  },
+  "Contrapiso 20cm - Losa Sanitaria": {
+    u:"m2", m:52000,
+    // Mandua Costeo pág 40: ₲49.655
+    mats:[
+      {n:"Cemento tipo 1",q:7,u:"kg"},
+      {n:"Cal triturada",q:10,u:"kg"},
+      {n:"Arena lavada",q:0.05,u:"m3"},
+      {n:"Cascotillo cerámico",q:0.09,u:"m3"},
+    ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"REVOQUES": {
+// ════════════════════════════════════════════════════════════════════════
+  "Revoque 1 capa 1.5cm hidrófugo (1:4:16)": {
+    u:"m2", m:33000,
+    // Mandua Costeo pág 40: ₲31.365
+    mats:[
+      {n:"Cemento tipo 1",q:1.50,u:"kg"},
+      {n:"Cal triturada",q:4,u:"kg"},
+      {n:"Arena lavada",q:0.02,u:"m3"},
+      {n:"Betocem hidrófugo",q:0.25,u:"lt"},
+    ]
+  },
+  "Revoque 1 capa sin hidrófugo": {
+    u:"m2", m:31500,
+    // Mandua Costeo pág 40: ₲29.850
+    mats:[
+      {n:"Cemento tipo 1",q:1.50,u:"kg"},
+      {n:"Cal triturada",q:4,u:"kg"},
+      {n:"Arena lavada",q:0.02,u:"m3"},
+    ]
+  },
+  "Revoque salpicado (1:3)": {
+    u:"m2", m:28800,
+    // Mandua Costeo pág 40: ₲27.488
+    mats:[
+      {n:"Cemento tipo 1",q:3,u:"kg"},
+      {n:"Arena lavada",q:0.01,u:"m3"},
+      {n:"Ceresita hidrófugo",q:0.25,u:"lt"},
+    ]
+  },
+  "Azotada impermeable 0.5cm": {
+    u:"m2", m:13000,
+    // Mandua Costeo pág 40: ₲12.465
+    mats:[
+      {n:"Cemento tipo 1",q:2.70,u:"kg"},
+      {n:"Arena lavada",q:0.01,u:"m3"},
+      {n:"Ceresita hidrófugo",q:0.30,u:"lt"},
+    ]
+  },
+  "Revoque cielorraso (1:4:12)": {
+    u:"m2", m:52000,
+    // Mandua Costeo pág 40: ₲49.658
+    mats:[
+      {n:"Cemento tipo 1",q:1.60,u:"kg"},
+      {n:"Cal triturada",q:5.10,u:"kg"},
+      {n:"Arena lavada",q:0.01,u:"m3"},
+    ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"TECHOS": {
+// ════════════════════════════════════════════════════════════════════════
+  "Teja española s/ tejuelón c/ madera": {
+    u:"m2", m:296000,
+    // Mandua Costeo pág 40: ₲279.541
+    mats:[
+      {n:"Teja española Yoayu",q:28,u:"un"},
+      {n:"Tejuelón 1ra Ita Yby",q:10,u:"un"},
+      {n:"Tirante 2x5 ybyrapyta",q:20,u:"pulg/m"},
+      {n:"Viga 4x8 ybyrapyta",q:3.80,u:"pulg/m"},
+    ]
+  },
+  "Teja española s/ tejuelita": {
+    u:"m2", m:291000,
+    // Mandua Costeo pág 40: ₲275.351
+    mats:[
+      {n:"Teja española Yoayu",q:28,u:"un"},
+      {n:"Tejuelita 1ra Yoayu",q:30,u:"un"},
+      {n:"Tirante 2x5 ybyrapyta",q:20,u:"pulg/m"},
+    ]
+  },
+  "Teja francesa s/ machimbre": {
+    u:"m2", m:302000,
+    // Mandua Costeo pág 40: ₲286.114
+    mats:[
+      {n:"Teja francesa 1ra Yoayu",q:16,u:"un"},
+      {n:"Machimbre ybyrapyta 1x3",q:1.05,u:"m2"},
+      {n:"Tirante 2x5 ybyrapyta",q:24,u:"pulg/m"},
+      {n:"Listón cedro 1x2",q:2,u:"ml"},
+    ]
+  },
+  "Chapa Nº28 s/ caños metálicos": {
+    u:"m2", m:122214,
+    // Mandua Costeo pág 40: ₲122.214
+    mats:[
+      {n:"Caño rectangular 30x50x1.20mm",q:1,u:"ml"},
+      {n:"Chapa zinc Nº28",q:1.05,u:"m2"},
+      {n:"Tornillo autoroscante 2",q:4,u:"un"},
+    ]
+  },
+  "Chapa Nº28 s/ varillas torsionadas": {
+    u:"m2", m:197504,
+    // Mandua Costeo pág 40: ₲197.504
+    mats:[
+      {n:"Varilla torsionada",q:6,u:"kg"},
+      {n:"Chapa zinc Nº28",q:1.05,u:"m2"},
+    ]
+  },
+  "Chapa fibrocemento ondulada 6mm": {
+    u:"m2", m:83440,
+    // Mandua Costeo pág 41: ₲83.440
+    mats:[
+      {n:"Chapa fibrocemento ondulada 6mm",q:0.40,u:"un"},
+      {n:"Tirante 2x5 ybyrapyta",q:5,u:"pulg/m"},
+      {n:"Clavo 1 a 7 pulgadas",q:0.03,u:"kg"},
+    ]
+  },
+  "Techo metálico chapa trapezoidal": {
+    u:"m2", m:172464,
+    // Mandua Costeo pág 41: ₲172.464
+    mats:[
+      {n:"Chapa trapezoidal Nº27",q:1,u:"m2"},
+      {n:"Perfil U 100x40 1.8mm",q:1,u:"ml"},
+      {n:"Perfil C 100x38 1.80mm",q:1,u:"ml"},
+      {n:"Tornillos 12x2",q:4,u:"un"},
+    ]
+  },
+  "Entrepiso de madera": {
+    u:"m2", m:149200,
+    // Mandua Costeo pág 41: ₲149.200
+    mats:[
+      {n:"Tirante ybyrapyta",q:20,u:"pulg/m"},
+      {n:"Machimbre ybyrapyta 1x3",q:1.10,u:"m2"},
+      {n:"Clavo",q:0.25,u:"kg"},
+    ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"PISOS": {
+// ════════════════════════════════════════════════════════════════════════
+  "Baldosa calcárea 20x20cm": {
+    u:"m2", m:82000,
+    // Mandua Costeo pág 41: ₲79.225
+    mats:[
+      {n:"Baldosa calcárea 20x20cm",q:1.05,u:"m2"},
+      {n:"Cemento tipo 1",q:4,u:"kg"},
+      {n:"Cal triturada",q:3,u:"kg"},
+      {n:"Arena lavada",q:0.03,u:"m3"},
+      {n:"Pastina base gris",q:0.20,u:"kg"},
+    ]
+  },
+  "Mosaico granítico gris 30x30cm": {
+    u:"m2", m:147000,
+    // Mandua Costeo pág 41: ₲141.975
+    mats:[
+      {n:"Mosaico granítico gris 30x30cm",q:1.05,u:"m2"},
+      {n:"Cemento tipo 1",q:8,u:"kg"},
+      {n:"Cal triturada",q:7,u:"kg"},
+      {n:"Arena lavada",q:0.03,u:"m3"},
+    ]
+  },
+  "Mosaico granítico blanco 30x30cm": {
+    u:"m2", m:155000,
+    // Mandua Costeo pág 41: ₲149.325
+    mats:[
+      {n:"Mosaico granítico blanco 30x30cm",q:1.05,u:"m2"},
+      {n:"Cemento tipo 1",q:8,u:"kg"},
+      {n:"Cal triturada",q:7,u:"kg"},
+      {n:"Arena lavada",q:0.03,u:"m3"},
+    ]
+  },
+  "Cerámica esmaltada Cecafi 32x57cm": {
+    u:"m2", m:77000,
+    // Mandua Costeo pág 41: ₲75.093
+    mats:[
+      {n:"Cerámica Cecafi 32x57cm",q:1.05,u:"m2"},
+      {n:"Mezcla adhesiva",q:3.50,u:"kg"},
+      {n:"Pastina base blanca",q:0.20,u:"kg"},
+    ]
+  },
+  "Cerámica Cecafi 45x45cm": {
+    u:"m2", m:82500,
+    // Mandua Costeo pág 41: ₲80.226
+    mats:[
+      {n:"Piso Cecafi 45x45cm",q:1.05,u:"m2"},
+      {n:"Mezcla adhesiva",q:2,u:"kg"},
+      {n:"Pastina base blanca",q:0.20,u:"kg"},
+    ]
+  },
+  "Porcelanato 60x60cm": {
+    u:"m2", m:152000,
+    // Mandua Costeo pág 41: ₲147.846
+    mats:[
+      {n:"Porcelanato 60x60cm",q:1.05,u:"m2"},
+      {n:"Mezcla adhesiva",q:2,u:"kg"},
+      {n:"Pastina base blanca",q:0.20,u:"kg"},
+    ]
+  },
+  "Layota 28x28cm Yoayu": {
+    u:"m2", m:58500,
+    // Mandua Costeo pág 41: ₲56.017
+    mats:[
+      {n:"Layota 1ra Yoayu 28x28cm",q:12,u:"un"},
+      {n:"Cemento tipo 1",q:4,u:"kg"},
+      {n:"Cal triturada",q:3,u:"kg"},
+      {n:"Arena lavada",q:0.03,u:"m3"},
+    ]
+  },
+  "Piedra losa rompecabeza": {
+    u:"m2", m:92000,
+    // Mandua Costeo pág 41: ₲89.200
+    mats:[
+      {n:"Piedra losa blanca",q:1.05,u:"m2"},
+      {n:"Cemento tipo 1",q:6,u:"kg"},
+      {n:"Cal triturada",q:4,u:"kg"},
+      {n:"Arena lavada",q:0.03,u:"m3"},
+    ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"AISLACIÓN": {
+// ════════════════════════════════════════════════════════════════════════
+  "Horizontal 0.30m con asfalto": {
+    u:"ml", m:33000,
+    // Mandua Costeo pág 39: ₲31.818
+    mats:[
+      {n:"Cemento tipo 1",q:1.80,u:"kg"},
+      {n:"Arena lavada",q:0.03,u:"m3"},
+      {n:"Negrolin (asfalto)",q:1,u:"lt"},
+    ]
+  },
+  "Horizontal 0.15m con asfalto": {
+    u:"ml", m:19500,
+    // Mandua Costeo pág 39: ₲18.844
+    mats:[
+      {n:"Cemento tipo 1",q:1,u:"kg"},
+      {n:"Arena lavada",q:0.02,u:"m3"},
+      {n:"Negrolin (asfalto)",q:0.50,u:"lt"},
+    ]
+  },
+  "Vertical panderete 0.15m": {
+    u:"m2", m:111000,
+    // Mandua Costeo pág 39: ₲106.691
+    mats:[
+      {n:"Ladrillo común",q:27,u:"un"},
+      {n:"Cemento tipo 1",q:5,u:"kg"},
+      {n:"Arena lavada",q:0.30,u:"m3"},
+      {n:"Negrolin (asfalto)",q:2,u:"lt"},
+      {n:"Betocem hidrófugo",q:0.25,u:"lt"},
+    ]
+  },
+  "Losa para baño": {
+    u:"m2", m:62000,
+    // Mandua Costeo pág 39: ₲59.847
+    mats:[
+      {n:"Cemento tipo 1",q:7,u:"kg"},
+      {n:"Arena lavada",q:0.02,u:"m3"},
+      {n:"Negrolin (asfalto)",q:1.50,u:"lt"},
+      {n:"Betocem hidrófugo",q:0.25,u:"lt"},
+    ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"PINTURAS": {
+// ════════════════════════════════════════════════════════════════════════
+  "Pintura a la cal": {
+    u:"m2", m:15000,
+    // Mandua Costeo pág 51: ₲14.255 (con colorante)
+    mats:[
+      {n:"Cal triturada",q:0.50,u:"kg"},
+      {n:"Colorante 100cc",q:0.05,u:"un"},
+      {n:"Fijador Inatix",q:0.60,u:"lt"},
+      {n:"Lija",q:0.25,u:"un"},
+    ]
+  },
+  "Látex interior con enduido": {
+    u:"m2", m:37000,
+    // Mandua Costeo pág 51: ₲35.399
+    mats:[
+      {n:"Lija",q:0.25,u:"un"},
+      {n:"Sellador acrílico",q:0.05,u:"lt"},
+      {n:"Látex interior",q:0.30,u:"lt"},
+      {n:"Enduido interior",q:1.20,u:"kg"},
+    ]
+  },
+  "Látex interior sin enduido": {
+    u:"m2", m:23500,
+    // Mandua Costeo pág 51: ₲22.591
+    mats:[
+      {n:"Lija",q:0.25,u:"un"},
+      {n:"Sellador acrílico",q:0.05,u:"lt"},
+      {n:"Látex interior",q:0.30,u:"lt"},
+    ]
+  },
+  "Látex exterior con enduido": {
+    u:"m2", m:37700,
+    // Mandua Costeo pág 51: ₲35.975
+    mats:[
+      {n:"Lija",q:0.25,u:"un"},
+      {n:"Sellador acrílico",q:0.05,u:"lt"},
+      {n:"Látex exterior",q:0.30,u:"lt"},
+      {n:"Enduido exterior",q:1.20,u:"kg"},
+    ]
+  },
+  "Látex exterior sin enduido": {
+    u:"m2", m:22591,
+    // Mandua Costeo pág 51: ₲22.591
+    mats:[
+      {n:"Lija",q:0.25,u:"un"},
+      {n:"Látex exterior",q:0.30,u:"lt"},
+    ]
+  },
+  "Barnizado machimbre": {
+    u:"m2", m:28500,
+    // Mandua Costeo pág 51: ₲27.316
+    mats:[
+      {n:"Aceite de linaza",q:0.20,u:"lt"},
+      {n:"Barniz sintético brillante",q:0.25,u:"lt"},
+    ]
+  },
+  "Tejuela al barniz": {
+    u:"m2", m:28000,
+    // Mandua Costeo pág 51: ₲26.870
+    mats:[
+      {n:"Ácido muriático",q:0.07,u:"lt"},
+      {n:"Barniz sintético brillante",q:0.25,u:"lt"},
+    ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"CARPINTERÍA MADERA": {
+// ════════════════════════════════════════════════════════════════════════
+  "Marco ybyrapyta puerta 0.70m": {
+    u:"un", m:400750,
+    // Mandua Costeo pág 49: ₲400.750
+    mats:[
+      {n:"Marco ybyrapyta",q:5.10,u:"ml"},
+      {n:"Tirafondo galvanizado 3/8x5",q:5,u:"un"},
+      {n:"Cemento tipo 1",q:1,u:"kg"},
+    ]
+  },
+  "Marco ybyrapyta puerta 0.80m": {
+    u:"un", m:407750,
+    // Mandua Costeo pág 49: ₲407.750
+    mats:[
+      {n:"Marco ybyrapyta",q:5.40,u:"ml"},
+      {n:"Tirafondo galvanizado 3/8x5",q:5,u:"un"},
+    ]
+  },
+  "Marco ybyrapyta ventana 1.50m": {
+    u:"un", m:443750,
+    // Mandua Costeo pág 49: ₲443.750
+    mats:[
+      {n:"Marco ybyrapyta",q:5.80,u:"ml"},
+      {n:"Tirafondo galvanizado 3/8x5",q:8,u:"un"},
+    ]
+  },
+  "Puerta tablero eucalipto 0.80x2.10m": {
+    u:"un", m:1185500,
+    // Mandua Costeo pág 50: ₲1.185.500
+    mats:[
+      {n:"Puerta tablero eucalipto",q:1,u:"un"},
+      {n:"Ficha 5 agujeros",q:1.50,u:"par"},
+      {n:"Cerradura externa c/manija",q:1,u:"un"},
+    ]
+  },
+  "Puerta tablero punta diamante 0.80x2.10m": {
+    u:"un", m:1855500,
+    // Mandua Costeo pág 50: ₲1.855.500
+    mats:[
+      {n:"Puerta tablero punta diamante",q:1,u:"un"},
+      {n:"Ficha 5 agujeros",q:1.50,u:"par"},
+      {n:"Cerradura externa c/manija",q:1,u:"un"},
+    ]
+  },
+  "Persiana 1.50x2.10m 3 hojas": {
+    u:"un", m:1705000,
+    // Mandua Costeo pág 50: ₲1.705.000
+    mats:[
+      {n:"Hoja persiana varilla 45cm",q:3.15,u:"m2"},
+      {n:"Ficha 5 agujeros",q:3,u:"par"},
+      {n:"Tornillo 1x7",q:60,u:"un"},
+    ]
+  },
+  "Vidriera 1.50x2.10m 3 hojas": {
+    u:"un", m:1232500,
+    // Mandua Costeo pág 50: ₲1.232.500
+    mats:[
+      {n:"Puerta vidriera eucalipto",q:3.15,u:"m2"},
+      {n:"Ficha 5 agujeros",q:3,u:"par"},
+      {n:"Tornillo 1x7",q:60,u:"un"},
+    ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"CARPINTERÍA METÁLICA": {
+// ════════════════════════════════════════════════════════════════════════
+  "Balancín hasta 1m²": {
+    u:"m2", m:258750,
+    // Mandua Costeo pág 50: ₲258.750
+    mats:[
+      {n:"Balancín fabricado",q:1,u:"m2"},
+      {n:"Cemento tipo 1",q:1,u:"kg"},
+    ]
+  },
+  "Portón cochera 3.00x2.00m": {
+    u:"un", m:2027450,
+    // Mandua Costeo pág 51: ₲2.027.450
+    mats:[
+      {n:"Portón con cerradura",q:6,u:"m2"},
+      {n:"Cemento tipo 1",q:5,u:"kg"},
+      {n:"Arena lavada",q:0.03,u:"m3"},
+    ]
+  },
+  "Portón cochera 4.40x4.00m": {
+    u:"un", m:5166250,
+    // Mandua Costeo pág 51: ₲5.166.250
+    mats:[
+      {n:"Portón con cerradura",q:17.6,u:"m2"},
+      {n:"Cemento tipo 1",q:10,u:"kg"},
+    ]
+  },
+  "Escalera metálica recta": {
+    u:"un", m:1503750,
+    // Mandua Costeo pág 51: ₲1.503.750
+    mats:[
+      {n:"Escalera metálica",q:4,u:"un"},
+      {n:"Cemento tipo 1",q:5,u:"kg"},
+    ]
+  },
+  "Reja hierro artística 1.50x1.20m": {
+    u:"un", m:497950,
+    // Mandua Costeo pág 51: ₲497.950
+    mats:[
+      {n:"Reja artística",q:1.80,u:"m2"},
+      {n:"Cemento tipo 1",q:3,u:"kg"},
+    ]
+  },
+  "Cortina metálica 2.40x2.60m": {
+    u:"un", m:4346000,
+    // Mandua Costeo pág 51: ₲4.346.000
+    mats:[
+      {n:"Cortina metálica enrollable",q:1,u:"un"},
+    ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"DESAGÜE CLOACAL": {
+// ════════════════════════════════════════════════════════════════════════
+  "Boca de desagüe 20x20x20cm": {
+    u:"un", m:165525,
+    // Mandua Costeo pág 43: ₲165.525
+    mats:[
+      {n:"Ladrillo común",q:50,u:"un"},
+      {n:"Cemento tipo 1",q:5,u:"kg"},
+      {n:"Arena lavada",q:0.04,u:"m3"},
+      {n:"Cal triturada",q:5,u:"kg"},
+      {n:"Rejilla hierro 20x20cm",q:1,u:"un"},
+    ]
+  },
+  "Boca de desagüe 30x30x30cm": {
+    u:"un", m:219325,
+    // Mandua Costeo pág 43: ₲219.325
+    mats:[
+      {n:"Ladrillo común",q:65,u:"un"},
+      {n:"Cemento tipo 1",q:7,u:"kg"},
+      {n:"Arena lavada",q:0.05,u:"m3"},
+      {n:"Cal triturada",q:7,u:"kg"},
+      {n:"Rejilla hierro 30x30cm",q:1,u:"un"},
+    ]
+  },
+  "Registro 30x30x30cm": {
+    u:"un", m:213025,
+    // Mandua Costeo pág 43: ₲213.025
+    mats:[
+      {n:"Ladrillo común",q:65,u:"un"},
+      {n:"Cemento tipo 1",q:7,u:"kg"},
+      {n:"Arena lavada",q:0.05,u:"m3"},
+      {n:"Cal triturada",q:7,u:"kg"},
+      {n:"Tapa H° 30x30cm",q:1,u:"un"},
+    ]
+  },
+  "Caño PVC 40mm (desagüe)": {
+    u:"ml", m:21450,
+    // Mandua Costeo pág 43: ₲21.450
+    mats:[{n:"Caño PVC 40mm",q:1,u:"ml"}]
+  },
+  "Caño PVC 50mm (desagüe)": {
+    u:"ml", m:25250,
+    // Mandua Costeo pág 43: ₲25.250
+    mats:[{n:"Caño PVC 50mm",q:1,u:"ml"}]
+  },
+  "Caño PVC 100mm (desagüe)": {
+    u:"ml", m:49000,
+    // Mandua Costeo pág 43: ₲49.000
+    mats:[{n:"Caño PVC 100mm",q:1,u:"ml"}]
+  },
+  "Pozo ciego Ø1.50m h=3.00m": {
+    u:"un", m:2617500,
+    // Mandua Costeo pág 44: ₲2.617.500
+    mats:[
+      {n:"Ladrillo común",q:1100,u:"un"},
+      {n:"Cemento tipo 1",q:150,u:"kg"},
+      {n:"Arena lavada",q:0.50,u:"m3"},
+    ]
+  },
+  "Cámara séptica 1.00x1.60x1.20m": {
+    u:"un", m:1578250,
+    // Mandua Costeo pág 44: ₲1.578.250
+    mats:[
+      {n:"Ladrillo común",q:420,u:"un"},
+      {n:"Cemento tipo 1",q:100,u:"kg"},
+      {n:"Cal triturada",q:50,u:"kg"},
+      {n:"Arena lavada",q:1.50,u:"m3"},
+      {n:"Varilla conformada Ø6mm",q:2.50,u:"kg"},
+    ]
+  },
+  "Rejilla de piso sifonada 150x150mm": {
+    u:"un", m:141000,
+    // Mandua Costeo pág 44: ₲141.000
+    mats:[{n:"Caja sifonada 150x150x50mm",q:1,u:"un"}]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"AGUA CORRIENTE": {
+// ════════════════════════════════════════════════════════════════════════
+  "Caño PVC roscable 1 pulgada": {
+    u:"ml", m:43850,
+    // Mandua Costeo pág 45: ₲43.850
+    mats:[{n:"Caño PVC roscable 1 pulgada",q:1,u:"ml"}]
+  },
+  "Caño PVC roscable 3/4 pulgada": {
+    u:"ml", m:25850,
+    // Mandua Costeo pág 45: ₲25.850
+    mats:[{n:"Caño PVC roscable 3/4 pulgada",q:1,u:"ml"}]
+  },
+  "Caño PVC roscable 1/2 pulgada": {
+    u:"ml", m:17850,
+    // Mandua Costeo pág 45: ₲17.850
+    mats:[{n:"Caño PVC roscable 1/2 pulgada",q:1,u:"ml"}]
+  },
+  "Instalación agua fría - baño completo": {
+    u:"un", m:727090,
+    // Mandua Costeo pág 45: ₲727.090
+    mats:[
+      {n:"Caño 1/2 roscable",q:9,u:"ml"},
+      {n:"Codo 90° roscable 1/2",q:6,u:"un"},
+      {n:"Llave de paso 1/2 FV cromada",q:2,u:"un"},
+      {n:"Tapón roscable 1/2",q:4,u:"un"},
+      {n:"Cinta teflón 18mmx25m",q:2,u:"un"},
+    ]
+  },
+  "Instalación agua fría - baño servicio": {
+    u:"un", m:521975,
+    // Mandua Costeo pág 45: ₲521.975
+    mats:[
+      {n:"Caño 1/2 roscable",q:6,u:"ml"},
+      {n:"Codo 90° roscable 1/2",q:6,u:"un"},
+      {n:"Tapón roscable 1/2",q:2,u:"un"},
+      {n:"Cinta teflón 18mmx25m",q:1,u:"un"},
+    ]
+  },
+  "Instalación agua fría - baño social": {
+    u:"un", m:320380,
+    // Mandua Costeo pág 45: ₲320.380
+    mats:[
+      {n:"Caño 1/2 roscable",q:4,u:"ml"},
+      {n:"Codo 90° roscable 1/2",q:6,u:"un"},
+      {n:"Tapón roscable 1/2",q:2,u:"un"},
+      {n:"Cinta teflón 18mmx25m",q:1,u:"un"},
+    ]
+  },
+  "Instalación agua fría - pileta cocina": {
+    u:"un", m:220810,
+    // Mandua Costeo pág 46: ₲220.810
+    mats:[
+      {n:"Caño 1/2 roscable",q:2,u:"ml"},
+      {n:"Codo 90° roscable 1/2",q:3,u:"un"},
+      {n:"Tapón roscable 1/2",q:1,u:"un"},
+    ]
+  },
+  "Tanque cisterna fibra de vidrio 1000lt": {
+    u:"un", m:1010900,
+    // Mandua Costeo pág 52: ₲1.010.900
+    mats:[
+      {n:"Ladrillo común",q:100,u:"un"},
+      {n:"Cemento tipo 1",q:12,u:"kg"},
+      {n:"Cal triturada",q:10,u:"kg"},
+      {n:"Tanque Fibrac 1000lt",q:1,u:"un"},
+      {n:"Dintel prefabricado 1mx14cm",q:2,u:"un"},
+    ]
+  },
+  "Tanque cisterna fibra de vidrio 500lt": {
+    u:"un", m:715950,
+    // Mandua Costeo pág 52: ₲715.950
+    mats:[
+      {n:"Ladrillo común",q:100,u:"un"},
+      {n:"Cemento tipo 1",q:12,u:"kg"},
+      {n:"Cal triturada",q:10,u:"kg"},
+      {n:"Arena lavada",q:0.30,u:"m3"},
+      {n:"Varilla conformada Ø6mm",q:3,u:"kg"},
+      {n:"Tanque Fibrac 500lt",q:1,u:"un"},
+    ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"ARTEFACTOS SANITARIOS": {
+// ════════════════════════════════════════════════════════════════════════
+  "Baño completo frío y caliente (sin bañera)": {
+    u:"un", m:7604143,
+    // Mandua Costeo pág 46: ₲7.604.143
+    mats:[
+      {n:"Juego WC cisterna Deca Ravena",q:1,u:"un"},
+      {n:"Grifería FV Línea Clásica",q:1,u:"un"},
+      {n:"Termocalefón 80lt",q:1,u:"un"},
+      {n:"Botiquín 44x58x11cm",q:1,u:"un"},
+      {n:"Ducha eléctrica Corona",q:1,u:"un"},
+    ]
+  },
+  "Baño completo con bañera común": {
+    u:"un", m:8886143,
+    // Mandua Costeo pág 46: ₲8.886.143
+    mats:[
+      {n:"Juego WC cisterna Deca Ravena",q:1,u:"un"},
+      {n:"Grifería FV Línea Clásica",q:1,u:"un"},
+      {n:"Bañera 1.60x0.70m",q:1,u:"un"},
+    ]
+  },
+  "Baño social standard": {
+    u:"un", m:1890163,
+    // Mandua Costeo pág 47: ₲1.890.163
+    mats:[
+      {n:"Juego WC cisterna alta Deca",q:1,u:"un"},
+      {n:"Canilla lavatorio FV",q:1,u:"un"},
+      {n:"Prolongador FV cromo",q:2,u:"un"},
+    ]
+  },
+  "Pileta cocina acero inoxidable": {
+    u:"un", m:598000,
+    // Mandua Costeo pág 47: ₲598.000
+    mats:[
+      {n:"Pileta 1 bacha acero inox",q:1,u:"un"},
+      {n:"Grifería externa FV",q:1,u:"un"},
+    ]
+  },
+  "Mesada granito para cocina": {
+    u:"un", m:2139000,
+    // Mandua Costeo pág 47: ₲2.139.000
+    mats:[
+      {n:"Granito natural",q:2.28,u:"m2"},
+      {n:"Moldura pecho paloma",q:3.20,u:"ml"},
+      {n:"Zócalo de granito",q:0.50,u:"m2"},
+    ]
+  },
+  "Mesada mármol baño 0.70x0.60m": {
+    u:"un", m:602000,
+    // Mandua Costeo pág 47: ₲602.000
+    mats:[
+      {n:"Mármol blanco",q:0.42,u:"m2"},
+      {n:"Moldura pecho paloma",q:1.90,u:"ml"},
+    ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"INSTALACIÓN ELÉCTRICA": {
+// ════════════════════════════════════════════════════════════════════════
+  "Lámpara con interruptor": {
+    u:"un", m:101869,
+    // Mandua Costeo pág 49: ₲101.869
+    mats:[
+      {n:"Caja llave plástica",q:1,u:"un"},
+      {n:"Caja metálica conexión",q:1,u:"un"},
+      {n:"Caño corrugado 3/4",q:5,u:"ml"},
+      {n:"Cable 2mm",q:11,u:"ml"},
+      {n:"Llave unipolar + tapa",q:1,u:"un"},
+    ]
+  },
+  "Tomacorriente": {
+    u:"un", m:101869,
+    // Mandua Costeo pág 49: ₲101.869
+    mats:[
+      {n:"Caja llave plástica",q:1,u:"un"},
+      {n:"Caja metálica conexión",q:1,u:"un"},
+      {n:"Caño corrugado 3/4",q:5,u:"ml"},
+      {n:"Cable 2mm",q:11,u:"ml"},
+    ]
+  },
+  "Tablero principal 6 llaves TM": {
+    u:"un", m:549700,
+    // Mandua Costeo pág 49: ₲549.700
+    mats:[
+      {n:"Caja tablero principal",q:1,u:"un"},
+      {n:"Disyuntor TM 1x10A",q:6,u:"un"},
+    ]
+  },
+  "Circuito calefón / AA / ducha eléctrica": {
+    u:"un", m:356152,
+    // Mandua Costeo pág 49: ₲356.152
+    mats:[
+      {n:"Caja llave plástica",q:1,u:"un"},
+      {n:"Llave para calefón 25",q:1,u:"un"},
+      {n:"Cable 4mm",q:13,u:"ml"},
+      {n:"Caño corrugado 3/4",q:5,u:"ml"},
+    ]
+  },
+  "Pilar mampostería 0.45x0.45x1.70m": {
+    u:"un", m:789070,
+    // Mandua Costeo pág 47: ₲789.070
+    mats:[
+      {n:"Ladrillo común",q:170,u:"un"},
+      {n:"Cemento tipo 1",q:30,u:"kg"},
+      {n:"Cal triturada",q:60,u:"kg"},
+      {n:"Arena lavada",q:0.25,u:"m3"},
+    ]
+  },
+  "Puesto medición monofásico 40A": {
+    u:"un", m:1532990,
+    // Mandua Costeo pág 48: ₲1.532.990
+    mats:[
+      {n:"Caño galvanizado",q:1,u:"un"},
+      {n:"Curva galvanizada 1 pulgada",q:2,u:"un"},
+      {n:"Disyuntor TM 1x10A",q:1,u:"un"},
+      {n:"Cable 4mm",q:40,u:"ml"},
+    ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"VARIOS": {
+// ════════════════════════════════════════════════════════════════════════
+  "Moldura doble": {
+    u:"ml", m:115600,
+    // Mandua Costeo pág 52: ₲115.600
+    mats:[
+      {n:"Ladrillo común",q:12,u:"un"},
+      {n:"Arena lavada",q:0.10,u:"m3"},
+      {n:"Cemento tipo 1",q:12,u:"kg"},
+      {n:"Cal triturada",q:20,u:"kg"},
+    ]
+  },
+  "Moldura sencilla": {
+    u:"ml", m:59475,
+    // Mandua Costeo pág 52: ₲59.475
+    mats:[
+      {n:"Cemento tipo 1",q:5,u:"kg"},
+      {n:"Cal triturada",q:3,u:"kg"},
+      {n:"Arena lavada",q:0.02,u:"m3"},
+    ]
+  },
+  "Balaustre sencillo h=42cm": {
+    u:"ml", m:56575,
+    // Mandua Costeo pág 52: ₲56.575
+    mats:[
+      {n:"Balaustre sencillo h=42cm",q:5,u:"un"},
+      {n:"Ladrillo común",q:12,u:"un"},
+      {n:"Varilla conformada Ø6mm",q:0.50,u:"kg"},
+      {n:"Cemento tipo 1",q:1,u:"kg"},
+    ]
+  },
+  "Dintel hormigón prefabricado 1m x 14cm": {
+    u:"un", m:45100,
+    // Mandua Costeo pág 39: ₲45.100
+    mats:[{n:"Dintel prefabricado 1mx14cm",q:1,u:"un"}]
+  },
+  "Estufa boca 1.00m": {
+    u:"un", m:3043840,
+    // Mandua Costeo pág 52: ₲3.043.840
+    mats:[
+      {n:"Ladrillo refractario",q:80,u:"un"},
+      {n:"Cemento tipo 1",q:150,u:"kg"},
+      {n:"Arena refractaria",q:3,u:"kg"},
+      {n:"Varilla conformada Ø6mm",q:3,u:"kg"},
+    ]
+  },
+  "Parrilla boca 1.00m": {
+    u:"un", m:4995000,
+    // Mandua Costeo pág 52: ₲4.995.000
+    mats:[
+      {n:"Ladrillo común",q:750,u:"un"},
+      {n:"Cemento tipo 1",q:150,u:"kg"},
+      {n:"Arena lavada",q:1,u:"m3"},
+      {n:"Varilla conformada Ø6mm",q:6,u:"kg"},
+      {n:"Parrilla enlozada con carbonera",q:1,u:"un"},
+    ]
+  },
+  "Tanque cisterna fibra de vidrio 1000lt (varios)": {
+    u:"un", m:1010900,
+    // Mandua Costeo pág 52: ₲1.010.900
+    mats:[
+      {n:"Ladrillo común",q:100,u:"un"},
+      {n:"Cemento tipo 1",q:12,u:"kg"},
+      {n:"Cal triturada",q:10,u:"kg"},
+      {n:"Tanque Fibrac 1000lt",q:1,u:"un"},
+      {n:"Dintel prefabricado 1mx14cm",q:2,u:"un"},
+    ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+// NUEVOS RUBROS — Fuente: Guía de Costos Agosto 2025
+// ════════════════════════════════════════════════════════════════════════
+
+// ════════════════════════════════════════════════════════════════════════
+"DEMOLICIONES": {
+// ════════════════════════════════════════════════════════════════════════
+  "Demolición muro 0.15m con recuperación": {
+    u:"m2", m:8000,
+    mats:[]
+  },
+  "Demolición muro 0.30m con recuperación": {
+    u:"m2", m:10000,
+    mats:[]
+  },
+  "Demolición muro 0.15m sin recuperación": {
+    u:"m2", m:6000,
+    mats:[]
+  },
+  "Demolición techo madera-tejuelita-tejas": {
+    u:"m2", m:15000,
+    mats:[]
+  },
+  "Demolición contrapisos": {
+    u:"m2", m:3000,
+    mats:[]
+  },
+  "Demolición piso-revoques-revestimientos": {
+    u:"m2", m:4000,
+    mats:[]
+  },
+  "Demolición/desmonte de aberturas": {
+    u:"un", m:8000,
+    mats:[]
+  },
+  "Demolición cielorrasos armados": {
+    u:"m2", m:4000,
+    mats:[]
+  },
+  "Movimiento de suelo desmonte manual": {
+    u:"m3", m:3000,
+    mats:[]
+  },
+  "Relleno y compactación manual": {
+    u:"m3", m:8000,
+    mats:[]
+  },
+  "Excavación para cimiento sin acarreo": {
+    u:"m3", m:6000,
+    mats:[]
+  },
+  "Excavación para pozo ciego sin acarreo": {
+    u:"m3", m:8000,
+    mats:[]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"CIELO RASOS": {
+// ════════════════════════════════════════════════════════════════════════
+  "Cielo raso machimbre c/ estructura madera": {
+    u:"m2", m:130700,
+    mats:[
+      {n:"Machimbre ybyrapyta 1x3",q:1.10,u:"m2"},
+      {n:"Listón cedro 1x2",q:3,u:"ml"},
+      {n:"Clavo",q:0.25,u:"kg"},
+    ]
+  },
+  "Cielo raso metal desplegado c/ madera": {
+    u:"m2", m:85000,
+    mats:[
+      {n:"Metal desplegado",q:1.05,u:"m2"},
+      {n:"Listón cedro 1x2",q:2.5,u:"ml"},
+    ]
+  },
+  "Revoque horizontal cielorraso 1 capa": {
+    u:"m2", m:52000,
+    mats:[
+      {n:"Cemento tipo 1",q:1.60,u:"kg"},
+      {n:"Cal triturada",q:5.10,u:"kg"},
+      {n:"Arena lavada",q:0.01,u:"m3"},
+    ]
+  },
+  "Revoque horizontal cielorraso 2 capas": {
+    u:"m2", m:56000,
+    mats:[
+      {n:"Cemento tipo 1",q:2.50,u:"kg"},
+      {n:"Cal triturada",q:7,u:"kg"},
+      {n:"Arena lavada",q:0.02,u:"m3"},
+    ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"YESERÍA": {
+// ════════════════════════════════════════════════════════════════════════
+  "Enlucido muros revoque grueso + yeso": {
+    u:"m2", m:48000,
+    mats:[
+      {n:"Cemento tipo 1",q:2,u:"kg"},
+      {n:"Arena lavada",q:0.02,u:"m3"},
+      {n:"Yeso para construcción",q:3,u:"kg"},
+    ]
+  },
+  "Enlucido cielorraso revoque + yeso": {
+    u:"m2", m:53000,
+    mats:[
+      {n:"Cemento tipo 1",q:2,u:"kg"},
+      {n:"Cal triturada",q:3,u:"kg"},
+      {n:"Yeso para construcción",q:3,u:"kg"},
+    ]
+  },
+  "Taparrollos de cortinas (h/60cm)": {
+    u:"ml", m:120000,
+    mats:[
+      {n:"Yeso para construcción",q:5,u:"kg"},
+      {n:"Cemento tipo 1",q:1,u:"kg"},
+    ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"REVESTIMIENTOS": {
+// ════════════════════════════════════════════════════════════════════════
+  "Azulejo 15x15 / 20x20 / 30x30cm colocado": {
+    u:"m2", m:73000,
+    mats:[
+      {n:"Cerámica Cecafi 32x57cm",q:1.05,u:"m2"},
+      {n:"Mezcla adhesiva",q:3.50,u:"kg"},
+      {n:"Pastina base blanca",q:0.20,u:"kg"},
+    ]
+  },
+  "Piedra rompecabeza en piso junta tomada": {
+    u:"m2", m:55000,
+    mats:[
+      {n:"Piedra losa blanca",q:1.05,u:"m2"},
+      {n:"Cemento tipo 1",q:6,u:"kg"},
+      {n:"Arena lavada",q:0.03,u:"m3"},
+    ]
+  },
+  "Madera machimbre cedro/guatambú clavada": {
+    u:"m2", m:85000,
+    mats:[
+      {n:"Machimbre ybyrapyta 1x3",q:1.10,u:"m2"},
+      {n:"Clavo",q:0.25,u:"kg"},
+    ]
+  },
+  "Ladrillejo cerámico 5x25cm": {
+    u:"m2", m:65000,
+    mats:[
+      {n:"Cerámica Cecafi 32x57cm",q:1.05,u:"m2"},
+      {n:"Mezcla adhesiva",q:3,u:"kg"},
+    ]
+  },
+  "Escalón revestido con cerámica (1m ancho)": {
+    u:"un", m:110000,
+    mats:[
+      {n:"Cerámica Cecafi 32x57cm",q:0.60,u:"m2"},
+      {n:"Mezcla adhesiva",q:2,u:"kg"},
+      {n:"Pastina base blanca",q:0.10,u:"kg"},
+    ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"LUSTRE Y BARNIZ": {
+// ════════════════════════════════════════════════════════════════════════
+  "Lustre natural marcos (tapaporos+sopleteo)": {
+    u:"ml", m:22000,
+    mats:[
+      {n:"Barniz sintético brillante",q:0.05,u:"lt"},
+      {n:"Lija",q:0.10,u:"un"},
+    ]
+  },
+  "Lustre natural persianas (tapaporos+sopleteo)": {
+    u:"m2", m:48000,
+    mats:[
+      {n:"Barniz sintético brillante",q:0.15,u:"lt"},
+      {n:"Aceite de linaza",q:0.05,u:"lt"},
+      {n:"Lija",q:0.25,u:"un"},
+    ]
+  },
+  "Lustre natural puerta placa / vidriera": {
+    u:"m2", m:36000,
+    mats:[
+      {n:"Barniz sintético brillante",q:0.12,u:"lt"},
+      {n:"Lija",q:0.25,u:"un"},
+    ]
+  },
+},
+
+}; // fin DB_RAW
+
+// ── FUNCIÓN CONSTRUCTORA ──────────────────────────────────────────────
+function buildDB(raw = DB_RAW, laborPct = LABOR_PCT) {
+  const db = {};
+  for (const [cat, items] of Object.entries(raw)) {
+    db[cat] = {};
+    const pct = laborPct[cat] || 30;
+    for (const [name, item] of Object.entries(items)) {
+      const lab = Math.round(item.m * pct / 100);
+      db[cat][name] = {
+        unit:      item.u,
+        matCost:   item.m,
+        laborCost: lab,
+        laborPct:  pct,
+        total:     item.m + lab,
+        mats:      item.mats || [],
+        y:         item.y || null,
+      };
+    }
+  }
+  return db;
+}
+
+// ── EXPORTAR ──────────────────────────────────────────────────────────
+if (typeof module !== "undefined") {
+  module.exports = { DB_RAW, LABOR_PCT, IVA_MAT, IVA_LAB, MAT_PRECIOS, DB_VERSION, DB_FECHA, buildDB };
+}

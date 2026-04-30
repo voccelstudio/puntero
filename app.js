@@ -1,0 +1,1746 @@
+// ── HELPERS ──────────────────────────────────────────────────────────────
+const fmt = n => new Intl.NumberFormat("es-PY").format(Math.round(n));
+const fmtD = (n, d = 2) => +n.toFixed(d);
+
+const waLink = p => {
+  if (!p) return "";
+  let clean = p.replace(/\D/g, "");
+  if (clean.startsWith("0")) clean = "595" + clean.substring(1);
+  if (!clean.startsWith("595") && (clean.length === 9)) clean = "595" + clean;
+  return `https://wa.me/${clean}`;
+};
+
+const DEFAULT_YIELDS = {
+  "ESTRUCTURAS": 1.5,
+  "FUNDACIONES": 2,
+  "MAMPOSTERÍA": 15,
+  "CONTRAPISOS": 30,
+  "REVOQUES": 20,
+  "TECHOS": 10,
+  "PISOS": 15,
+  "AISLACIÓN": 30,
+  "PINTURAS": 40,
+  "CARPINTERÍA MADERA": 5,
+  "CARPINTERÍA METÁLICA": 5,
+  "DESAGÜE CLOACAL": 10,
+  "AGUA CORRIENTE": 15,
+  "ARTEFACTOS SANITARIOS": 4,
+  "INSTALACIÓN ELÉCTRICA": 15,
+  "VARIOS": 5
+};
+
+function buildDB() {
+  const db = {};
+  for (const [cat, items] of Object.entries(DB_RAW)) {
+    db[cat] = {};
+    const pct = LABOR_PCT[cat] || 30;
+    for (const [name, item] of Object.entries(items)) {
+      const lab = Math.round(item.m * pct / 100);
+      db[cat][name] = { unit: item.u, matCost: item.m, laborCost: lab, laborPct: pct, total: item.m + lab, mats: item.mats || [] };
+    }
+  }
+  return db;
+}
+let DB = buildDB();
+
+// ── STATE ──────────────────────────────────────────────────────────────
+let state = {
+  section: "budget", expandedCat: "ESTRUCTURAS", search: "", items: [],
+  projectName: "Nuevo Proyecto", clientName: "", clientPhone: "", clientAddress: "",
+  profitPct: 0, validDays: 30, budgetNum: 1, notes: "", pdfShowBreakdown: false,
+  priceEditMode: "total", editPriceKey: null, editField: "total", activeBudgetId: null,
+  theme: "slate",
+  ivaEnabled: false, ivaEnPDF: false,
+  adjustPct: 0,
+  profile: { company: "", professional: "", matricula: "", ruc: "", phone: "", email: "", address: "", instagram: "", whatsapp: "", website: "" },
+  pdfTheme: "minimal",
+  budgets: [],
+  m2Area: 0,
+  itemNotes: {},
+  itemDiscounts: {},
+  contractors: [], // Nueva base de datos de contratistas
+  schedules: {},   // Datos de cronograma { budgetItemId: { start, end, status, contractorId } }
+  projectStartDate: null, // Fecha global de inicio
+  dailyLogs: [],   // Bitácora { id, date, weather, workDone, photos, attendance }
+  staff: [],       // Lista de personal para asistencia
+  priceHistory: [
+    { name: "Cemento tipo 1 /kg", aug25: 1165, mar26: 1165, unit: "kg" },
+    { name: "Arena lavada /m3", aug25: 62000, mar26: 63500, unit: "m3" },
+    { name: "Varilla conf. Ø8mm /kg", aug25: 9600, mar26: 9600, unit: "kg" },
+    { name: "Ladrillo común /un", aug25: 740, mar26: 740, unit: "un" },
+    { name: "Teja española Yoayu /un", aug25: 1850, mar26: 1905, unit: "un" },
+    { name: "Piedra triturada IV /tn", aug25: 132500, mar26: 132500, unit: "tn" },
+    { name: "Látex interior /lt", aug25: 30000, mar26: 30000, unit: "lt" },
+    { name: "Cal triturada /kg", aug25: 1238, mar26: 1238, unit: "kg" },
+  ],
+  logoDataUrl: "",
+  signDataUrl: "",
+  isPro: true, // Always Pro now as requested
+  suppliers: [],   // Base de datos global de proveedores
+  paymentAlarms: [], // Alarmas de pago globales
+  materialOrders: [], // [NUEVO] Órdenes de materiales
+  finances: { income: [], expenses: [] }, // [NUEVO] Gestión financiera
+  performance: { goals: [] }, // [NUEVO] Desempeño
+  documents: [], // [NUEVO] Planos y Documentos
+  migratedV6: false, // Flag de migración
+};
+
+// Load state from localStorage
+try {
+  const s = localStorage.getItem("ppy_v5");
+  if (s) {
+    Object.assign(state, JSON.parse(s));
+  } else {
+    // Si no hay datos, cargar proyecto demo inicial
+    loadDemoProject();
+  }
+  // Override Pro status to true
+  state.isPro = true;
+  migrateToMultiProject();
+} catch (e) { }
+
+try {
+  const d = localStorage.getItem("ppy_db5");
+  if (d) DB = JSON.parse(d);
+} catch (e) { }
+
+applyTheme(state.theme);
+
+function migrateToMultiProject() {
+  if (state.migratedV6) return;
+  
+  if (state.budgets && state.budgets.length > 0) {
+    let target = state.budgets.find(b => b.id === state.activeBudgetId);
+    if (!target) target = state.budgets[state.budgets.length - 1];
+    
+    // Mover datos globales antiguos al proyecto "activo"
+    if (target) {
+      target.schedules = state.schedules || {};
+      target.dailyLogs = state.dailyLogs || [];
+      target.projectStartDate = state.projectStartDate || null;
+      target.materialOrders = [];
+      target.finances = { income: [], expenses: [] };
+    }
+  }
+  
+  state.migratedV6 = true;
+  save();
+}
+
+// Recordatorio de Backup (cada 3 días de uso)
+function checkBackupReminder() {
+  const last = localStorage.getItem("ppy_last_backup") || 0;
+  const now = Date.now();
+  if (now - last > 3 * 24 * 60 * 60 * 1000) {
+    setTimeout(() => {
+      if (confirm("🔋 Recordatorio de Seguridad: ¿Deseas realizar un backup de toda tu base de datos? Es recomendable guardarlo fuera de tu computadora.")) {
+        exportDB();
+        localStorage.setItem("ppy_last_backup", Date.now());
+      }
+    }, 3000);
+  }
+}
+
+// ── CORE LOGIC ────────────────────────────────────────────────────────
+function save() {
+  try {
+    localStorage.setItem("ppy_v5", JSON.stringify(state));
+    localStorage.setItem("ppy_db5", JSON.stringify(DB));
+  } catch (e) { }
+}
+
+function applyTheme(t) {
+  document.documentElement.setAttribute("data-theme", t === "dark" ? "" : t);
+}
+
+let _tt = null;
+function toast(msg, ok = true) {
+  const t = document.getElementById("toast-el");
+  if (!t) return;
+  t.textContent = msg;
+  t.style.background = ok ? "var(--ok)" : "var(--err)";
+  t.style.color = "var(--bg)";
+  t.style.display = "";
+  clearTimeout(_tt);
+  _tt = setTimeout(() => t.style.display = "none", 2500);
+}
+
+function setSection(s) {
+  state.section = s;
+  const titles = { 
+    budget: "Presupuesto de Obra", 
+    schedule: "Cronograma de Ejecución", 
+    contractors: "Directorio de Contratistas", 
+    prices: "Base de Datos de Precios", 
+    dashboard: "Panel de Control", 
+    themes: "Temas y Apariencia", 
+    logs: "Libro de Obra / Bitácora",
+    materials: "Gestión de Materiales",
+    finances: "Caja y Finanzas",
+    performance: "Rendimiento y KPIs",
+    documents: "Planos y Galería"
+  };
+  const vtitle = document.getElementById("view-title");
+  if (vtitle) vtitle.textContent = titles[s] || "PresupuestadorPY";
+
+  ["budget", "schedule", "contractors", "prices", "dashboard", "themes", "logs", "materials", "finances", "performance", "documents"].forEach(x => {
+    const el = document.getElementById("section-" + x);
+    if (el) el.style.display = s === x ? "" : "none";
+    const b = document.getElementById("btn-" + x);
+    if (b) b.className = "nbtn" + (s === x ? " on" : "");
+  });
+  if (s === "prices") renderPrices();
+  if (s === "themes") renderThemes();
+  if (s === "dashboard") renderDashboard();
+  if (s === "schedule") renderSchedule();
+  if (s === "contractors") renderContractors();
+  if (s === "logs") renderLogs();
+  if (s === "payments") renderPayments();
+  if (s === "materials") renderMaterials();
+  if (s === "finances") renderFinances();
+  if (s === "performance") renderPerformance();
+  if (s === "documents") renderDocuments();
+}
+
+/**
+ * GESTIÓN DE PAGOS Y COBROS
+ */
+function renderPayments() {
+    const el = document.getElementById("section-payments");
+    if (!el) return;
+
+    const { subtotal, profitAmt, total } = getTotals();
+    const paidContractors = state.contractors.reduce((s, c) => s + c.payments.reduce((p, py) => p + py.amount, 0), 0);
+    const balance = total - paidContractors;
+
+    el.innerHTML = `<div class="prices-wrap">
+        <h2 class="sec-lbl">Gestión Financiera de Obra</h2>
+        <div class="dash-grid">
+            <div class="dash-card">
+                <div class="dash-num">₲ ${fmt(total)}</div>
+                <div class="dash-lbl">Presupuesto Total</div>
+            </div>
+            <div class="dash-card">
+                <div class="dash-num" style="color:var(--ok)">₲ ${fmt(paidContractors)}</div>
+                <div class="dash-lbl">Total Pagado</div>
+            </div>
+            <div class="dash-card">
+                <div class="dash-num" style="color:var(--err)">₲ ${fmt(balance)}</div>
+                <div class="dash-lbl">Saldo Pendiente</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 class="sec-lbl">Detalle de Pagos a Contratistas</h3>
+            <table class="tbl">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Contratista</th>
+                        <th>Concepto</th>
+                        <th style="text-align:right">Monto</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${state.contractors.flatMap(c => c.payments.map(p => `
+                        <tr>
+                            <td>${p.date}</td>
+                            <td><strong>${c.name}</strong></td>
+                            <td>${p.note}</td>
+                            <td style="text-align:right; font-weight:700">₲ ${fmt(p.amount)}</td>
+                        </tr>
+                    `)).join("") || '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--tx3)">No hay pagos registrados.</td></tr>'}
+                </tbody>
+            </table>
+        </div>
+    </div>`;
+}
+
+function renderDashboard() {
+  const el = document.getElementById("section-dashboard");
+  if (!el) return;
+
+  const { totalProgress } = calcOverallProgress();
+  const { total, totalLabor } = getTotals();
+  
+  // Financiero
+  const incomeTotal = (state.finances?.income || []).reduce((s, i) => s + i.amount, 0);
+  const generalExpenses = (state.finances?.expenses || []).reduce((s, e) => s + e.amount, 0);
+  const contractorPayments = state.contractors.reduce((s, c) => s + c.payments.reduce((p, py) => p + py.amount, 0), 0);
+  const totalPaid = contractorPayments + generalExpenses;
+  const financialProgress = total > 0 ? Math.round((totalPaid / total) * 100) : 0;
+
+  // Materiales
+  const orders = state.materialOrders || [];
+  const deliveredOrders = orders.filter(o => o.status === 'delivered').length;
+
+  // Próximos hitos
+  const nextMilestones = state.items
+    .filter(i => (state.schedules[i.id]?.status || 'pending') !== 'done')
+    .sort((a, b) => new Date(state.schedules[a.id]?.start || '9999') - new Date(state.schedules[b.id]?.start || '9999'))
+    .slice(0, 3);
+
+  el.innerHTML = `<div class="prices-wrap">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
+        <h2 class="sec-lbl" style="margin:0">Vista General del Proyecto</h2>
+        <div class="db-badge">${state.projectName}</div>
+    </div>
+    
+    <div class="dash-grid">
+        <div class="dash-card">
+            <div class="dash-num">${totalProgress}%</div>
+            <div class="dash-lbl">Avance Físico</div>
+            <div style="background:var(--sur2); height:6px; border-radius:10px; margin-top:10px; overflow:hidden">
+                <div style="background:var(--ok); height:100%; width:${totalProgress}%"></div>
+            </div>
+        </div>
+        <div class="dash-card">
+            <div class="dash-num">₲ ${fmt(totalPaid)}</div>
+            <div class="dash-lbl">Inversión Realizada</div>
+            <div style="font-size:0.8rem; color:var(--tx3); margin-top:5px">Ejecución: ${financialProgress}%</div>
+        </div>
+        <div class="dash-card">
+            <div class="dash-num">${deliveredOrders}/${orders.length}</div>
+            <div class="dash-lbl">Órdenes de Materiales</div>
+            <div style="font-size:0.8rem; color:var(--tx3); margin-top:5px">${orders.length - deliveredOrders} pendientes</div>
+        </div>
+        <div class="dash-card">
+            <div class="dash-num">₲ ${fmt(incomeTotal - totalPaid)}</div>
+            <div class="dash-lbl">Saldo en Caja</div>
+            <div style="font-size:0.8rem; color:${(incomeTotal - totalPaid) >= 0 ? 'var(--ok)' : 'var(--err)'}; margin-top:5px">
+                Cobrado: ₲ ${fmt(incomeTotal)}
+            </div>
+        </div>
+    </div>
+
+    <div class="grid2">
+        <div class="card">
+            <h3 class="sec-lbl">Próximos Hitos</h3>
+            <div style="display:flex; flex-direction:column; gap:12px; margin-top:10px">
+                ${nextMilestones.map(i => {
+                    const s = state.schedules[i.id] || {};
+                    return `
+                        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; background:var(--sur2); border-radius:var(--rad)">
+                            <div>
+                                <div style="font-weight:700; font-size:0.9rem">${i.name}</div>
+                                <div style="font-size:0.75rem; color:var(--tx3)">Inicia: ${s.start || 'S/D'}</div>
+                            </div>
+                            <div class="iva-badge" style="background:var(--sur); color:var(--tx2)">${s.status === 'progress' ? 'EN CURSO' : 'PENDIENTE'}</div>
+                        </div>
+                    `;
+                }).join("") || '<p style="color:var(--tx3); font-size:0.85rem">No hay tareas pendientes.</p>'}
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 class="sec-lbl">Últimas Fotos de Obra</h3>
+            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-top:10px">
+                ${state.dailyLogs.flatMap(l => l.photos || []).slice(-6).map(p => `
+                    <div style="aspect-ratio:1; background:url(${p}) center/cover; border-radius:4px; border:1px solid var(--bor)"></div>
+                `).join("") || '<div style="grid-column: span 3; text-align:center; padding:20px; color:var(--tx3); font-size:0.85rem">Sin fotos registradas aún.</div>'}
+            </div>
+            <button class="btn sm full" style="margin-top:15px" onclick="setSection('documents')">Ver Galería Completa</button>
+        </div>
+    </div>
+  </div>`;
+}
+
+function calcOverallProgress() {
+    if (state.items.length === 0) return { totalProgress: 0 };
+    const items = state.items;
+    let completed = 0;
+    items.forEach(i => {
+        const s = state.schedules[i.id];
+        if (s && s.status === 'done') completed++;
+        else if (s && s.status === 'progress') completed += 0.5;
+    });
+    return { totalProgress: Math.round((completed / items.length) * 100) };
+}
+
+/**
+ * GENERACIÓN DE REPORTES PDF (ESTILO REPORT AND RUN)
+ */
+async function exportDailyPDF(logId) {
+  const log = state.dailyLogs.find(l => l.id === logId);
+  if (!log) return;
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const theme = PDF_THEMES.find(t => t.id === state.pdfTheme) || PDF_THEMES[0];
+  const margin = 20;
+  let y = 20;
+
+  // --- CARÁTULA ---
+  doc.setFillColor(theme.bg);
+  doc.rect(0, 0, 210, 60, 'F');
+  
+  if (state.logoDataUrl) {
+    doc.addImage(state.logoDataUrl, 'PNG', margin, 15, 30, 30);
+  }
+
+  doc.setTextColor("#ffffff");
+  doc.setFontSize(22);
+  doc.setFont("helvetica", "bold");
+  doc.text("INFORME DIARIO DE OBRA", margin + 35, 30);
+  doc.setFontSize(10);
+  doc.text(`${state.projectName} | ${log.date}`, margin + 35, 38);
+
+  y = 80;
+  doc.setTextColor("#333333");
+  doc.setFontSize(14);
+  doc.text("Resumen de la Jornada", margin, y);
+  y += 10;
+  
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Fecha: ${log.date}`, margin, y);
+  doc.text(`Clima: ${log.weather.toUpperCase()}`, margin + 80, y);
+  y += 10;
+
+  doc.setDrawColor(theme.acc);
+  doc.setLineWidth(0.5);
+  doc.line(margin, y, 190, y);
+  y += 10;
+
+  // Trabajos realizados
+  doc.setFont("helvetica", "bold");
+  doc.text("ACTIVIDADES REALIZADAS:", margin, y);
+  y += 7;
+  doc.setFont("helvetica", "normal");
+  const splitWork = doc.splitTextToSize(log.workDone || "Sin descripción", 170);
+  doc.text(splitWork, margin, y);
+  y += (splitWork.length * 5) + 10;
+
+  // Asistencia
+  doc.setFont("helvetica", "bold");
+  doc.text("ASISTENCIA DE PERSONAL:", margin, y);
+  y += 7;
+  doc.setFont("helvetica", "normal");
+  const present = log.attendance.filter(a => a.present).map(a => a.name).join(", ");
+  const absent = log.attendance.filter(a => !a.present).map(a => a.name).join(", ");
+  doc.text(`Presentes: ${present || "Ninguno"}`, margin, y);
+  y += 5;
+  doc.text(`Ausentes: ${absent || "Ninguno"}`, margin, y);
+  y += 15;
+
+  // --- FOTOS (Página nueva si es necesario) ---
+  if (log.photos && log.photos.length > 0) {
+    doc.addPage();
+    doc.setFont("helvetica", "bold");
+    doc.text("REGISTRO FOTOGRÁFICO", margin, 20);
+    let px = margin;
+    let py = 30;
+    for (let i = 0; i < log.photos.length; i++) {
+        doc.addImage(log.photos[i], 'JPEG', px, py, 80, 60);
+        px += 90;
+        if (px > 150) { px = margin; py += 70; }
+        if (py > 250 && i < log.photos.length - 1) { doc.addPage(); px = margin; py = 20; }
+    }
+  }
+
+  // --- PIE DE PÁGINA ---
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor("#999999");
+    doc.text(`Generado por PresupuestadorPY - Página ${i} de ${pageCount}`, margin, 285);
+  }
+
+  doc.save(`Reporte_Diario_${log.date}.pdf`);
+  toast("PDF Diario generado ✓");
+}
+
+async function exportWeeklyReport() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const theme = PDF_THEMES.find(t => t.id === state.pdfTheme) || PDF_THEMES[0];
+  const margin = 20;
+
+  // CARÁTULA DE INFORME SEMANAL
+  doc.setFillColor(theme.bg);
+  doc.rect(0, 0, 210, 297, 'F');
+  
+  doc.setTextColor("#ffffff");
+  doc.setFontSize(30);
+  doc.text("INFORME SEMANAL", margin, 100);
+  doc.setFontSize(15);
+  doc.text("SEGUIMIENTO Y CONTROL DE OBRA", margin, 115);
+  doc.setFontSize(12);
+  doc.text(`PROYECTO: ${state.projectName.toUpperCase()}`, margin, 140);
+  doc.text(`CLIENTE: ${state.clientName}`, margin, 150);
+  doc.text(`FECHA DE EMISIÓN: ${new Date().toLocaleDateString()}`, margin, 160);
+
+  // ÍNDICE
+  doc.addPage();
+  doc.setTextColor("#333333");
+  doc.setFontSize(16);
+  doc.text("ÍNDICE", margin, 30);
+  doc.setFontSize(10);
+  doc.text("1. Resumen Ejecutivo .................................................................... Pág. 3", margin, 50);
+  doc.text("2. Estado del Cronograma ............................................................ Pág. 4", margin, 60);
+  doc.text("3. Bitácora Diaria (Compilado) ..................................................... Pág. 5", margin, 70);
+  doc.text("4. Memoria Fotográfica ................................................................ Pág. 6", margin, 80);
+
+  // CONTENIDO (RESUMEN)
+  doc.addPage();
+  doc.setFontSize(14);
+  doc.text("1. RESUMEN EJECUTIVO", margin, 30);
+  doc.setFontSize(10);
+  const { totalProgress } = calcOverallProgress();
+  doc.text(`El proyecto presenta un avance global del ${totalProgress}%.`, margin, 45);
+  
+  // BITÁCORA COMPILADA
+  doc.addPage();
+  doc.setFontSize(14);
+  doc.text("3. BITÁCORA DIARIA (ÚLTIMOS REGISTROS)", margin, 30);
+  let y = 45;
+  const lastLogs = state.dailyLogs.slice(-7);
+  lastLogs.forEach(log => {
+     doc.setFont("helvetica", "bold");
+     doc.text(`${log.date} - Clima: ${log.weather}`, margin, y);
+     doc.setFont("helvetica", "normal");
+     const txt = doc.splitTextToSize(log.workDone, 160);
+     doc.text(txt, margin + 5, y + 5);
+     y += (txt.length * 5) + 15;
+     if (y > 270) { doc.addPage(); y = 30; }
+  });
+
+  doc.save(`Informe_Semanal_${state.projectName.replace(/\s+/g,'_')}.pdf`);
+  toast("Informe Semanal generado ✓");
+}
+
+// ── IVA CALCULATIONS ──────────────────────────────────────────────────
+function calcIVA(matCost, laborCost, qty = 1) {
+  if (!state.ivaEnabled) return { ivaMat: 0, ivaLab: 0, ivaTotal: 0 };
+  const ivaMat = Math.round(matCost * qty * IVA_MAT);
+  const ivaLab = Math.round(laborCost * qty * IVA_LAB);
+  return { ivaMat, ivaLab, ivaTotal: ivaMat + ivaLab };
+}
+
+function calcIVATotals() {
+  let ivaMat = 0, ivaLab = 0;
+  for (const i of state.items) {
+    ivaMat += Math.round((i.matCost || 0) * i.qty * IVA_MAT);
+    ivaLab += Math.round((i.laborCost || 0) * i.qty * IVA_LAB);
+  }
+  return { ivaMat, ivaLab, ivaTotal: ivaMat + ivaLab };
+}
+
+// ── ITEM ACTIONS ──────────────────────────────────────────────────────
+function addItem(cat, name) {
+  const data = DB[cat][name];
+  const ex = state.items.find(i => i.cat === cat && i.name === name && !i.custom);
+  if (ex) { ex.qty++; renderTable(); save(); return; }
+  
+  const y = data.y || DEFAULT_YIELDS[cat] || 10;
+  const days = Math.ceil(1 / y) || 1;
+  
+  let startStr = new Date().toISOString().split('T')[0];
+  if (state.items.length > 0) {
+    let maxEnd = 0;
+    Object.values(state.schedules).forEach(s => {
+      if (s.end) {
+        const endTs = new Date(s.end).getTime();
+        if (endTs > maxEnd) maxEnd = endTs;
+      }
+    });
+    if (maxEnd > 0) {
+      startStr = new Date(maxEnd + 86400000).toISOString().split('T')[0];
+    }
+  }
+
+  const startDate = new Date(startStr);
+  const endStr = new Date(startDate.getTime() + (days - 1) * 86400000).toISOString().split('T')[0];
+  
+  const newItem = { cat, name, unit: data.unit, unitPrice: data.total, matCost: data.matCost, laborCost: data.laborCost, mats: data.mats || [], qty: 1, id: Date.now() + Math.random(), disc: 0, note: "" };
+  state.items.push(newItem);
+  state.schedules[newItem.id] = { status: 'pending', start: startStr, end: endStr, contractorId: null };
+  
+  renderTable(); save();
+}
+
+function addCustomItem() {
+  const n = document.getElementById("ci-name").value.trim();
+  const p = parseFloat(document.getElementById("ci-price").value) || 0;
+  const u = document.getElementById("ci-unit").value.trim() || "gl";
+  if (!n || !p) { toast("Completá nombre y precio", false); return; }
+  const mat = Math.round(p * 0.65); const lab = Math.round(p * 0.35);
+  state.items.push({ cat: "PERSONALIZADOS", name: n, unit: u, unitPrice: p, matCost: mat, laborCost: lab, mats: [], qty: 1, id: Date.now() + Math.random(), custom: true, disc: 0, note: "" });
+  document.getElementById("ci-name").value = ""; document.getElementById("ci-price").value = ""; document.getElementById("ci-unit").value = "";
+  renderTable(); save(); toast("Ítem agregado ✓");
+}
+
+function updateQty(id, v) { 
+  const i = state.items.find(x => x.id == id); 
+  if (i) { 
+    i.qty = parseFloat(v) || 0; 
+    // Actualizar cronograma basado en rendimiento
+    const cat = i.cat; const name = i.name;
+    const dbItem = DB[cat] ? DB[cat][name] : null;
+    const yieldRate = (dbItem && dbItem.y) ? dbItem.y : (DEFAULT_YIELDS[cat] || 10);
+    const days = Math.max(1, Math.ceil(i.qty / yieldRate));
+    const sch = state.schedules[id];
+    if (sch && sch.start) {
+      const startDate = new Date(sch.start);
+      sch.end = new Date(startDate.getTime() + (days - 1) * 86400000).toISOString().split('T')[0];
+    }
+    renderTotals(); save(); 
+  } 
+}
+function updateDisc(id, v) { const i = state.items.find(x => x.id == id); if (i) { i.disc = Math.max(0, Math.min(100, parseFloat(v) || 0)); renderTotals(); save(); } }
+function updateNote(id, v) { const i = state.items.find(x => x.id == id); if (i) { i.note = v; save(); } }
+function removeItem(id) { state.items = state.items.filter(i => i.id != id); renderTable(); save(); }
+
+function dupBudget(id) {
+  const b = state.budgets.find(x => x.id === id); if (!b) return;
+  const nb = { ...b, id: Date.now(), num: state.budgetNum++, projectName: b.projectName + " (copia)", date: new Date().toLocaleDateString("es-PY"), activeBudgetId: null };
+  state.budgets.push(nb); save(); showModal("load"); toast("Presupuesto duplicado ✓");
+}
+
+function newBudget() {
+  if (state.items.length > 0 && !confirm("¿Comenzar un presupuesto nuevo? Se perderán los cambios no guardados.")) return;
+  Object.assign(state, { items: [], projectName: "Nuevo Proyecto", clientName: "", clientPhone: "", clientAddress: "", profitPct: 0, validDays: 30, notes: "", activeBudgetId: null, ivaEnabled: false, ivaEnPDF: false });
+  renderBudget(); save(); toast("Nuevo presupuesto ✓");
+}
+
+// ── TOTALS ──────────────────────────────────────────────────────────
+function effPrice(i) { return i.unitPrice * (1 - (i.disc || 0) / 100); }
+function getTotals() {
+  const totalMats = state.items.reduce((s, i) => s + (i.matCost || 0) * (1 - (i.disc || 0) / 100) * i.qty, 0);
+  const totalLabor = state.items.reduce((s, i) => s + (i.laborCost || 0) * (1 - (i.disc || 0) / 100) * i.qty, 0);
+  const subtotal = state.items.reduce((s, i) => s + effPrice(i) * i.qty, 0);
+  const { ivaMat, ivaLab, ivaTotal } = calcIVATotals();
+  const profitBase = subtotal + ivaTotal;
+  const profitAmt = profitBase * (state.profitPct / 100);
+  const total = subtotal + ivaTotal + profitAmt;
+  return { totalMats, totalLabor, subtotal, ivaMat, ivaLab, ivaTotal, profitAmt, total };
+}
+
+function getGrouped() { const g = {}; for (const i of state.items) { if (!g[i.cat]) g[i.cat] = []; g[i.cat].push(i); } return g; }
+
+function getBreakdown() {
+  return Object.entries(getGrouped()).map(([cat, ci]) => ({
+    cat,
+    matCost: ci.reduce((s, i) => s + (i.matCost || 0) * i.qty, 0),
+    laborCost: ci.reduce((s, i) => s + (i.laborCost || 0) * i.qty, 0),
+    total: ci.reduce((s, i) => s + i.unitPrice * i.qty, 0)
+  }));
+}
+
+function calcMaterials() {
+  const map = {};
+  for (const item of state.items)
+    for (const m of (item.mats || [])) {
+      const k = m.n + "||" + m.u;
+      if (!map[k]) map[k] = { name: m.n, unit: m.u, qty: 0 };
+      map[k].qty += m.q * item.qty;
+    }
+  return Object.values(map).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// ── CATALOG ──────────────────────────────────────────────────────────
+function renderCatalog() {
+  const filtered = Object.entries(DB).reduce((acc, [cat, items]) => {
+    const f = Object.entries(items).filter(([n]) => n.toLowerCase().includes(state.search.toLowerCase()) || cat.toLowerCase().includes(state.search.toLowerCase()));
+    if (f.length) acc[cat] = Object.fromEntries(f); return acc;
+  }, {});
+  let h = "";
+  for (const [cat, items] of Object.entries(filtered)) {
+    const on = state.expandedCat === cat;
+    const ec = cat.replace(/'/g, "\\'");
+    h += `<button class="cat-hdr${on ? " on" : ""}" onclick="toggleCat('${ec}')">${cat}<span style="opacity:.5;font-size:1rem">${on ? "▲" : "▼"}</span></button>`;
+    if (on) for (const [name, data] of Object.entries(items)) {
+      const en = name.replace(/'/g, "\\'");
+      const { ivaMat, ivaLab } = calcIVA(data.matCost, data.laborCost);
+      const totalDisp = data.total + ivaMat + ivaLab;
+      h += `<div class="cat-item" onclick="addItem('${ec}','${en}')">
+        <span class="iname">${name}</span>
+        <div class="pchips">
+          <span class="ptot">₲${fmt(totalDisp)}</span>
+          <span class="pmat">${fmt(data.matCost)}</span>
+          <span class="plab">${fmt(data.laborCost)}</span>
+          ${state.ivaEnabled ? `<span class="iva-badge">IVA ₲${fmt(ivaMat + ivaLab)}</span>` : ""}
+        </div>
+        <span class="utag">${data.unit}</span>
+        <button class="addbtn" onclick="event.stopPropagation();addItem('${ec}','${en}')">+</button>
+      </div>`;
+    }
+  }
+  const el = document.getElementById("catalog"); if (el) el.innerHTML = h;
+}
+function toggleCat(c) { state.expandedCat = state.expandedCat === c ? null : c; renderCatalog(); }
+
+// ── TOTALS RENDER ────────────────────────────────────────────────────
+function renderTotals() {
+  const { totalMats, totalLabor, subtotal, ivaMat, ivaLab, ivaTotal, profitAmt, total } = getTotals();
+  const el = document.getElementById("totals-area"); if (!el) return;
+  let h = `<div class="totals">
+    <div class="tot-row"><span class="tot-lbl">Materiales</span><span class="tot-val tot-mat">₲ ${fmt(totalMats)}</span></div>
+    <div class="tot-row"><span class="tot-lbl">Mano de obra</span><span class="tot-val tot-lab">₲ ${fmt(totalLabor)}</span></div>
+    <div class="tot-row tot-sub"><span class="tot-lbl">Costo directo</span><span class="tot-val">₲ ${fmt(subtotal)}</span></div>`;
+  if (state.ivaEnabled) {
+    h += `<div class="tot-row"><span class="tot-lbl" style="color:var(--iva)">IVA materiales (10%)</span><span class="tot-val tot-iva">₲ ${fmt(ivaMat)}</span></div>
+        <div class="tot-row"><span class="tot-lbl" style="color:var(--iva)">IVA mano de obra (5%)</span><span class="tot-val tot-iva">₲ ${fmt(ivaLab)}</span></div>
+        <div class="tot-row"><span class="tot-lbl" style="color:var(--iva);font-weight:600">Total IVA</span><span class="tot-val tot-iva">₲ ${fmt(ivaTotal)}</span></div>`;
+  }
+  if (state.profitPct > 0) h += `<div class="tot-row"><span class="tot-lbl">Honorarios (${state.profitPct}%)</span><span class="tot-val" style="color:var(--ok)">₲ ${fmt(profitAmt)}</span></div>`;
+  h += `<div class="tot-row tot-main"><span class="tot-lbl">TOTAL${state.ivaEnabled ? " (IVA inc.)" : ""}</span><span class="tot-val">₲ ${fmt(total)}</span></div>
+    <div class="disc">Precios incluyen materiales y mano de obra${state.ivaEnabled ? ", con IVA incluido" : ""} — Válido ${state.validDays} días desde la fecha de emisión</div>
+  </div>`;
+  el.innerHTML = h;
+}
+
+// ── TABLE RENDER ─────────────────────────────────────────────────────
+function renderTable() {
+  const el = document.getElementById("table-area"); if (!el) return;
+  if (state.items.length === 0) {
+    el.innerHTML = `<div class="empty"><div class="empty-ico">📋</div><div>Seleccioná rubros del catálogo</div></div>`;
+    document.getElementById("totals-area").innerHTML = ""; return;
+  }
+  const grouped = getGrouped();
+  // Panel M²
+  const m2html = state.m2Area > 0 ? `<div class="m2-panel">
+    <div><div class="m2-val">₲ ${fmt(Math.round(getTotals().total / state.m2Area))}/m²</div><div class="m2-lbl">Costo por metro cuadrado</div></div>
+    <div class="m2-ref">Sup: <span>${state.m2Area} m²</span></div>
+    <div class="m2-ref">Total: <span>₲ ${fmt(getTotals().total)}</span></div>
+    <div class="m2-ref" style="margin-left:auto;font-size:1rem;color:var(--tx3)">Ref. mercado: Casa económica ~₲2.100.000/m² · Duplex ~₲2.500.000/m²</div>
+  </div>` : "";
+  let h = m2html + `<div class="bud-hdr">
+    <span style="font-size:.95rem;color:var(--tx3)">${state.items.length} ítem${state.items.length !== 1 ? "s" : ""}</span>
+    <div style="flex:1"></div>
+    <button class="btn sm" onclick="showModal('computo')">🧱 Cómputo</button>
+    <button class="btn sm" onclick="showModal('breakdown')">📊 Desglose</button>
+    <button class="btn sm" onclick="newBudget()">+ Nuevo</button>
+    <button class="btn sm" onclick="state.items=[];renderTable();save()">Limpiar</button>
+  </div>
+  <table class="tbl"><thead><tr><th>Descripción</th><th>U.</th><th>Cant.</th><th>Desc.%</th><th>P. Unit.</th>${state.ivaEnabled ? "<th style='color:var(--iva)'>IVA</th>" : ""}<th>Total</th><th></th></tr></thead><tbody>`;
+  for (const [cat, ci] of Object.entries(grouped)) {
+    h += `<tr class="tbl-cat"><td colspan="${state.ivaEnabled ? 7 : 6}">${cat}</td></tr>`;
+    for (const item of ci) {
+      const mf = item.unitPrice > 0 ? item.matCost / item.unitPrice : 0.5;
+      const { ivaTotal } = calcIVA(item.matCost, item.laborCost, item.qty);
+      const ep = effPrice(item);
+      const totalConIva2 = ep * item.qty + (state.ivaEnabled ? calcIVA(item.matCost, item.laborCost, item.qty).ivaTotal : 0);
+      h += `<tr>
+        <td>
+          <input value="${item.name.replace(/"/g, '&quot;')}" style="font-weight:600;color:var(--tx);font-size:.875rem;border:none;background:transparent;width:100%;padding:0;outline:none;" oninput="const i=state.items.find(x=>x.id==${item.id});if(i){i.name=this.value;save();}">
+          <div style="display:flex;gap:4px;margin-top:2px;flex-wrap:wrap">
+            <span class="ichip mat">Mat ₲${fmt(item.matCost)}</span>
+            <span class="ichip lab">MO ₲${fmt(item.laborCost)}</span>
+            ${item.disc > 0 ? `<span class="disc-badge">-${item.disc}%</span>` : ""}
+          </div>
+          <div class="cbar"><div class="cbar-m" style="width:${mf * 100}%"></div><div class="cbar-l" style="width:${(1 - mf) * 100}%"></div></div>
+          <textarea class="item-note-input" rows="1" placeholder="Nota interna..." oninput="updateNote(${item.id},this.value)">${item.note || ""}</textarea>
+        </td>
+        <td><span class="utag">${item.unit}</span></td>
+        <td><input class="qty-in" type="number" min="0" step="0.5" value="${item.qty}" oninput="updateQty(${item.id},this.value)"></td>
+        <td><input class="qty-in" type="number" min="0" max="100" step="1" value="${item.disc || 0}" style="width:42px" oninput="updateDisc(${item.id},this.value)" title="% de descuento"></td>
+        <td style="font-size:.875rem;color:var(--tx3)">₲${fmt(ep)}</td>
+        ${state.ivaEnabled ? `<td style="font-size:.95rem;color:var(--iva);font-weight:600">₲${fmt(calcIVA(item.matCost, item.laborCost, item.qty).ivaTotal)}</td>` : ""}
+        <td style="font-weight:700;color:var(--acc);font-size:1rem">₲${fmt(totalConIva2)}</td>
+        <td><button class="delbtn" onclick="removeItem(${item.id})">✕</button></td>
+      </tr>`;
+    }
+  }
+  h += `</tbody></table>`;
+  el.innerHTML = h; renderTotals();
+}
+
+// ── BUDGET SECTION ────────────────────────────────────────────────────
+function renderBudget() {
+  const el = document.getElementById("section-budget");
+  if (!el) return;
+  el.innerHTML = `<div class="main">
+    <div class="card">
+      <div class="srch"><span class="srch-ico">🔍</span><input placeholder="Buscar rubro..." value="${state.search.replace(/"/g, '&quot;')}" oninput="state.search=this.value;renderCatalog()"></div>
+      <div class="cat-scroll" id="catalog"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:11px">
+      <div class="card">
+        <div class="grid2">
+          <div class="fullcol flex gap6">
+            <input placeholder="Nombre del proyecto / obra" value="${state.projectName.replace(/"/g, '&quot;')}" oninput="state.projectName=this.value;save()" style="flex:1">
+            <span style="font-size:.95rem;color:var(--tx3);white-space:nowrap;font-weight:600">Nº ${String(state.budgetNum).padStart(4, "0")}</span>
+          </div>
+          <input placeholder="Cliente / Empresa" value="${state.clientName.replace(/"/g, '&quot;')}" oninput="state.clientName=this.value;save()">
+          <div style="display:flex;gap:4px">
+            <input placeholder="Teléfono cliente" value="${state.clientPhone.replace(/"/g, '&quot;')}" oninput="state.clientPhone=this.value;save()" style="flex:1">
+            ${state.clientPhone ? `<button class="btn sm" onclick="window.open(waLink('${state.clientPhone.replace(/'/g, "\\'")}'), '_blank')" style="padding:0 8px;background:#25D366;color:white;border:none;flex-shrink:0" title="WhatsApp">💬</button>` : ''}
+          </div>
+          <input class="fullcol" placeholder="Dirección / Obra" value="${state.clientAddress.replace(/"/g, '&quot;')}" oninput="state.clientAddress=this.value;save()">
+        </div>
+        <div class="prof-row">
+          <span style="font-size:.875rem;font-weight:600;white-space:nowrap">Honorarios:</span>
+          <input class="sm" type="number" min="0" max="999" value="${state.profitPct}" style="width:52px" oninput="state.profitPct=parseFloat(this.value)||0;renderTotals();save()">
+          <span style="font-size:.875rem;color:var(--tx3)">%</span>
+          <span style="font-size:.875rem;font-weight:600;white-space:nowrap;margin-left:8px">Validez:</span>
+          <input class="sm" type="number" min="1" value="${state.validDays}" style="width:58px;min-width:50px" oninput="state.validDays=parseInt(this.value)||30;renderTotals();save()">
+          <span style="font-size:.875rem;color:var(--tx3);white-space:nowrap">días</span>
+        </div>
+        <div class="opt-row">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <span class="toggle"><input type="checkbox" ${state.ivaEnabled ? "checked" : ""} onchange="state.ivaEnabled=this.checked;renderTable();save()"><span class="tslider"></span></span>
+            <span style="font-size:.875rem;color:var(--iva)">Incluir IVA</span>
+          </label>
+          ${state.ivaEnabled ? `<span class="iva-badge">10% mat / 5% MO</span>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-left:8px">
+            <span class="toggle"><input type="checkbox" ${state.ivaEnPDF ? "checked" : ""} onchange="state.ivaEnPDF=this.checked;save()"><span class="tslider"></span></span>
+            <span style="font-size:.875rem;color:var(--tx2)">IVA en PDF</span>
+          </label>` : ""}
+        </div>
+      </div>
+      <div class="card">
+        <div class="custom-item-row">
+          <input id="ci-name" placeholder="Descripción del ítem personalizado..." style="font-size:.875rem">
+          <input id="ci-price" type="number" placeholder="₲ precio" class="price sm" min="0">
+          <input id="ci-unit" placeholder="und." class="unit sm" value="gl">
+          <button class="btn sm primary" onclick="addCustomItem()">+ Agregar</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:7px;flex-wrap:wrap">
+          <span style="font-size:.95rem;color:var(--tx3)">Superficie:</span>
+          <input type="number" class="sm" style="width:68px" placeholder="m²" value="${state.m2Area || ""}" min="0" step="1" oninput="state.m2Area=parseFloat(this.value)||0;renderTable();save()" title="Superficie de la obra para calcular ₲/m²">
+          <span style="font-size:.95rem;color:var(--tx3)">m² (opcional — calcula costo/m²)</span>
+          <button class="btn sm" onclick="newBudget()" style="margin-left:auto;background:rgba(96,165,250,.12);border-color:rgba(96,165,250,.35);color:var(--blue)">+ Nuevo presupuesto</button>
+        </div>
+        <div id="table-area"></div>
+        <div id="totals-area"></div>
+        <div class="mt7"><textarea placeholder="Notas / condiciones adicionales..." rows="2" style="resize:vertical;font-size:.875rem" oninput="state.notes=this.value;save()">${state.notes}</textarea></div>
+      </div>
+    </div>
+  </div>`;
+  renderCatalog(); renderTable(); updateBadge();
+}
+
+// ── PRICES SECTION ────────────────────────────────────────────────────
+function renderPrices() {
+  const el = document.getElementById("section-prices");
+  if (!el) return;
+  let h = `<div class="prices-wrap">
+    <div class="prices-toolbar">
+      <span style="font-family:var(--font-display);font-size:1.05rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em">Base de Precios</span>
+      <div style="display:flex;gap:6px;margin-left:auto;align-items:center">
+        <span style="font-size:.95rem;color:var(--tx3)">Ajuste global:</span>
+        <input type="number" class="sm" style="width:60px" value="${state.adjustPct}" placeholder="%" oninput="state.adjustPct=parseFloat(this.value)||0" onkeydown="if(event.key==='Enter')applyGlobalAdjust()">
+        <button class="btn sm primary" onclick="applyGlobalAdjust()">Aplicar</button>
+        <span style="color:var(--tx3);font-size:.95rem">|</span>
+        <span style="font-size:.95rem;color:var(--tx3)">Modo:</span>
+        <button class="btn sm${state.priceEditMode === "total" ? " primary" : ""}" onclick="state.priceEditMode='total';renderPrices()">Total</button>
+        <button class="btn sm${state.priceEditMode === "breakdown" ? " primary" : ""}" onclick="state.priceEditMode='breakdown';renderPrices()">Mat / MO</button>
+        <button class="btn sm danger" onclick="if(confirm('Restaurar todos los precios a la DB original?')){DB=buildDB();save();renderPrices();toast('Precios restaurados');}">Restaurar</button>
+      </div>
+    </div>
+    <div class="info-box"><p>Los precios reflejan el mercado de la construcción en Paraguay. Podés editar cualquier precio haciendo clic sobre él. Usá el ajuste global para aplicar un porcentaje de actualización a toda la base de una sola vez.</p></div>
+    <div class="pgrid">`;
+  for (const [cat, items] of Object.entries(DB)) {
+    h += `<div class="pcard"><span class="pcat-tag">${cat}</span>`;
+    for (const [name, data] of Object.entries(items)) {
+      const key = cat + "||" + name; const isEdit = state.editPriceKey === key;
+      const ek = key.replace(/'/g, "\\'");
+      h += `<div class="price-row"><div class="pname">${name} <span style="font-size:.875rem;color:var(--tx3)">${data.unit}</span></div><div class="pfields">`;
+      if (state.priceEditMode === "breakdown") {
+        if (isEdit && state.editField === "matCost") h += `<input class="pedit" type="number" value="${data.matCost}" autofocus onblur="editPrice('${ek}','matCost',this.value)" onkeydown="if(event.key==='Enter')this.blur()">`;
+        else h += `<span class="pchip mat" onclick="state.editPriceKey='${ek}';state.editField='matCost';renderPrices()">Mat ₲${fmt(data.matCost)}</span>`;
+        if (isEdit && state.editField === "laborCost") h += `<input class="pedit" type="number" value="${data.laborCost}" autofocus onblur="editPrice('${ek}','laborCost',this.value)" onkeydown="if(event.key==='Enter')this.blur()">`;
+        else h += `<span class="pchip lab" onclick="state.editPriceKey='${ek}';state.editField='laborCost';renderPrices()">MO ₲${fmt(data.laborCost)}${data.laborPct != null ? `<span class="pctbadge">${data.laborPct}%</span>` : ""}</span>`;
+        h += `<span class="pchip tot ro">= ₲${fmt(data.total)}</span>`;
+      } else {
+        h += `<span class="pct-pill mat">${Math.round(data.matCost / (data.total || 1) * 100)}% mat</span><span class="pct-pill lab">${Math.round(data.laborCost / (data.total || 1) * 100)}% MO</span>`;
+        if (isEdit) h += `<input class="pedit" type="number" value="${data.total}" autofocus onblur="editPrice('${ek}','total',this.value)" onkeydown="if(event.key==='Enter')this.blur()">`;
+        else h += `<span class="pchip tot" onclick="state.editPriceKey='${ek}';state.editField='total';renderPrices()">₲${fmt(data.total)}</span>`;
+      }
+      h += `</div></div>`;
+    }
+    h += `</div>`;
+  }
+  el.innerHTML = h + `</div></div>`;
+}
+
+function editPrice(key, field, val) {
+  const v = parseFloat(val); if (isNaN(v) || v < 0) { state.editPriceKey = null; renderPrices(); return; }
+  const sep = key.indexOf("||"); const cat = key.slice(0, sep); const name = key.slice(sep + 2);
+  const item = { ...DB[cat][name] };
+  if (field === "matCost") { item.matCost = v; if (item.laborPct != null) item.laborCost = Math.round(v * item.laborPct / 100); item.total = item.matCost + item.laborCost; }
+  else if (field === "laborCost") { item.laborCost = v; item.laborPct = null; item.total = item.matCost + v; }
+  else { const r = v / (item.total || 1); item.matCost = Math.round(item.matCost * r); item.laborCost = Math.round(item.laborCost * r); item.total = v; }
+  DB[cat][name] = item; state.editPriceKey = null; save(); renderPrices();
+}
+
+function applyGlobalAdjust() {
+  const pct = state.adjustPct;
+  if (isNaN(pct) || pct === 0) { toast("Ingresá un % de ajuste", false); return; }
+  const factor = 1 + pct / 100;
+  for (const cat of Object.values(DB))
+    for (const item of Object.values(cat)) {
+      item.matCost = Math.round(item.matCost * factor);
+      item.laborCost = Math.round(item.laborCost * factor);
+      item.total = item.matCost + item.laborCost;
+    }
+  save(); renderPrices(); updateBadge(); toast(`Precios ajustados ${pct > 0 ? "+" : ""}${pct}% ✓`);
+}
+
+// ── THEMES SECTION ────────────────────────────────────────────────────
+const THEMES = [
+  { id: "dark", name: "Constructor Dark", desc: "Oscuro ámbar", prev: { bg: "#0f1117", sur: "#181c26", acc: "#f59e0b", row: "#1e2330" } },
+  { id: "light", name: "Obra de Día", desc: "Claro terracota", prev: { bg: "#f4f1eb", sur: "#ffffff", acc: "#c2410c", row: "#f9f7f3" } },
+  { id: "blueprint", name: "Plano Técnico", desc: "Azul blueprint", prev: { bg: "#071525", sur: "#0c1f35", acc: "#38bdf8", row: "#102846" } },
+  { id: "elegant", name: "Estudio Elegante", desc: "Beige y dorado", prev: { bg: "#faf8f5", sur: "#ffffff", acc: "#8b6914", row: "#f5f2ed" } },
+  { id: "neon", name: "Noche Neón", desc: "Dark ultravioleta", prev: { bg: "#050508", sur: "#0d0d14", acc: "#a855f7", row: "#12121c" } },
+  { id: "forest", name: "Bosque", desc: "Verde selva oscuro", prev: { bg: "#0d1a12", sur: "#132018", acc: "#4ade80", row: "#192a1f" } },
+  { id: "copper", name: "Cobre", desc: "Dark naranja cálido", prev: { bg: "#1a0f0a", sur: "#26160e", acc: "#fb923c", row: "#301c12" } },
+  { id: "midnight", name: "Midnight", desc: "GitHub dark", prev: { bg: "#010409", sur: "#0d1117", acc: "#58a6ff", row: "#161b22" } },
+  { id: "sand", name: "Arena", desc: "Claro cálido", prev: { bg: "#f7f3ee", sur: "#fffdf9", acc: "#b45309", row: "#f0ebe3" } },
+  { id: "crimson", name: "Carmesí", desc: "Dark rojo intenso", prev: { bg: "#0f0508", sur: "#1a0a0f", acc: "#f43f5e", row: "#220e14" } },
+  { id: "slate", name: "Pizarra", desc: "Claro minimalista", prev: { bg: "#f8fafc", sur: "#ffffff", acc: "#0f172a", row: "#f1f5f9" } },
+  { id: "obsidian", name: "Obsidiana", desc: "Negro puro mono", prev: { bg: "#09090b", sur: "#18181b", acc: "#e4e4e7", row: "#1f1f23" } },
+];
+
+const PDF_THEMES = [
+  { id: "corporate", name: "Corporativo", desc: "Azul profesional", bg: "#1e3a5f", sur: "#ffffff", acc: "#1e40af", row: "#eef2ff" },
+  { id: "construction", name: "Construcción", desc: "Tierra y naranja", bg: "#7c2d12", sur: "#fffbf5", acc: "#c2410c", row: "#fef3e8" },
+  { id: "minimal", name: "Minimalista", desc: "Blanco y negro", bg: "#111111", sur: "#ffffff", acc: "#111111", row: "#f5f5f5" },
+  { id: "emerald", name: "Esmeralda", desc: "Verde ejecutivo", bg: "#064e3b", sur: "#f0fdf4", acc: "#059669", row: "#ecfdf5" },
+  { id: "bordeaux", name: "Burdeos", desc: "Vino elegante", bg: "#4c0519", sur: "#fff1f2", acc: "#9f1239", row: "#ffe4e6" },
+  { id: "slate", name: "Pizarra", desc: "Gris moderno", bg: "#1e293b", sur: "#f8fafc", acc: "#475569", row: "#f1f5f9" },
+];
+
+function renderThemes() {
+  const el = document.getElementById("section-themes");
+  if (!el) return;
+
+  let appCards = THEMES.map(t => {
+    const p = t.prev; const isActive = state.theme === t.id;
+    return `<div class="theme-card${isActive ? " active" : ""}" onclick="selectTheme('${t.id}')" style="background:${p.sur};border-color:${isActive ? "var(--acc)" : "transparent"}">
+      <div class="theme-preview" style="background:${p.bg}">
+        <div class="theme-preview-hdr" style="background:${p.sur}"></div>
+        <div class="theme-preview-body">
+          <div class="theme-preview-sidebar" style="background:${p.sur}"></div>
+          <div class="theme-preview-content">
+            <div class="theme-preview-row" style="background:${p.row}"></div>
+            <div class="theme-preview-row" style="background:${p.row}"></div>
+            <div class="theme-preview-accent" style="background:${p.acc}"></div>
+          </div>
+        </div>
+      </div>
+      <div class="theme-label" style="background:${p.sur};color:${p.acc}">
+        <div><div style="font-weight:700;font-size:0.95rem">${t.name}</div><div style="font-size:0.95rem;opacity:0.7;margin-top:1px">${t.desc}</div></div>
+        <div class="theme-check" style="border-color:${p.acc};background:${isActive ? p.acc : "transparent"};color:${p.bg}">${isActive ? "✓" : ""}</div>
+      </div>
+    </div>`;
+  }).join("");
+
+  let pdfCards = PDF_THEMES.map(t => {
+    const isA = state.pdfTheme === t.id;
+    return `<div class="pdf-theme-card${isA ? " active" : ""}" onclick="state.pdfTheme='${t.id}';save();renderThemes();" style="background:${t.sur};border-color:${isA ? "var(--acc)" : "var(--bor)"}; padding: 10px; border-radius: 8px; border: 2px solid transparent; cursor: pointer">
+      <div class="pdf-preview" style="background:${t.bg}; height: 60px; border-radius: 4px; position: relative; overflow: hidden; margin-bottom: 8px">
+        <div style="background:${t.sur}20; height: 15px; width: 100%"></div>
+        <div style="background:${t.sur}40; height: 2px; width: 70%; margin: 6px"></div>
+        <div style="background:${t.sur}30; height: 2px; width: 50%; margin: 6px"></div>
+        <div style="background:${t.acc}; height: 10px; width: 30%; position: absolute; bottom: 8px; right: 8px; border-radius: 2px"></div>
+      </div>
+      <div style="font-weight:700; font-size: 0.85rem">${t.name}</div>
+      <div style="font-size: 0.75rem; opacity: 0.7">${t.desc}</div>
+    </div>`;
+  }).join("");
+
+  el.innerHTML = `<div class="theme-wrap">
+    <div class="sec-lbl">Interfaz de la Aplicación</div>
+    <p style="font-size:.875rem;color:var(--tx3);margin-bottom:18px">Cambiá cómo se ve la herramienta mientras trabajás.</p>
+    <div class="theme-grid">${appCards}</div>
+    
+    <div class="sec-lbl" style="margin-top:40px">Estilo de Documentos PDF</div>
+    <p style="font-size:.875rem;color:var(--tx3);margin-bottom:18px">Seleccioná el diseño que verán tus clientes al exportar presupuestos y cronogramas.</p>
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px">${pdfCards}</div>
+  </div>`;
+}
+function selectTheme(id) { state.theme = id; applyTheme(id); save(); renderThemes(); toast("Tema aplicado ✓"); }
+
+// ── EXPORT XLS ───────────────────────────────────────────────────────
+function exportXLS() {
+  const { totalMats, totalLabor, subtotal, ivaMat, ivaLab, ivaTotal, profitAmt, total } = getTotals();
+  const grouped = getGrouped();
+  const BOM = "\uFEFF", nl = "\r\n", q = v => `"${String(v).replace(/"/g, '""')}"`;
+  let csv = BOM;
+  csv += q("PRESUPUESTO Nº") + "," + q(String(state.budgetNum).padStart(4, "0")) + nl;
+  csv += q("Proyecto") + "," + q(state.projectName) + nl;
+  csv += q("Cliente") + "," + q(state.clientName || "-") + nl;
+  csv += q("Dirección") + "," + q(state.clientAddress || "-") + nl;
+  csv += q("Fecha") + "," + q(new Date().toLocaleDateString("es-PY")) + nl;
+  csv += q("Validez") + "," + q(state.validDays + " días") + nl;
+  csv += q("Referencia precios") + "," + q("Guía de precios de la construcción - Paraguay") + nl;
+  if (state.profile.professional) csv += q("Profesional") + "," + q(state.profile.professional) + nl;
+  if (state.profile.ruc) csv += q("RUC") + "," + q(state.profile.ruc) + nl;
+  csv += nl;
+  const ivaHeader = state.ivaEnabled ? q("IVA mat (₲)") + "," + q("IVA MO (₲)") + "," + q("IVA Total (₲)") + "," : "";
+  csv += q("CATEGORÍA") + "," + q("DESCRIPCIÓN") + "," + q("UNIDAD") + "," + q("CANTIDAD") + "," + q("DESC.%") + "," + q("MATERIALES (₲)") + "," + q("MANO DE OBRA (₲)") + "," + q("P. UNITARIO (₲)") + "," + ivaHeader + q("TOTAL (₲)") + "," + q("NOTA INTERNA") + nl;
+  for (const [cat, ci] of Object.entries(grouped)) {
+    for (const item of ci) {
+      const ep = effPrice(item);
+      const { ivaMat, ivaLab, ivaTotal } = calcIVA(item.matCost, item.laborCost, item.qty);
+      const totalItem = ep * item.qty + ivaTotal;
+      const ivaRow = state.ivaEnabled ? q(Math.round(ivaMat)) + "," + q(Math.round(ivaLab)) + "," + q(Math.round(ivaTotal)) + "," : "";
+      csv += q(cat) + "," + q(item.name) + "," + q(item.unit) + "," + q(item.qty) + "," + q(item.disc || 0) + "," + q(Math.round(item.matCost)) + "," + q(Math.round(item.laborCost)) + "," + q(Math.round(ep)) + "," + ivaRow + q(Math.round(totalItem)) + "," + q(item.note || "") + nl;
+    }
+  }
+  csv += nl;
+  csv += q("RESUMEN") + nl;
+  csv += q("Materiales") + ",,,,,,," + q(Math.round(totalMats)) + nl;
+  csv += q("Mano de Obra") + ",,,,,,," + q(Math.round(totalLabor)) + nl;
+  csv += q("Costo Directo") + ",,,,,,," + q(Math.round(subtotal)) + nl;
+  if (state.ivaEnabled) {
+    csv += q("IVA Materiales (10%)") + ",,,,,,," + q(Math.round(ivaMat)) + nl;
+    csv += q("IVA Mano de Obra (5%)") + ",,,,,,," + q(Math.round(ivaLab)) + nl;
+    csv += q("Total IVA") + ",,,,,,," + q(Math.round(ivaTotal)) + nl;
+  }
+  if (state.profitPct > 0) csv += q("Honorarios (" + state.profitPct + "%)") + ",,,,,,," + q(Math.round(profitAmt)) + nl;
+  csv += q("TOTAL" + (state.ivaEnabled ? " (IVA incluido)" : "")) + ",,,,,,," + q(Math.round(total)) + nl;
+  const mats = calcMaterials();
+  if (mats.length > 0) {
+    csv += nl + q("CÓMPUTO DE MATERIALES") + nl;
+    csv += q("MATERIAL") + "," + q("CANTIDAD") + "," + q("UNIDAD") + "," + q("BOLSAS 50kg") + nl;
+    for (const m of mats) {
+      const isCem = m.name.toLowerCase().includes("cemento");
+      csv += q(m.name) + "," + q(fmtD(m.qty, 3)) + "," + q(m.unit) + "," + q(isCem ? Math.ceil(m.qty / 50) : "") + nl;
+    }
+  }
+  if (state.notes.trim()) csv += nl + q("NOTAS") + nl + q(state.notes) + nl;
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `Presupuesto_${String(state.budgetNum).padStart(4, "0")}_${(state.clientName || "Cliente").replace(/\s+/g, "_")}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+  toast("Archivo exportado ✓"); closeModal();
+}
+
+// ── PDF ────────────────────────────────────────────────────────────────
+function pdfTxt(s) {
+  return (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[₲]/g, "Gs.").replace(/[—–]/g, "-").replace(/[""]/g, '"').replace(/['']/g, "'");
+}
+function generarPDF() {
+  if (state.items.length === 0) { toast("Agrega items primero", false); return; }
+  if (typeof window.jspdf === "undefined" && typeof jsPDF === "undefined") { toast("jsPDF cargando, intentá en 2 segundos", false); return; }
+  const { jsPDF: JPDF } = window.jspdf || { jsPDF: window.jsPDF };
+  const doc = new JPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const W = 210, M = 14;
+  const p = state.profile;
+  const { subtotal, ivaMat, ivaLab, ivaTotal, profitAmt, total } = getTotals();
+  const grouped = getGrouped();
+  const today = new Date().toLocaleDateString("es-PY", { year: "numeric", month: "long", day: "numeric" });
+  const PALETTES = {
+    corporate: { hdrBg: [30, 58, 138], hdrTx: [255, 255, 255], accentBg: [30, 64, 175], accentTx: [255, 255, 255], catBg: [238, 242, 255], catTx: [30, 64, 175], bodyTx: [15, 23, 42], mutedTx: [71, 85, 105], borderC: [226, 232, 240], altRow: [248, 250, 252], totalBg: [30, 58, 138], totalTx: [255, 255, 255] },
+    construction: { hdrBg: [124, 45, 18], hdrTx: [255, 251, 245], accentBg: [194, 65, 12], accentTx: [255, 255, 255], catBg: [255, 237, 213], catTx: [154, 52, 18], bodyTx: [28, 20, 10], mutedTx: [120, 80, 40], borderC: [253, 186, 116], altRow: [255, 247, 237], totalBg: [124, 45, 18], totalTx: [255, 251, 245] },
+    minimal: { hdrBg: [17, 17, 17], hdrTx: [255, 255, 255], accentBg: [17, 17, 17], accentTx: [255, 255, 255], catBg: [245, 245, 245], catTx: [50, 50, 50], bodyTx: [30, 30, 30], mutedTx: [100, 100, 100], borderC: [210, 210, 210], altRow: [250, 250, 250], totalBg: [17, 17, 17], totalTx: [255, 255, 255] },
+    emerald: { hdrBg: [6, 78, 59], hdrTx: [240, 253, 244], accentBg: [5, 150, 105], accentTx: [255, 255, 255], catBg: [236, 253, 245], catTx: [6, 78, 59], bodyTx: [6, 28, 21], mutedTx: [52, 105, 79], borderC: [167, 243, 208], altRow: [240, 253, 244], totalBg: [6, 78, 59], totalTx: [240, 253, 244] },
+    bordeaux: { hdrBg: [76, 5, 25], hdrTx: [255, 241, 242], accentBg: [159, 18, 57], accentTx: [255, 255, 255], catBg: [255, 228, 230], catTx: [136, 19, 55], bodyTx: [30, 5, 12], mutedTx: [100, 40, 55], borderC: [252, 165, 180], altRow: [255, 241, 242], totalBg: [76, 5, 25], totalTx: [255, 241, 242] },
+    slate: { hdrBg: [30, 41, 59], hdrTx: [248, 250, 252], accentBg: [71, 85, 105], accentTx: [255, 255, 255], catBg: [241, 245, 249], catTx: [51, 65, 85], bodyTx: [15, 23, 42], mutedTx: [100, 116, 139], borderC: [203, 213, 225], altRow: [248, 250, 252], totalBg: [30, 41, 59], totalTx: [248, 250, 252] },
+  };
+  const C = PALETTES[state.pdfTheme] || PALETTES.corporate;
+  let y = 0;
+  // Header
+  doc.setFillColor(...C.hdrBg); doc.rect(0, 0, W, 36, "F");
+  if (state.logoDataUrl) {
+    try { doc.addImage(state.logoDataUrl, "PNG", M, 8, 24, 16); } catch (e) {
+      doc.setFillColor(255, 255, 255, 20); doc.circle(M + 10, 18, 10, "F");
+      doc.setTextColor(...C.hdrTx); doc.setFontSize(9); doc.setFont("helvetica", "bold");
+      doc.text((p.company || p.professional || "PY").substring(0, 2).toUpperCase(), M + 5.5, 21);
+    }
+  } else {
+    doc.setFillColor(255, 255, 255, 20); doc.circle(M + 10, 18, 10, "F");
+    doc.setTextColor(...C.hdrTx); doc.setFontSize(9); doc.setFont("helvetica", "bold");
+    doc.text((p.company || p.professional || "PY").substring(0, 2).toUpperCase(), M + 5.5, 21);
+  }
+  const tX = M + 24;
+  doc.setFontSize(13); doc.setFont("helvetica", "bold");
+  doc.text(pdfTxt(p.company || p.professional || "PresupuestadorPY"), tX, 13);
+  doc.setFontSize(7.5); doc.setFont("helvetica", "normal");
+  const lines = [];
+  if (p.professional) lines.push(pdfTxt(p.professional + (p.matricula ? " - " + p.matricula : "")));
+  if (p.ruc) lines.push("RUC: " + pdfTxt(p.ruc));
+  if (p.phone || p.email) lines.push([p.phone, p.email].filter(Boolean).join("   -   "));
+  if (p.address) lines.push(pdfTxt(p.address));
+  const social = [p.instagram, p.whatsapp, p.website].filter(Boolean).join("   -   ");
+  if (social) lines.push(pdfTxt(social));
+  lines.forEach((l, i) => doc.text(l, tX, 19 + i * 4.5));
+  doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.text("PRESUPUESTO", W - M, 11, { align: "right" });
+  doc.setFontSize(18); doc.text("N\u00BA " + String(state.budgetNum).padStart(4, "0"), W - M, 21, { align: "right" });
+  doc.setFontSize(7.5); doc.setFont("helvetica", "normal"); doc.text(today, W - M, 27, { align: "right" });
+  y = 42;
+  // Client & Project boxes
+  const colW = (W - M * 2 - 5) / 2;
+  doc.setFillColor(...C.catBg); doc.roundedRect(M, y, colW, 26, 2, 2, "F");
+  doc.setDrawColor(...C.borderC); doc.setLineWidth(0.3); doc.roundedRect(M, y, colW, 26, 2, 2, "S");
+  doc.setFontSize(6.5); doc.setFont("helvetica", "bold"); doc.setTextColor(...C.accentBg); doc.text("CLIENTE", M + 3, y + 5.5);
+  doc.setFont("helvetica", "normal"); doc.setTextColor(...C.bodyTx); doc.setFontSize(9.5); doc.text(pdfTxt(state.clientName) || "-", M + 3, y + 12, { maxWidth: colW - 6 });
+  doc.setFontSize(7.5); doc.setTextColor(...C.mutedTx);
+  if (state.clientAddress) doc.text(state.clientAddress, M + 3, y + 18, { maxWidth: colW - 6 });
+  if (state.clientPhone) doc.text("Tel: " + state.clientPhone, M + 3, y + 23, { maxWidth: colW - 6 });
+  const c2 = M + colW + 5;
+  doc.setFillColor(248, 250, 252); doc.roundedRect(c2, y, colW, 26, 2, 2, "F"); doc.setDrawColor(...C.borderC); doc.roundedRect(c2, y, colW, 26, 2, 2, "S");
+  doc.setFontSize(6.5); doc.setFont("helvetica", "bold"); doc.setTextColor(...C.accentBg); doc.text("PROYECTO / OBRA", c2 + 3, y + 5.5);
+  doc.setFont("helvetica", "normal"); doc.setTextColor(...C.bodyTx); doc.setFontSize(9.5); doc.text(pdfTxt(state.projectName) || "-", c2 + 3, y + 12, { maxWidth: colW - 6 });
+  doc.setFontSize(7.5); doc.setTextColor(...C.mutedTx);
+  doc.text("Validez: " + state.validDays + " dias desde emision", c2 + 3, y + 18, { maxWidth: colW - 6 });
+  doc.text("Presupuesto valido " + state.validDays + " dias desde emision", c2 + 3, y + 23, { maxWidth: colW - 6 });
+  y += 32;
+  // Info strip
+  const stripMsg = state.ivaEnabled && state.ivaEnPDF
+    ? "Precios unitarios incluyen materiales y mano de obra - IVA incluido (10% mat / 5% MO) - Valores en Guaranies (Gs.)"
+    : "Precios unitarios incluyen materiales y mano de obra - Valores en Guaranies (Gs.) paraguayos";
+  doc.setFillColor(254, 243, 199); doc.rect(M, y, W - M * 2, 6, "F");
+  doc.setFontSize(6.5); doc.setFont("helvetica", "italic"); doc.setTextColor(146, 64, 14);
+  doc.text("  " + stripMsg, M + 2, y + 4.2);
+  y += 10;
+  // Items table
+  const rows = []; let rowNum = 1;
+  for (const [cat, ci] of Object.entries(grouped)) {
+    rows.push([{ content: pdfTxt(cat), colSpan: 6, styles: { fillColor: C.catBg, textColor: C.catTx, fontStyle: "bold", fontSize: 7.5, cellPadding: { top: 3, bottom: 3, left: 4, right: 4 } } }]);
+    for (const item of ci) {
+      const { ivaTotal: ivaItem } = calcIVA(item.matCost, item.laborCost, item.qty);
+      const totalItem = item.unitPrice * item.qty + (state.ivaEnabled && state.ivaEnPDF ? ivaItem : 0);
+      rows.push([
+        { content: String(rowNum++), styles: { halign: "center", fontSize: 7.5, textColor: C.mutedTx } },
+        { content: pdfTxt(item.name), styles: { fontSize: 8 } },
+        { content: pdfTxt(item.unit), styles: { halign: "center", fontSize: 8 } },
+        { content: String(item.qty), styles: { halign: "center", fontSize: 8 } },
+        { content: "Gs. " + fmt(item.unitPrice + (state.ivaEnabled && state.ivaEnPDF ? Math.round(ivaItem / item.qty) : 0)), styles: { halign: "right", fontSize: 7.5 } },
+        { content: "Gs. " + fmt(totalItem), styles: { halign: "right", fontStyle: "bold", fontSize: 7.5 } },
+      ]);
+    }
+  }
+  doc.autoTable({
+    startY: y,
+    head: [[{ content: "#", styles: { halign: "center" } }, { content: "DESCRIPCIÓN / RUBRO" }, { content: "UNID.", styles: { halign: "center" } }, { content: "CANT.", styles: { halign: "center" } }, { content: "PRECIO UNIT.", styles: { halign: "right" } }, { content: "TOTAL", styles: { halign: "right" } }]],
+    body: rows, theme: "plain",
+    styles: { font: "helvetica", fontSize: 8, cellPadding: { top: 3, bottom: 3, left: 3, right: 3 }, lineColor: C.borderC, lineWidth: 0.2, textColor: C.bodyTx },
+    headStyles: { fillColor: C.accentBg, textColor: C.accentTx, fontStyle: "bold", fontSize: 7, cellPadding: { top: 4, bottom: 4, left: 3, right: 3 } },
+    alternateRowStyles: { fillColor: C.altRow },
+    columnStyles: { 0: { cellWidth: 7, halign: "center" }, 1: { cellWidth: "auto" }, 2: { cellWidth: 13, halign: "center" }, 3: { cellWidth: 13, halign: "center" }, 4: { cellWidth: 42, halign: "right" }, 5: { cellWidth: 40, halign: "right" } },
+    margin: { left: M, right: M },
+    tableWidth: "wrap",
+    didParseCell: data => { if (data.row.raw?.[0]?.colSpan === 6) { data.cell.styles.fillColor = C.catBg; data.cell.styles.textColor = C.catTx; data.cell.styles.fontStyle = "bold"; } },
+  });
+  y = doc.lastAutoTable.finalY + 8;
+  // Totals box
+  const totW = 110; const totX = W - M - totW;
+  if (y + 40 > 275) { doc.addPage(); y = M; }
+  doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(...C.mutedTx);
+  doc.text("Subtotal materiales y mano de obra:", totX, y + 5);
+  doc.setTextColor(...C.bodyTx); doc.setFont("helvetica", "bold"); doc.text("Gs. " + fmt(subtotal), W - M, y + 5, { align: "right" }); y += 8;
+  if (state.ivaEnabled && state.ivaEnPDF) {
+    doc.setFont("helvetica", "normal"); doc.setTextColor(...C.mutedTx);
+    doc.text("IVA materiales (10%):", totX, y + 5); doc.setTextColor(79, 70, 229); doc.setFont("helvetica", "bold"); doc.text("Gs. " + fmt(ivaMat), W - M, y + 5, { align: "right" }); y += 7;
+    doc.setFont("helvetica", "normal"); doc.setTextColor(...C.mutedTx);
+    doc.text("IVA mano de obra (5%):", totX, y + 5); doc.setTextColor(79, 70, 229); doc.setFont("helvetica", "bold"); doc.text("Gs. " + fmt(ivaLab), W - M, y + 5, { align: "right" }); y += 7;
+  }
+  if (state.profitPct > 0) {
+    doc.setFont("helvetica", "normal"); doc.setTextColor(...C.mutedTx);
+    doc.text("Honorarios profesionales (" + state.profitPct + "%):", totX, y + 5);
+    doc.setTextColor(22, 163, 74); doc.setFont("helvetica", "bold"); doc.text("Gs. " + fmt(profitAmt), W - M, y + 5, { align: "right" }); y += 8;
+  }
+  doc.setDrawColor(...C.accentBg); doc.setLineWidth(0.6); doc.line(totX, y, W - M, y); y += 2;
+  doc.setFillColor(...C.totalBg); doc.roundedRect(totX, y, totW, 13, 2, 2, "F");
+  doc.setTextColor(...C.totalTx); doc.setFont("helvetica", "bold"); doc.setFontSize(8);
+  doc.text("TOTAL" + (state.ivaEnabled && state.ivaEnPDF ? " (IVA inc.)" : "") + ":", totX + 4, y + 8);
+  doc.setFontSize(10); doc.text("Gs. " + fmt(total), W - M - 3, y + 8, { align: "right" }); y += 19;
+  // Notes
+  if (state.notes && state.notes.trim()) {
+    if (y + 20 > 275) { doc.addPage(); y = M; }
+    doc.setFontSize(7.5); doc.setFont("helvetica", "bold"); doc.setTextColor(...C.accentBg); doc.text("NOTAS Y CONDICIONES:", M, y); y += 5;
+    doc.setFont("helvetica", "normal"); doc.setTextColor(...C.mutedTx);
+    const nl2 = doc.splitTextToSize(pdfTxt(state.notes), W - M * 2); doc.text(nl2, M, y);
+  }
+  // Signature
+  if (state.signDataUrl) {
+    const sigY = y + 2;
+    if (sigY + 22 < 280) {
+      doc.setFontSize(7); doc.setFont("helvetica", "normal"); doc.setTextColor(...C.mutedTx);
+      doc.text("Firma profesional:", M, sigY + 4);
+      try { doc.addImage(state.signDataUrl, "PNG", M, sigY + 6, 50, 14); } catch (e) { }
+      doc.setDrawColor(...C.borderC); doc.setLineWidth(0.3); doc.line(M, sigY + 21, M + 60, sigY + 21);
+      doc.text(pdfTxt(p.professional || p.company || ""), M, sigY + 25);
+    }
+  }
+  // Footer
+  const pages = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pages; i++) {
+    doc.setPage(i); doc.setFontSize(6.5); doc.setFont("helvetica", "normal"); doc.setTextColor(...C.mutedTx);
+    doc.setDrawColor(...C.borderC); doc.setLineWidth(0.3); doc.line(M, 287, W - M, 287);
+    doc.text((p.company || "PresupuestadorPY") + (p.ruc ? " - RUC: " + p.ruc : ""), M, 292);
+    doc.text("Pagina " + i + " de " + pages, W - M, 292, { align: "right" });
+  }
+  const fn = "Presupuesto_" + String(state.budgetNum).padStart(4, "0") + "_" + (state.clientName || "Cliente").replace(/\s+/g, "_") + ".pdf";
+  doc.save(fn);
+  toast("PDF generado ✓");
+}
+
+// ── MODALS ────────────────────────────────────────────────────────────
+function showModal(type, arg) {
+  const el = document.getElementById("modal-area");
+  if (!el) return;
+
+  if (window.modals && typeof window.modals[type] === 'function') {
+    el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">${window.modals[type](arg)}</div></div>`;
+    return;
+  }
+
+  if (type === "export") {
+    el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:480px">
+      <div class="modal-title">Exportar Presupuesto<button class="delbtn" onclick="closeModal()">✕</button></div>
+      <div class="export-options">
+        <div class="export-card" onclick="exportXLS()"><div class="export-icon">📊</div><div class="export-name">Excel / CSV</div><div class="export-desc">Abre con doble clic en Excel o LibreOffice</div></div>
+        <div class="export-card" onclick="exportXLS()"><div class="export-icon">📋</div><div class="export-name">Google Sheets</div><div class="export-desc">Archivo → Importar → CSV en Google Sheets</div></div>
+      </div>
+      <p style="font-size:.95rem;color:var(--tx3);text-align:center;font-style:italic">Incluye ítems, desglose mat/MO${state.ivaEnabled ? ", IVA" : ""}, cómputo de materiales y notas.</p>
+      <div class="modal-acts"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn success" onclick="exportXLS()">Descargar</button></div>
+    </div></div>`;
+  }
+
+  else if (type === "export_project") {
+    el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:440px">
+      <div class="modal-title">🚀 Enviar Proyecto a un Colega<button class="delbtn" onclick="closeModal()">✕</button></div>
+      <div style="text-align:center; padding:10px 0">
+        <div style="font-size:3rem; margin-bottom:10px">📦</div>
+        <p style="font-size:1rem; color:var(--tx2); margin-bottom:14px">Se generará un archivo <strong>.ppy</strong> con toda la información de <strong>${state.projectName}</strong>.</p>
+        <div style="background:rgba(var(--acc-rgb), 0.05); padding:12px; border-radius:var(--rad); text-align:left; font-size:0.875rem; color:var(--tx2); margin-bottom:16px">
+          <strong>¿Qué incluye este archivo?</strong><br>
+          ✅ Presupuesto completo e ítems<br>
+          ✅ Cronograma y estados de obra<br>
+          ✅ Contratistas asignados a este proyecto<br>
+          ✅ Notas, honorarios e IVA
+        </div>
+        <p style="font-size:0.875rem; color:var(--tx3)">Tu colega solo tiene que arrastrar este archivo a su instancia de PresupuestadorPY para ver todo.</p>
+      </div>
+      <div class="modal-acts">
+        <button class="btn sm" onclick="importProject()">📥 Importar Proyecto</button>
+        <div style="flex:1"></div>
+        <button class="btn" onclick="closeModal()">Cancelar</button>
+        <button class="btn primary" onclick="exportProject()">Exportar y Enviar 📤</button>
+      </div>
+    </div></div>`;
+  }
+
+  else if (type === "computo") {
+    const mats = calcMaterials();
+    let cards = mats.length === 0 ? `<p style="font-size:1rem;color:var(--tx3)">Agregá ítems al presupuesto.</p>` : `<div class="mat-grid">` +
+      mats.map(m => {
+        const isCem = m.name.toLowerCase().includes("cemento");
+        const bolsas = isCem ? Math.ceil(m.qty / 50) : null;
+        const qty = Number.isInteger(m.qty) ? m.qty : fmtD(m.qty, 2);
+        return `<div class="mat-card"><div class="mat-name">${m.name}</div><div class="mat-qty"><strong>${qty}</strong> ${m.unit}</div>${bolsas ? `<div class="mat-bags">≈ ${bolsas} bolsa${bolsas !== 1 ? "s" : ""} de 50kg</div>` : ""}</div>`;
+      }).join("") + `</div>`;
+    el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:740px">
+      <div class="modal-title">🧱 Cómputo de Materiales<button class="delbtn" onclick="closeModal()">✕</button></div>
+      <p class="mat-note">Cantidades totales agrupadas por material. Uso interno — no aparece en el PDF del cliente.</p>
+      ${cards}
+      <div class="modal-acts"><button class="btn" onclick="closeModal()">Cerrar</button></div>
+    </div></div>`;
+  }
+
+  else if (type === "breakdown") {
+    const bk = getBreakdown(); const { totalMats, totalLabor, subtotal, ivaMat, ivaLab, ivaTotal, profitAmt, total } = getTotals();
+    const rows = bk.map(r => `<tr><td>${r.cat}</td><td style="color:var(--mat);font-weight:600">₲ ${fmt(r.matCost)}</td><td style="color:var(--lab);font-weight:600">₲ ${fmt(r.laborCost)}</td><td style="color:var(--acc);font-weight:700">₲ ${fmt(r.total)}</td></tr>`).join("");
+    el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+      <div class="modal-title">📊 Desglose Mat / MO<button class="delbtn" onclick="closeModal()">✕</button></div>
+      <table class="bk-tbl"><thead><tr><th>Categoría</th><th>Materiales</th><th>Mano de Obra</th><th>Subtotal</th></tr></thead><tbody>${rows}</tbody></table>
+      <div class="bk-footer">
+        <div class="tot-row"><span class="tot-lbl" style="color:var(--mat);font-weight:600">Total Materiales</span><span class="tot-val tot-mat">₲ ${fmt(totalMats)}</span></div>
+        <div class="tot-row"><span class="tot-lbl" style="color:var(--lab);font-weight:600">Total Mano de Obra</span><span class="tot-val tot-lab">₲ ${fmt(totalLabor)}</span></div>
+        <div class="tot-row" style="padding-top:6px;margin-top:4px;border-top:1px solid var(--bor)"><span class="tot-lbl">Costo directo</span><span class="tot-val">₲ ${fmt(subtotal)}</span></div>
+        ${state.ivaEnabled ? `<div class="tot-row"><span class="tot-lbl" style="color:var(--iva)">IVA mat (10%) + MO (5%)</span><span class="tot-val tot-iva">₲ ${fmt(ivaTotal)}</span></div>` : ""}
+        ${state.profitPct > 0 ? `<div class="tot-row"><span class="tot-lbl" style="color:var(--ok)">Honorarios (${state.profitPct}%)</span><span class="tot-val" style="color:var(--ok)">₲ ${fmt(profitAmt)}</span></div>` : ""}
+        <div class="tot-row tot-main"><span class="tot-lbl">TOTAL${state.ivaEnabled ? " (IVA inc.)" : ""}</span><span class="tot-val">₲ ${fmt(total)}</span></div>
+        ${subtotal > 0 ? `<div style="display:flex;gap:14px;padding-top:7px;border-top:1px solid var(--bor);margin-top:7px">
+          <span style="font-size:.95rem;color:var(--tx3)">Mat: <strong style="color:var(--mat)">${Math.round(totalMats / subtotal * 100)}%</strong></span>
+          <span style="font-size:.95rem;color:var(--tx3)">MO: <strong style="color:var(--lab)">${Math.round(totalLabor / subtotal * 100)}%</strong></span>
+          ${state.ivaEnabled ? `<span style="font-size:.95rem;color:var(--tx3)">IVA: <strong style="color:var(--iva)">${Math.round(ivaTotal / total * 100)}%</strong></span>` : ""}
+        </div>` : ""}
+      </div>
+      <div class="modal-acts"><button class="btn" onclick="closeModal()">Cerrar</button></div>
+    </div></div>`;
+  }
+
+  else if (type === "save") {
+    el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:400px">
+      <div class="modal-title">Guardar Presupuesto</div>
+      <p style="font-size:1rem;color:var(--tx2);margin-bottom:12px"><strong>${state.projectName}</strong><br>Cliente: <strong>${state.clientName || "(sin cliente)"}</strong> — ${state.items.length} ítems — Total: <strong style="color:var(--acc)">₲ ${fmt(getTotals().total)}</strong></p>
+      <div class="modal-acts"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="doSave()">Guardar</button></div>
+    </div></div>`;
+  }
+
+  else if (type === "load") {
+    const rows = state.budgets.length === 0
+      ? `<p style="font-size:1rem;color:var(--tx3)">No hay presupuestos guardados.</p>`
+      : state.budgets.map(b => `<div class="modal-row"><div style="flex:1"><div class="modal-name">Nº${String(b.num || 0).padStart(4, "0")} — ${b.projectName}</div><div class="modal-meta">${b.clientName || "Sin cliente"} · ${b.date} · ${b.items.length} ítems</div></div><button class="btn sm" onclick="doLoad(${b.id})">Cargar</button><button class="btn sm" onclick="dupBudget(${b.id})" title="Duplicar">⎘</button><button class="btn sm danger" onclick="doDeleteBudget(${b.id})">✕</button></div>`).join("");
+    el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+      <div class="modal-title">Presupuestos Guardados<button class="delbtn" onclick="closeModal()">✕</button></div>
+      ${rows}<div class="modal-acts"><button class="btn" onclick="closeModal()">Cerrar</button></div>
+    </div></div>`;
+  }
+
+  else if (type === "signature") {
+    el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:420px">
+      <div class="modal-title">Firma Digital<button class="delbtn" onclick="closeModal()">✕</button></div>
+      <p style="font-size:.875rem;color:var(--tx3);margin-bottom:10px">Dibujá tu firma. Aparecerá en el PDF al pie del presupuesto.</p>
+      <canvas id="sign-canvas" class="sign-canvas" width="500" height="120"></canvas>
+      <div class="sign-actions">
+        <button class="btn sm danger" onclick="clearSignature()">Borrar</button>
+        <button class="btn sm primary" onclick="saveSignature()">Guardar firma</button>
+      </div>
+      ${state.signDataUrl ? `<div style="margin-top:10px"><div style="font-size:.875rem;color:var(--tx3);margin-bottom:4px">Firma guardada:</div><img src="${state.signDataUrl}" style="border:1px solid var(--bor);border-radius:var(--rad);background:#fff;padding:4px;max-width:100%;height:50px;object-fit:contain"></div>` : ''}
+    </div></div>`;
+    initSignatureCanvas();
+  }
+
+  else if (type === "profile") {
+    const p = state.profile;
+    const pdfThemes = [
+      { id: "corporate", name: "Corporativo", desc: "Azul profesional", bg: "#1e3a5f", sur: "#ffffff", acc: "#1e40af", row: "#eef2ff" },
+      { id: "construction", name: "Construcción", desc: "Tierra y naranja", bg: "#7c2d12", sur: "#fffbf5", acc: "#c2410c", row: "#fef3e8" },
+      { id: "minimal", name: "Minimalista", desc: "Blanco y negro", bg: "#111111", sur: "#ffffff", acc: "#111111", row: "#f5f5f5" },
+      { id: "emerald", name: "Esmeralda", desc: "Verde ejecutivo", bg: "#064e3b", sur: "#f0fdf4", acc: "#059669", row: "#ecfdf5" },
+      { id: "bordeaux", name: "Burdeos", desc: "Vino elegante", bg: "#4c0519", sur: "#fff1f2", acc: "#9f1239", row: "#ffe4e6" },
+      { id: "slate", name: "Pizarra", desc: "Gris moderno", bg: "#1e293b", sur: "#f8fafc", acc: "#475569", row: "#f1f5f9" },
+    ];
+    const pdfCards = pdfThemes.map(t => {
+      const isA = state.pdfTheme === t.id;
+      return `<div class="pdf-theme-card${isA ? " active" : ""}" onclick="state.pdfTheme='${t.id}';save();this.closest('.modal').querySelectorAll('.pdf-theme-card').forEach(c=>c.classList.remove('active'));this.classList.add('active')" style="background:${t.sur};border-color:${isA ? "var(--acc)" : "var(--bor)"}">
+        <div class="pdf-preview" style="background:${t.bg}">
+          <div class="pdf-preview-hdr" style="background:${t.sur}20"></div>
+          <div class="pdf-preview-row" style="background:${t.sur}40"></div>
+          <div class="pdf-preview-row short" style="background:${t.sur}30"></div>
+          <div class="pdf-preview-accent" style="background:${t.acc}"></div>
+        </div>
+        <div class="pdf-theme-lbl" style="background:${t.sur};color:${t.acc}">
+          <div><div style="font-weight:700">${t.name}</div><div style="font-size:1rem;opacity:.7">${t.desc}</div></div>
+          <div style="width:13px;height:13px;border-radius:50%;border:2px solid ${t.acc};background:${isA ? t.acc : "transparent"};display:flex;align-items:center;justify-content:center;font-size:.875rem;color:#fff">${isA ? "✓" : ""}</div>
+        </div>
+      </div>`;
+    }).join("");
+    el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:560px">
+      <div class="modal-title">Perfil del Profesional<button class="delbtn" onclick="closeModal()">✕</button></div>
+      <div class="two-col">
+        <div><div class="slbl">Empresa / Estudio</div><input id="p-company" value="${(p.company || "").replace(/"/g, '&quot;')}" placeholder="Nombre empresa" class="mb7"></div>
+        <div><div class="slbl">Profesional</div><input id="p-prof" value="${(p.professional || "").replace(/"/g, '&quot;')}" placeholder="Arq. / Ing. Nombre Apellido" class="mb7"></div>
+      </div>
+      <div class="two-col">
+        <div><div class="slbl">Matrícula</div><input id="p-mat" value="${(p.matricula || "").replace(/"/g, '&quot;')}" placeholder="CAP Nº 0000" class="mb7"></div>
+        <div><div class="slbl">RUC</div><input id="p-ruc" value="${(p.ruc || "").replace(/"/g, '&quot;')}" placeholder="00000000-0" class="mb7"></div>
+      </div>
+      <div class="two-col">
+        <div style="display:flex;gap:4px"><input id="p-phone" value="${(p.phone || "").replace(/"/g, '&quot;')}" placeholder="Teléfono" class="mb7" style="flex:1">${p.phone ? `<button class="btn sm" onclick="window.open(waLink('${p.phone.replace(/'/g, "\\'")}'), '_blank')" style="padding:0 8px;background:#25D366;color:white;border:none;margin-bottom:7px" title="WhatsApp">💬</button>` : ''}</div>
+        <input id="p-email" value="${(p.email || "").replace(/"/g, '&quot;')}" placeholder="Email" class="mb7">
+      </div>
+      <input id="p-address" value="${(p.address || "").replace(/"/g, '&quot;')}" placeholder="Dirección del estudio" class="mb7">
+      <div class="slbl">Redes Sociales</div>
+      <div class="two-col">
+        <input id="p-ig" value="${(p.instagram || "").replace(/"/g, '&quot;')}" placeholder="Instagram: @usuario" class="mb7">
+        <div style="display:flex;gap:4px"><input id="p-wa" value="${(p.whatsapp || "").replace(/"/g, '&quot;')}" placeholder="WhatsApp: +595 9XX XXXXXX" class="mb7" style="flex:1">${p.whatsapp ? `<button class="btn sm" onclick="window.open(waLink('${p.whatsapp.replace(/'/g, "\\'")}'), '_blank')" style="padding:0 8px;background:#25D366;color:white;border:none;margin-bottom:7px" title="Probar link">💬</button>` : ''}</div>
+      </div>
+      <input id="p-web" value="${(p.website || "").replace(/"/g, '&quot;')}" placeholder="Sitio web: www.tuestudio.com.py" class="mb7">
+      <div class="slbl">Logo del Estudio (aparece en el PDF)</div>
+      <div class="logo-upload-area" onclick="document.getElementById('logo-file-input').click()">
+        ${state.logoDataUrl ? `<img src="${state.logoDataUrl}" class="logo-preview" alt="Logo">` : '<div class="logo-placeholder">📷 Hacé clic para subir tu logo<br><span style="font-size:.75rem">PNG, JPG — recomendado 300x100px</span></div>'}
+      </div>
+      <input type="file" id="logo-file-input" accept="image/*" style="display:none" onchange="uploadLogo(this)">
+      ${state.logoDataUrl ? `<button class="btn sm danger" onclick="state.logoDataUrl='';save();showModal('profile')" style="margin-bottom:12px">✕ Quitar logo</button>` : ''}
+      <div class="slbl">Tema del PDF</div>
+      <div class="pdf-theme-grid">${pdfCards}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--bor)">
+        <button class="btn sm" onclick="showModal('signature')">✍️ Firma digital</button>
+      </div>
+      <div class="modal-acts">
+        <button class="btn" onclick="closeModal()">Cancelar</button>
+        <button class="btn primary" onclick="doSaveProfile()">Guardar Perfil</button>
+      </div>
+    </div></div>`;
+  }
+}
+
+function closeModal() { document.getElementById("modal-area").innerHTML = ""; }
+function exportDB() {
+  const blob = new Blob([JSON.stringify(DB, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = "presupuestadorpy_db.json"; a.click(); URL.revokeObjectURL(url);
+  toast("DB exportada ✓");
+}
+
+function exportProject() {
+  const project = {
+    projectName: state.projectName,
+    clientName: state.clientName,
+    clientPhone: state.clientPhone,
+    clientAddress: state.clientAddress,
+    items: state.items,
+    notes: state.notes,
+    profitPct: state.profitPct,
+    validDays: state.validDays,
+    ivaEnabled: state.ivaEnabled,
+    schedules: state.schedules,
+    // Incluir solo contratistas asignados a este proyecto para portabilidad
+    contractors: state.contractors.filter(c => 
+      state.items.some(i => state.schedules[i.id]?.contractorId === c.id)
+    ),
+    exportDate: new Date().toISOString(),
+    app: "PresupuestadorPY",
+    version: "5.0"
+  };
+
+  const blob = new Blob([JSON.stringify(project, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `Proyecto_${state.projectName.replace(/\s+/g, '_')}.ppy`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast("Proyecto exportado (.ppy) ✓");
+  closeModal();
+}
+
+function importProject() {
+  const inp = document.createElement("input");
+  inp.type = "file";
+  inp.accept = ".ppy,.json";
+  inp.onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const p = JSON.parse(ev.target.result);
+        if (p.app !== "PresupuestadorPY" && !confirm("El archivo no parece ser un proyecto oficial. ¿Intentar importar de todos modos?")) return;
+        
+        // Cargar datos
+        Object.assign(state, {
+          projectName: p.projectName || "Proyecto Importado",
+          clientName: p.clientName || "",
+          clientPhone: p.clientPhone || "",
+          clientAddress: p.clientAddress || "",
+          items: p.items || [],
+          notes: p.notes || "",
+          profitPct: p.profitPct || 0,
+          validDays: p.validDays || 30,
+          ivaEnabled: !!p.ivaEnabled,
+          activeBudgetId: null // Es un proyecto nuevo en esta instancia
+        });
+
+        // Combinar schedules y contratistas sin duplicar
+        if (p.schedules) Object.assign(state.schedules, p.schedules);
+        if (p.contractors) {
+          p.contractors.forEach(c => {
+            if (!state.contractors.find(ex => ex.id === c.id)) state.contractors.push(c);
+          });
+        }
+
+        save();
+        renderBudget();
+        toast("Proyecto importado con éxito ✓");
+        closeModal();
+      } catch (err) {
+        toast("Error al importar proyecto: " + err.message, false);
+      }
+    };
+    reader.readAsText(file);
+  };
+  inp.click();
+}
+
+function importDB() {
+  const inp = document.createElement("input"); inp.type = "file"; inp.accept = ".json";
+  inp.onchange = e => {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const d = JSON.parse(ev.target.result);
+        if (typeof d !== "object" || !Object.values(d)[0]) throw new Error("Formato inválido");
+        DB = d; save(); renderPrices && renderPrices(); closeModal(); toast("DB importada ✓");
+      } catch (err) { toast("Error al importar: " + err.message, false); }
+    };
+    reader.readAsText(file);
+  };
+  inp.click();
+}
+function doSave() {
+  const b = { 
+    id: state.activeBudgetId || Date.now(), 
+    num: state.budgetNum, 
+    date: new Date().toLocaleDateString("es-PY"), 
+    projectName: state.projectName, 
+    clientName: state.clientName, 
+    clientAddress: state.clientAddress, 
+    clientPhone: state.clientPhone, 
+    profitPct: state.profitPct, 
+    validDays: state.validDays, 
+    ivaEnabled: state.ivaEnabled, 
+    items: [...state.items], 
+    notes: state.notes,
+    // Datos de ejecución
+    schedules: state.schedules || {},
+    dailyLogs: state.dailyLogs || [],
+    projectStartDate: state.projectStartDate || null,
+    materialOrders: state.materialOrders || [],
+    finances: state.finances || { income: [], expenses: [] }
+  };
+  const idx = state.budgets.findIndex(x => x.id === state.activeBudgetId);
+  if (idx >= 0) state.budgets[idx] = b; else { state.budgets.push(b); state.budgetNum++; }
+  state.activeBudgetId = b.id; save(); closeModal(); toast("Proyecto guardado ✓");
+}
+function doLoad(id) {
+  const b = state.budgets.find(x => x.id === id); if (!b) return;
+  Object.assign(state, { 
+    projectName: b.projectName || "", 
+    clientName: b.clientName || "", 
+    clientAddress: b.clientAddress || "", 
+    clientPhone: b.clientPhone || "", 
+    profitPct: b.profitPct || 0, 
+    validDays: b.validDays || 30, 
+    ivaEnabled: b.ivaEnabled || false, 
+    items: b.items || [], 
+    notes: b.notes || "", 
+    budgetNum: b.num || state.budgetNum, 
+    activeBudgetId: b.id,
+    // Cargar datos de ejecución
+    schedules: b.schedules || {},
+    dailyLogs: b.dailyLogs || [],
+    projectStartDate: b.projectStartDate || null,
+    materialOrders: b.materialOrders || [],
+    finances: b.finances || { income: [], expenses: [] }
+  });
+  closeModal(); renderBudget(); toast("Proyecto cargado ✓");
+}
+function doDeleteBudget(id) { state.budgets = state.budgets.filter(b => b.id !== id); if (state.activeBudgetId === id) state.activeBudgetId = null; save(); showModal("load"); }
+function doSaveProfile() {
+  state.profile = { company: document.getElementById("p-company").value, professional: document.getElementById("p-prof").value, matricula: document.getElementById("p-mat").value, ruc: document.getElementById("p-ruc").value, phone: document.getElementById("p-phone").value, email: document.getElementById("p-email").value, address: document.getElementById("p-address").value, instagram: document.getElementById("p-ig").value, whatsapp: document.getElementById("p-wa").value, website: document.getElementById("p-web").value };
+  save(); closeModal(); toast("Perfil guardado ✓");
+}
+
+// ── Update DB badge ──
+function updateBadge() {
+  const el = document.getElementById("db-badge-hdr");
+  if (el) el.textContent = "Precios base mercado PY" + (state.adjustPct ? ` +${state.adjustPct}%` : "");
+}
+
+// ── DASHBOARD ────────────────────────────────────────────────────────
+function renderDashboard() {
+  const el = document.getElementById("section-dashboard");
+  if (!el) return;
+  const total = state.budgets.length;
+  const totalVal = state.budgets.reduce((s, b) => {
+    const sub = b.items.reduce((ss, i) => ss + (i.unitPrice || 0) * i.qty, 0);
+    return s + sub;
+  }, 0);
+  const avg = total ? totalVal / total : 0;
+  const thisMonth = state.budgets.filter(b => {
+    try { const p = b.date.split("/"); const d = new Date(parseInt(p[2]), parseInt(p[1]) - 1); return d.getMonth() === new Date().getMonth(); } catch (e) { return false; }
+  }).length;
+  const rubros = {};
+  for (const b of state.budgets) for (const i of b.items) { rubros[i.cat] = (rubros[i.cat] || 0) + 1; }
+  const topRubros = Object.entries(rubros).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const today = new Date();
+  const alerts = state.budgets.map(b => {
+    try {
+      const p = b.date.split("/");
+      const emision = new Date(parseInt(p[2]), parseInt(p[1]) - 1, parseInt(p[0]));
+      const vence = new Date(emision.getTime() + (b.validDays || 30) * 86400000);
+      const diff = Math.ceil((vence - today) / 86400000);
+      return { ...b, diff, vence };
+    } catch (e) { return { ...b, diff: 999 }; }
+  }).filter(b => b.diff < 15).sort((a, b) => a.diff - b.diff);
+
+  let alertHtml = alerts.length === 0
+    ? `<p style="font-size:.875rem;color:var(--tx3)">Sin presupuestos próximos a vencer.</p>`
+    : alerts.map(b => `<div class="alert-row ${b.diff <= 3 ? "warn" : "ok"}">
+        <div class="alert-dot ${b.diff <= 3 ? "warn" : "ok"}"></div>
+        <div class="alert-txt"><strong>Nº${String(b.num || 0).padStart(4, "0")}</strong> — ${b.projectName} (${b.clientName || "Sin cliente"})</div>
+        <div class="alert-date">${b.diff <= 0 ? "VENCIDO" : b.diff + " días"}</div>
+      </div>`).join("");
+
+  let histHtml = state.priceHistory.map(p => {
+    const change = Math.round((p.mar26 - p.aug25) / p.aug25 * 100);
+    const dir = change > 0 ? "up" : change < 0 ? "dn" : "";
+    const bar = Math.min(100, Math.abs(change) * 10 + 20);
+    return `<div class="hist-row">
+      <div class="hist-name">${p.name}</div>
+      <div style="font-size:.95rem;color:var(--tx3);width:80px">₲${new Intl.NumberFormat("es-PY").format(p.aug25)}</div>
+      <div class="hist-bar-wrap"><div class="hist-bar" style="width:${bar}%"></div></div>
+      <div style="font-size:.95rem;color:var(--tx3);width:80px">₲${new Intl.NumberFormat("es-PY").format(p.mar26)}</div>
+      <div class="hist-pct ${dir}">${change > 0 ? "+" : ""}${change}%</div>
+    </div>`;
+  }).join("");
+
+  const TEMPLATES = [
+    {
+      icon: "🏠", name: "Casa económica 60m²", desc: "Fundaciones, mampostería 0.15m, techo teja española, revoque, piso calcáreo, pintura cal.", meta: "~₲ 126.000.000", items: [
+        ["FUNDACIONES", "Cimiento PBC con cal (1/2:1:4)", 13.5], ["MAMPOSTERÍA", "Elevación 0.15m ladrillo común", 120],
+        ["MAMPOSTERÍA", "Nivelación 0.30m ladrillo común", 12.5], ["AISLACIÓN", "Horizontal 0.15m con asfalto", 43],
+        ["TECHOS", "Teja española s/ tejuelón c/ madera", 94], ["CONTRAPISOS", "Contrapiso 10cm cascotes", 65],
+        ["REVOQUES", "Revoque 1 capa sin hidrófugo", 226], ["PISOS", "Baldosa calcárea 20x20cm", 61.5],
+        ["PINTURAS", "Pintura a la cal", 226], ["DESAGÜE CLOACAL", "Pozo ciego Ø1.50m h=3.00m", 1],
+      ]
+    },
+    {
+      icon: "🏢", name: "Dúplex 120m²", desc: "H°A° losa, mampostería cerámica, teja francesa, revoque hidrófugo, porcelanato, látex.", meta: "~₲ 280.000.000", items: [
+        ["ESTRUCTURAS", "Zapata fck=18 MPa", 1], ["ESTRUCTURAS", "Columna fck=21 MPa", 0.5],
+        ["ESTRUCTURAS", "Losa Rap h=17cm (12+5)", 35], ["FUNDACIONES", "Cimiento PBC con cal (1/2:1:4)", 17.6],
+        ["MAMPOSTERÍA", "Elevación 0.15m ladrillo cerámico 6 tubos", 240], ["TECHOS", "Teja francesa s/ machimbre", 93],
+        ["CONTRAPISOS", "Contrapiso 10cm cascotes", 101], ["REVOQUES", "Revoque 1 capa hidrófugo 1.5cm", 381],
+        ["PISOS", "Porcelanato 60x60cm", 19], ["PISOS", "Cerámica esmaltada Cecafi 32x57cm", 62],
+        ["PINTURAS", "Látex interior con enduido", 381],
+      ]
+    },
+    {
+      icon: "🏪", name: "Local comercial 100m²", desc: "Estructura H°A°, losa, mampostería hueca, chapa termoacústica, piso hormigón pulido.", meta: "~₲ 220.000.000", items: [
+        ["ESTRUCTURAS", "Zapata fck=18 MPa", 1.5], ["ESTRUCTURAS", "Columna fck=21 MPa", 0.8],
+        ["ESTRUCTURAS", "Losa fck=21MPa", 12.4], ["FUNDACIONES", "Cimiento PBC sin cal (1:12)", 21.8],
+        ["MAMPOSTERÍA", "Elevación 0.20m ladrillo cerámico hueco", 200], ["TECHOS", "Techo metálico chapa trapezoidal", 120],
+        ["CONTRAPISOS", "Contrapiso 10cm cascotes", 107], ["REVOQUES", "Revoque 1 capa hidrófugo 1.5cm", 480],
+        ["PISOS", "Mosaico granítico gris 30x30cm", 42], ["PINTURAS", "Látex exterior con enduido", 480],
+      ]
+    },
+    {
+      icon: "🏗️", name: "Ampliación 30m²", desc: "Cimiento, mampostería, techo chapa, revoque, piso calcáreo. Sin instalaciones.", meta: "~₲ 45.000.000", items: [
+        ["FUNDACIONES", "Cimiento PBC con cal (1/2:1:4)", 4], ["MAMPOSTERÍA", "Elevación 0.15m ladrillo común", 55],
+        ["TECHOS", "Chapa Nº28 s/ caños metálicos", 35], ["CONTRAPISOS", "Contrapiso 7cm cascotes", 30],
+        ["REVOQUES", "Revoque 1 capa sin hidrófugo", 110], ["PISOS", "Baldosa calcárea 20x20cm", 30],
+        ["PINTURAS", "Pintura a la cal", 110],
+      ]
+    },
+  ];
+  const tmplCards = TEMPLATES.map((t, idx) => `<div class="tmpl-card" onclick="applyTemplate(${idx})">
+    <div class="tmpl-icon">${t.icon}</div>
+    <div class="tmpl-name">${t.name}</div>
+    <div class="tmpl-desc">${t.desc}</div>
+    <div class="tmpl-meta">${t.meta}</div>
+  </div>`).join("");
+  window._TEMPLATES = TEMPLATES;
+  el.innerHTML = `<div class="prices-wrap">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:18px">
+      <div class="dash-card"><div class="dash-num">${total}</div><div class="dash-lbl">Presupuestos</div><div class="dash-sub">Total creados</div></div>
+      <div class="dash-card"><div class="dash-num" style="font-size:1.2rem">₲ ${total ? new Intl.NumberFormat("es-PY").format(Math.round(totalVal / 1000000)) + "M" : "-"}</div><div class="dash-lbl">Valor total</div><div class="dash-sub">Suma de todos</div></div>
+      <div class="dash-card"><div class="dash-num" style="font-size:1.2rem">₲ ${total ? new Intl.NumberFormat("es-PY").format(Math.round(avg / 1000000)) + "M" : "-"}</div><div class="dash-lbl">Promedio</div><div class="dash-sub">Por presupuesto</div></div>
+      <div class="dash-card"><div class="dash-num">${thisMonth}</div><div class="dash-lbl">Este mes</div><div class="dash-sub">Presupuestos creados</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px">
+      <div class="card">
+        <div class="sec-lbl" style="margin-bottom:8px">Rubros más utilizados</div>
+        ${topRubros.length ? topRubros.map(([r, n]) => `<div class="hist-row"><div class="hist-name">${r}</div><div class="hist-bar-wrap"><div class="hist-bar" style="width:${Math.min(100, n * 20)}%"></div></div><div class="hist-pct" style="color:var(--tx2)">${n}x</div></div>`).join("") : `<p style="font-size:.875rem;color:var(--tx3)">Sin datos aún.</p>`}
+      </div>
+      <div class="card">
+        <div class="sec-lbl">Alertas de vencimiento</div>
+        ${alertHtml}
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div class="sec-lbl">Historial comparativo de precios</div>
+        <span style="font-size:1rem;color:var(--tx3)">Ago-2025 → Actualidad</span>
+      </div>
+      ${histHtml}
+    </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="sec-lbl">Plantillas de Obra</div>
+        <span style="font-size:.95rem;color:var(--tx3)">Hacé clic para cargar en el presupuesto</span>
+      </div>
+      <div class="tmpl-grid">${tmplCards}</div>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <div class="sec-lbl" style="margin-bottom:8px">Gestión de Base de Datos</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" onclick="exportDB()">📥 Exportar DB (JSON)</button>
+        <button class="btn" onclick="importDB()">📤 Importar DB</button>
+        <span style="font-size:.95rem;color:var(--tx3);align-self:center">Guardá tu base de precios personalizada para restaurarla cuando quieras.</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+function applyTemplate(idx) {
+  const t = window._TEMPLATES[idx];
+  if (!confirm('¿Cargar plantilla "' + t.name + '" al presupuesto actual? Se agregarán los ítems.')) return;
+  let added = 0;
+  for (const [cat, name, qty] of t.items) {
+    if (DB[cat] && DB[cat][name]) {
+      const data = DB[cat][name];
+      state.items.push({ cat, name, unit: data.unit, unitPrice: data.total, matCost: data.matCost, laborCost: data.laborCost, mats: data.mats || [], qty, id: Date.now() + Math.random() + added, disc: 0, note: "" });
+      added++;
+    }
+  }
+  state.m2Area = t.name.includes("60m²") ? 60 : t.name.includes("120m²") ? 120 : t.name.includes("100m²") ? 100 : 30;
+  setSection("budget"); save(); renderBudget();
+  toast('Plantilla "' + t.name + '" cargada — ' + added + ' ítems ✓');
+}
+
+// ── MOBILE FAB ──────────────────────────────────────────────────────────────────────────
+let _fabOpen = false;
+function toggleFab() {
+  _fabOpen = !_fabOpen;
+  document.getElementById("fab-items").className = "mobile-fab-items" + (_fabOpen ? "" : " closed");
+  document.getElementById("fab-btn").textContent = _fabOpen ? "✕" : "☰";
+}
+function closeFab() { _fabOpen = false; document.getElementById("fab-items").className = "mobile-fab-items closed"; document.getElementById("fab-btn").textContent = "☰"; }
+
+// ── LOGO UPLOAD ───────────────────────────────────────────────────────────────────────
+function uploadLogo(input) {
+  const file = input.files[0]; if (!file) return;
+  if (file.size > 500000) { toast("Logo muy grande. Maximo 500KB", false); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    state.logoDataUrl = e.target.result;
+    save(); showModal("profile");
+    toast("Logo guardado ✓");
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── FIRMA DIGITAL ───────────────────────────────────────────────────────────────────────
+let _signDraw = false, _signCtx = null, _signCanvas = null;
+function initSignatureCanvas() {
+  _signCanvas = document.getElementById("sign-canvas");
+  if (!_signCanvas) return;
+  _signCtx = _signCanvas.getContext("2d");
+  _signCtx.strokeStyle = "#1a1a1a"; _signCtx.lineWidth = 2; _signCtx.lineCap = "round"; _signCtx.lineJoin = "round";
+  const rect = _signCanvas.getBoundingClientRect();
+  _signCanvas.width = rect.width * window.devicePixelRatio || 500;
+  _signCanvas.height = 120 * window.devicePixelRatio || 120;
+  _signCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+  _signCtx.strokeStyle = "#1a1a1a"; _signCtx.lineWidth = 2; _signCtx.lineCap = "round";
+  _signCanvas.addEventListener("mousedown", e => { _signDraw = true; _signCtx.beginPath(); const r = _signCanvas.getBoundingClientRect(); _signCtx.moveTo(e.clientX - r.left, e.clientY - r.top); });
+  _signCanvas.addEventListener("mousemove", e => { if (!_signDraw) return; const r = _signCanvas.getBoundingClientRect(); _signCtx.lineTo(e.clientX - r.left, e.clientY - r.top); _signCtx.stroke(); });
+  _signCanvas.addEventListener("mouseup", () => _signDraw = false);
+  _signCanvas.addEventListener("mouseleave", () => _signDraw = false);
+  _signCanvas.addEventListener("touchstart", e => { e.preventDefault(); _signDraw = true; _signCtx.beginPath(); const r = _signCanvas.getBoundingClientRect(); const t = e.touches[0]; _signCtx.moveTo(t.clientX - r.left, t.clientY - r.top); }, { passive: false });
+  _signCanvas.addEventListener("touchmove", e => { e.preventDefault(); if (!_signDraw) return; const r = _signCanvas.getBoundingClientRect(); const t = e.touches[0]; _signCtx.lineTo(t.clientX - r.left, t.clientY - r.top); _signCtx.stroke(); }, { passive: false });
+  _signCanvas.addEventListener("touchend", () => _signDraw = false);
+}
+function clearSignature() { if (_signCtx && _signCanvas) { _signCtx.clearRect(0, 0, _signCanvas.width, _signCanvas.height); } }
+function saveSignature() {
+  if (!_signCanvas) return;
+  state.signDataUrl = _signCanvas.toDataURL("image/png");
+  save(); closeModal(); toast("Firma guardada ✓");
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────
+function loadDemoProject() {
+  state.projectName = "Residencia Demo - San Bernardino";
+  state.clientName = "Juan Pérez";
+  state.items = [
+    { id: 101, cat: "ESTRUCTURAS", name: "Zapata fck=18 MPa", unit: "m3", qty: 4, unitPrice: 2554380, matCost: 1851000, laborCost: 703380, mats: [], disc: 0, note: "" },
+    { id: 102, cat: "MAMPOSTERÍA", name: "Elevación 0.15m ladrillo común", unit: "m2", qty: 120, unitPrice: 125000, matCost: 91838, laborCost: 33162, mats: [], disc: 0, note: "" }
+  ];
+  state.contractors = [
+    { id: "con_demo_1", name: "Maestro Pintos", phone: "0981 000 111", specialty: "Albañilería y Estructura", email: "pintos_obras@gmail.com", notes: "Excelente para cimientos y mampostería. Muy puntual.", payments: [{amount: 2000000, date: "2026-04-20", note: "Anticipo inicio obra"}] },
+    { id: "con_demo_2", name: "Juan 'Chapuza' González", phone: "0971 222 333", specialty: "Instalaciones", isBlacklisted: true, notes: "No contratar. Malas terminaciones y deja la obra a medias.", payments: [] }
+  ];
+  state.schedules = {
+    "101": { status: "done", start: "2026-04-01", end: "2026-04-10", contractorId: "con_demo_1" },
+    "102": { status: "progress", start: "2026-04-12", end: "2026-04-30", contractorId: "con_demo_1" }
+  };
+}
+
+window.onload = () => {
+  renderBudget();
+  updateBadge();
+  checkBackupReminder();
+};
