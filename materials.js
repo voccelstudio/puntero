@@ -1,19 +1,23 @@
 /**
  * GESTIÓN DE MATERIALES - Puntero ERP
- * Maneja la compra y seguimiento de insumos en obra.
  */
 
 function renderMaterials() {
     const el = document.getElementById("section-materials");
     if (!el) return;
+    const p = getActiveProject();
+    if (!p) { el.innerHTML = "<div class='empty'>Seleccioná un proyecto para gestionar materiales.</div>"; return; }
 
-    const materialsNeeded = calcMaterials(); // Viene de app.js
-    const orders = state.materialOrders || [];
+    const materialsNeeded = calcMaterials();
+    const orders = p.execution.materialOrders || [];
 
     el.innerHTML = `
     <div class="prices-wrap">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
-            <h2 class="sec-lbl" style="margin:0">Inventario y Pedidos</h2>
+            <div>
+                <h2 class="sec-lbl" style="margin:0">Logística e Insumos</h2>
+                <p style="color:var(--tx3); font-size:0.9rem">Proyecto: <strong>${p.name}</strong></p>
+            </div>
             <button class="btn primary" onclick="showModal('new_order')">+ Nueva Orden de Compra</button>
         </div>
 
@@ -35,15 +39,10 @@ function renderMaterials() {
         <div class="grid2" style="margin-top:20px">
             <div class="card">
                 <h3 class="sec-lbl">Consolidado de Necesidades (Cómputo)</h3>
-                <p style="font-size:0.85rem; color:var(--tx3); margin-bottom:15px">Lista total de materiales según el presupuesto actual.</p>
-                <div class="scroll-area" style="max-height:400px">
+                <div class="scroll-area" style="max-height:500px">
                     <table class="tbl">
                         <thead>
-                            <tr>
-                                <th>Material</th>
-                                <th>Unid.</th>
-                                <th style="text-align:right">Cant. Necesaria</th>
-                            </tr>
+                            <tr><th>Material</th><th>Unid.</th><th style="text-align:right">Cant. Necesaria</th></tr>
                         </thead>
                         <tbody>
                             ${materialsNeeded.map(m => `
@@ -60,21 +59,38 @@ function renderMaterials() {
 
             <div class="card">
                 <h3 class="sec-lbl">Órdenes de Compra y Entregas</h3>
-                <div class="scroll-area" style="max-height:400px">
-                    <div style="display:flex; flex-direction:column; gap:10px">
+                <div class="scroll-area" style="max-height:500px">
+                    <div style="display:flex; flex-direction:column; gap:12px">
                         ${orders.map(o => `
-                            <div class="cat-item" style="display:block; padding:12px; cursor:default">
+                            <div class="cat-item" style="display:block; padding:15px; cursor:default; border-left: 4px solid ${o.status === 'delivered' ? 'var(--ok)' : 'var(--blue)'}">
                                 <div style="display:flex; justify-content:space-between; margin-bottom:8px">
-                                    <span style="font-weight:700; font-size:0.9rem">#${o.id.toString().slice(-4)} - ${o.supplier || 'Proveedor S/N'}</span>
-                                    <span class="iva-badge" style="background:${o.status === 'delivered' ? 'var(--ok)' : 'var(--blue)'}; color:white">${o.status === 'delivered' ? 'ENTREGADO' : 'PENDIENTE'}</span>
+                                    <span style="font-weight:800; font-size:0.95rem">#${o.id.toString().slice(-4)} - ${o.supplier || 'Proveedor S/N'}</span>
+                                    <span class="iva-badge" style="background:${o.status === 'delivered' ? 'var(--ok)' : 'var(--blue)'}; color:white">${o.status === 'delivered' ? 'RECIBIDO' : 'PEDIDO'}</span>
                                 </div>
-                                <div style="font-size:0.8rem; color:var(--tx2)">${o.date}</div>
-                                <div style="margin-top:8px; font-size:0.85rem">
-                                    ${o.items.map(i => `• ${i.name}: ${i.qty} ${i.unit}`).join("<br>")}
+                                <div style="font-size:0.8rem; color:var(--tx3); margin-bottom:10px">Pedido: ${o.date}</div>
+                                
+                                <div style="margin-top:8px; font-size:0.85rem; background:var(--sur2); padding:10px; border-radius:var(--rad)">
+                                    ${o.items.map(i => `• ${i.name}: <strong>${i.qty} ${i.unit}</strong>`).join("<br>")}
                                 </div>
-                                <div style="display:flex; gap:5px; margin-top:10px">
-                                    ${o.status !== 'delivered' ? `<button class="btn sm ok-btn" onclick="markOrderDelivered('${o.id}')">Marcar Entregado</button>` : ''}
-                                    <button class="btn sm danger" onclick="removeOrder('${o.id}')">Eliminar</button>
+                                
+                                ${o.status === 'delivered' ? `
+                                    <div style="margin-top:12px; display:flex; gap:12px; align-items:center; border-top:1px dashed var(--bor); padding-top:12px">
+                                        <div style="flex:1">
+                                            <div style="font-size:0.75rem; color:var(--tx3); text-transform:uppercase; font-weight:700">Llegada Obra</div>
+                                            <div style="font-size:0.9rem; font-weight:600">${o.deliveryDate || 'S/D'}</div>
+                                        </div>
+                                        ${o.deliveryPhoto ? `
+                                            <div onclick="previewImage('${o.deliveryPhoto}')" style="width:50px; height:50px; border-radius:4px; background:url(${o.deliveryPhoto}) center/cover; cursor:pointer; border:1px solid var(--bor)" title="Ver Remisión"></div>
+                                        ` : ''}
+                                    </div>
+                                ` : ''}
+
+                                <div style="margin-top:12px; font-weight:800; color:var(--tx); font-size:1.1rem">${fmt(o.total || 0)}</div>
+                                
+                                <div style="display:flex; gap:8px; margin-top:12px">
+                                    ${o.status !== 'delivered' ? `<button class="btn sm ok-btn" onclick="showDeliveryModal('${o.id}')">🚚 Marcar Llegada</button>` : ''}
+                                    ${!o.isPaid ? `<button class="btn sm" onclick="payOrder('${o.id}')">💰 Pagar</button>` : '<span class="iva-badge" style="background:var(--ok); color:white">PAGADO</span>'}
+                                    <button class="btn sm danger" onclick="removeOrder('${o.id}')">✕</button>
                                 </div>
                             </div>
                         `).join("") || '<div style="text-align:center; padding:40px; color:var(--tx3)">No hay órdenes registradas.</div>'}
@@ -82,96 +98,197 @@ function renderMaterials() {
                 </div>
             </div>
         </div>
-    </div>
-    `;
+    </div>`;
 }
 
-function markOrderDelivered(id) {
-    const order = state.materialOrders.find(o => o.id == id);
+function showDeliveryModal(orderId) {
+    const el = document.getElementById("modal-area");
+    el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:400px">
+        <div class="modal-title">Confirmar Recepción de Materiales</div>
+        <div style="display:flex; flex-direction:column; gap:15px">
+            <div>
+                <label class="stat-lbl">Fecha de Llegada a Obra</label>
+                <input id="del-date" type="date" value="${new Date().toISOString().split('T')[0]}">
+            </div>
+            <div>
+                <label class="stat-lbl">Foto de Remisión / Factura</label>
+                <div style="display:flex; flex-direction:column; gap:8px">
+                    <input type="file" id="del-photo" accept="image/*" style="display:none" onchange="handleDeliveryPhoto(this)">
+                    <button class="btn sm full" onclick="document.getElementById('del-photo').click()">📸 Subir Foto de Remisión</button>
+                    <div id="del-photo-preview" style="width:100%; height:120px; border:2px dashed var(--bor); border-radius:var(--rad); display:flex; align-items:center; justify-content:center; overflow:hidden">
+                        <span style="color:var(--tx3); font-size:0.8rem">Vista previa de la foto</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-acts">
+            <button class="btn" onclick="closeModal()">Cancelar</button>
+            <button class="btn primary" onclick="confirmDelivery('${orderId}')">Confirmar Recepción ✓</button>
+        </div>
+    </div></div>`;
+}
+
+let _tempDeliveryPhoto = "";
+function handleDeliveryPhoto(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            _tempDeliveryPhoto = e.target.result;
+            const preview = document.getElementById("del-photo-preview");
+            preview.innerHTML = `<img src="${_tempDeliveryPhoto}" style="max-width:100%; max-height:100%; object-fit:contain">`;
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+function confirmDelivery(orderId) {
+    const p = getActiveProject();
+    const order = p.execution.materialOrders.find(o => o.id == orderId);
+    const date = document.getElementById("del-date").value;
+    
+    if (!date) return toast("La fecha de llegada es requerida", false);
+
     if (order) {
         order.status = 'delivered';
+        order.deliveryDate = date;
+        order.deliveryPhoto = _tempDeliveryPhoto;
+        _tempDeliveryPhoto = ""; // Reset
         save();
         renderMaterials();
-        toast("Orden marcada como entregada ✓");
+        closeModal();
+        toast("Recepción confirmada y registrada ✓");
+    }
+}
+
+function previewImage(src) {
+    const el = document.getElementById("modal-area");
+    el.innerHTML = `<div class="overlay" onclick="closeModal()"><div class="modal" style="max-width:90vw; background:none; box-shadow:none; padding:0">
+        <img src="${src}" style="max-width:100%; max-height:90vh; border-radius:var(--rad); box-shadow:var(--sha-lg)">
+        <button class="delbtn" style="position:fixed; top:20px; right:20px; background:rgba(0,0,0,0.5); color:white; border-radius:50%; width:40px; height:40px" onclick="closeModal()">✕</button>
+    </div></div>`;
+}
+
+function payOrder(id) {
+    const p = getActiveProject();
+    if (!p) return;
+    if (!p.execution.materialOrders) p.execution.materialOrders = [];
+    const o = p.execution.materialOrders.find(x => x.id == id);
+    if (!o) return;
+    if (confirm(`¿Registrar pago de ${fmt(o.total)} a ${o.supplier}?`)) {
+        o.isPaid = true;
+        o.paymentDate = new Date().toISOString().split('T')[0];
+
+        if (!p.execution.finances) p.execution.finances = { income: [], expenses: [] };
+        if (!p.execution.finances.expenses) p.execution.finances.expenses = [];
+        p.execution.finances.expenses.push({
+            id: 'mo_pay_' + Date.now(),
+            amount: o.total || 0,
+            date: o.paymentDate,
+            note: `Pago Materiales: ${o.supplier} (#${o.id.toString().slice(-4)})`
+        });
+
+        save();
+        renderMaterials();
+        toast("Pago registrado ✓");
     }
 }
 
 function removeOrder(id) {
+    const p = getActiveProject();
     if (!confirm("¿Eliminar esta orden de compra?")) return;
-    state.materialOrders = state.materialOrders.filter(o => o.id != id);
+    p.execution.materialOrders = p.execution.materialOrders.filter(o => o.id != id);
     save();
     renderMaterials();
 }
 
-/**
- * MODAL PARA NUEVA ORDEN
- */
-window.modals = window.modals || {};
-window.modals.new_order = () => {
-    const mats = calcMaterials();
-    return `
-    <div class="modal-hdr">Nueva Orden de Compra</div>
-    <div class="grid2" style="margin-bottom:15px">
-        <input id="mo-supplier" placeholder="Proveedor / Corralón">
-        <input id="mo-date" type="date" value="${new Date().toISOString().split('T')[0]}">
-    </div>
-    <div class="card" style="margin-bottom:15px">
-        <h4 style="margin-top:0; font-size:0.9rem">Seleccionar Insumos</h4>
-        <div style="max-height:250px; overflow-y:auto">
-            <table class="tbl sm">
-                <thead>
-                    <tr><th>Material</th><th>Pedir</th></tr>
-                </thead>
-                <tbody id="mo-items-list">
-                    ${mats.map((m, idx) => `
-                        <tr>
-                            <td>${m.name} <small>(${m.unit})</small></td>
-                            <td><input type="number" class="sm mo-qty" data-name="${m.name}" data-unit="${m.unit}" placeholder="0" style="width:60px"></td>
-                        </tr>
-                    `).join("")}
-                </tbody>
-            </table>
-        </div>
-    </div>
-    <div style="display:flex; gap:10px; justify-content:flex-end">
-        <button class="btn" onclick="closeModal()">Cancelar</button>
-        <button class="btn primary" onclick="createOrder()">Crear Orden</button>
-    </div>
-    `;
-};
-
 function createOrder() {
+    const p = getActiveProject();
     const supplier = document.getElementById("mo-supplier").value;
+    const total = parseFloat(document.getElementById("mo-total").value) || 0;
     const date = document.getElementById("mo-date").value;
     const items = [];
     
     document.querySelectorAll(".mo-qty").forEach(input => {
         const qty = parseFloat(input.value);
         if (qty > 0) {
-            items.push({
-                name: input.dataset.name,
-                unit: input.dataset.unit,
-                qty: qty
-            });
+            items.push({ name: input.dataset.name, unit: input.dataset.unit, qty: qty });
         }
     });
 
-    if (items.length === 0) {
-        toast("Agregá al menos un material", false);
-        return;
-    }
+    if (items.length === 0) return toast("Agregá al menos un material", false);
 
     const newOrder = {
-        id: Date.now(),
-        supplier,
-        date,
-        items,
-        status: 'pending'
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        supplier, total, date, items, status: 'pending', isPaid: false
     };
 
-    state.materialOrders.push(newOrder);
+    if (!p.execution.materialOrders) p.execution.materialOrders = [];
+    p.execution.materialOrders.push(newOrder);
     save();
     closeModal();
     renderMaterials();
     toast("Orden de compra creada ✓");
 }
+
+// ── MODAL: NUEVA ORDEN DE COMPRA ───────────────────────────────────────────
+window.modals = window.modals || {};
+window.modals.new_order = () => {
+    const p = getActiveProject();
+    if (!p) return `<div class="modal-title">Sin proyecto<button class="delbtn" onclick="closeModal()">✕</button></div><p>Seleccioná un proyecto primero.</p>`;
+
+    const materialsNeeded = calcMaterials();
+    const today = new Date().toISOString().split('T')[0];
+
+    // Sugerir proveedores existentes
+    const supplierOpts = (state.suppliers || []).map(s => `<option value="${s.name.replace(/"/g, '&quot;')}">`).join("");
+
+    const matRows = materialsNeeded.length === 0
+        ? `<tr><td colspan="3" style="text-align:center; padding:20px; color:var(--tx3)">No hay materiales en el presupuesto.</td></tr>`
+        : materialsNeeded.map(m => `
+            <tr>
+                <td>${m.name}</td>
+                <td><span class="utag">${m.unit}</span></td>
+                <td>
+                    <input type="number" class="mo-qty"
+                        data-name="${m.name.replace(/"/g, '&quot;')}"
+                        data-unit="${m.unit}"
+                        min="0" step="0.01"
+                        placeholder="0"
+                        style="width:100px; text-align:right">
+                    <span style="font-size:0.7rem; color:var(--tx3)">/ ${fmtD(m.qty)} total</span>
+                </td>
+            </tr>
+        `).join("");
+
+    return `
+        <div class="modal-title">Nueva Orden de Compra<button class="delbtn" onclick="closeModal()">✕</button></div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px">
+            <div>
+                <label class="stat-lbl">Proveedor</label>
+                <input id="mo-supplier" list="mo-supplier-list" placeholder="Nombre / corralón">
+                <datalist id="mo-supplier-list">${supplierOpts}</datalist>
+            </div>
+            <div>
+                <label class="stat-lbl">Fecha del Pedido</label>
+                <input id="mo-date" type="date" value="${today}">
+            </div>
+            <div class="fullcol" style="grid-column:1/-1">
+                <label class="stat-lbl">Monto Total (₲)</label>
+                <input id="mo-total" type="number" placeholder="0" min="0">
+            </div>
+        </div>
+        <h4 style="font-size:0.85rem; text-transform:uppercase; color:var(--tx3); margin:10px 0">Cantidades a pedir</h4>
+        <div style="max-height:300px; overflow-y:auto; border:1px solid var(--bor); border-radius:var(--rad)">
+            <table class="tbl sm">
+                <thead>
+                    <tr><th>Material</th><th>Unid.</th><th style="text-align:right">Cantidad a pedir</th></tr>
+                </thead>
+                <tbody>${matRows}</tbody>
+            </table>
+        </div>
+        <div class="modal-acts">
+            <button class="btn" onclick="closeModal()">Cancelar</button>
+            <button class="btn primary" onclick="createOrder()">Crear Orden 📦</button>
+        </div>
+    `;
+};

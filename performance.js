@@ -6,29 +6,46 @@
 function renderPerformance() {
     const el = document.getElementById("section-performance");
     if (!el) return;
+    const p = getActiveProject();
+    const adenda = getActiveAdenda();
+    if (!p || !adenda) { el.innerHTML = "<div class='empty'>Seleccioná un proyecto.</div>"; return; }
+    if (!p.execution.schedules) p.execution.schedules = {};
 
     const { totalProgress } = calcOverallProgress();
-    const { total, totalMats, totalLabor } = getTotals();
-    
-    const contractorPayments = state.contractors.reduce((s, c) => s + c.payments.reduce((p, py) => p + py.amount, 0), 0);
-    const materialOrdersTotal = (state.materialOrders || []).reduce((s, o) => {
-        // Estimación rápida de costo de órdenes si no tienen precio individual (usando proporcionalidad del presupuesto)
-        return s + (o.status === 'delivered' ? 1 : 0); 
-    }, 0);
+    const { totalLabor } = getTotals();
+    const orders = p.execution.materialOrders || [];
 
-    // Ejecución Financiera
-    const financialExec = total > 0 ? Math.round((contractorPayments / totalLabor) * 100) : 0;
-    
-    // Índice de Desempeño (SPI aproximado: Progreso Físico / Progreso Tiempo)
-    // Asumimos un cronograma lineal para esta versión simplificada
+    // Pagos a contratistas asignados a este proyecto
+    const assignedContractorIds = new Set(
+        Object.values(p.execution.schedules)
+            .map(s => s && s.contractorId)
+            .filter(Boolean)
+    );
+    const contractorPayments = (state.contractors || [])
+        .filter(c => assignedContractorIds.has(c.id))
+        .reduce((s, c) => s + (c.payments || []).reduce((sp, py) => sp + (py.amount || 0), 0), 0);
+
+    // Ejecución Financiera (pagos vs presupuesto MO)
+    const financialExec = totalLabor > 0 ? Math.round((contractorPayments / totalLabor) * 100) : 0;
+
+    // Índice de Desempeño Tiempo (lineal entre fecha inicio y máxima fecha fin)
     let timeProgress = 0;
-    if (state.projectStartDate) {
-        const start = new Date(state.projectStartDate).getTime();
+    const startDateStr = p.execution.projectStartDate;
+    if (startDateStr) {
+        const start = new Date(startDateStr).getTime();
         const now = Date.now();
-        const end = Math.max(...Object.values(state.schedules).map(s => new Date(s.end).getTime()), now);
-        timeProgress = Math.round(((now - start) / (end - start)) * 100);
-        timeProgress = Math.min(100, Math.max(0, timeProgress));
+        const endTimes = Object.values(p.execution.schedules)
+            .map(s => s && s.end ? new Date(s.end).getTime() : 0)
+            .filter(t => t > 0);
+        const end = endTimes.length ? Math.max(...endTimes, now) : now;
+        if (end > start) {
+            timeProgress = Math.round(((now - start) / (end - start)) * 100);
+            timeProgress = Math.min(100, Math.max(0, timeProgress));
+        }
     }
+
+    const ordersDelivered = orders.filter(o => o.status === 'delivered').length;
+    const ordersPct = orders.length > 0 ? Math.round(ordersDelivered / orders.length * 100) : 0;
 
     el.innerHTML = `
     <div class="prices-wrap">
@@ -38,7 +55,7 @@ function renderPerformance() {
             <div class="card" style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:30px">
                 <div style="font-size:0.9rem; color:var(--tx3); text-transform:uppercase; margin-bottom:15px">Salud del Proyecto</div>
                 <div class="gauge-container">
-                    <div class="gauge-bar" style="transform: rotate(${(totalProgress * 1.8) - 90}deg); background:${totalProgress > timeProgress ? 'var(--ok)' : 'var(--err)'}"></div>
+                    <div class="gauge-bar" style="transform: rotate(${(totalProgress * 1.8) - 90}deg); background:${totalProgress >= timeProgress ? 'var(--ok)' : 'var(--err)'}"></div>
                     <div class="gauge-val">${totalProgress}%</div>
                 </div>
                 <div style="margin-top:20px; text-align:center">
@@ -49,7 +66,7 @@ function renderPerformance() {
 
             <div class="card">
                 <h3 class="sec-lbl">Eficiencia de Ejecución</h3>
-                
+
                 <div class="stat-row">
                     <div class="stat-lbl">Mano de Obra (Pagado vs Presupuestado)</div>
                     <div class="stat-bar-bg"><div class="stat-bar" style="width:${Math.min(100, financialExec)}%; background:var(--blue)"></div></div>
@@ -59,9 +76,9 @@ function renderPerformance() {
                 <div class="stat-row" style="margin-top:20px">
                     <div class="stat-lbl">Suministros (Órdenes entregadas)</div>
                     <div class="stat-bar-bg">
-                        <div class="stat-bar" style="width:${(state.materialOrders || []).length > 0 ? (state.materialOrders.filter(o => o.status === 'delivered').length / state.materialOrders.length * 100) : 0}%; background:var(--ok)"></div>
+                        <div class="stat-bar" style="width:${ordersPct}%; background:var(--ok)"></div>
                     </div>
-                    <div class="stat-val">${(state.materialOrders || []).length > 0 ? Math.round(state.materialOrders.filter(o => o.status === 'delivered').length / state.materialOrders.length * 100) : 0}%</div>
+                    <div class="stat-val">${ordersPct}%</div>
                 </div>
 
                 <div class="info-box" style="margin-top:25px; background:rgba(96,165,250,0.1)">
@@ -82,11 +99,11 @@ function renderPerformance() {
                     </tr>
                 </thead>
                 <tbody>
-                    ${state.items.slice(0, 10).map(i => {
-                        const s = state.schedules[i.id] || { status: 'pending' };
+                    ${adenda.items.slice(0, 10).map(i => {
+                        const s = p.execution.schedules[i.id] || { status: 'pending' };
                         const statusLabel = s.status === 'done' ? 'Terminado' : s.status === 'progress' ? 'En Curso' : 'Pendiente';
                         const isDelayed = s.status !== 'done' && s.end && new Date(s.end) < new Date();
-                        
+
                         return `
                             <tr>
                                 <td>${i.name}</td>
@@ -99,41 +116,16 @@ function renderPerformance() {
                                 <td style="color:var(--err); font-weight:700">${isDelayed ? '⚠ RETRASO' : ''}</td>
                             </tr>
                         `;
-                    }).join("")}
+                    }).join("") || '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--tx3)">Sin ítems para analizar.</td></tr>'}
                 </tbody>
             </table>
         </div>
     </div>
 
     <style>
-        .gauge-container {
-            width: 150px;
-            height: 75px;
-            background: var(--sur2);
-            border-radius: 150px 150px 0 0;
-            position: relative;
-            overflow: hidden;
-            border: 2px solid var(--bor);
-        }
-        .gauge-bar {
-            width: 150px;
-            height: 150px;
-            position: absolute;
-            top: 100%;
-            left: 0;
-            transform-origin: top center;
-            transition: transform 1s ease-out;
-        }
-        .gauge-val {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            text-align: center;
-            font-size: 1.5rem;
-            font-weight: 800;
-            font-family: var(--font-display);
-        }
+        .gauge-container { width: 150px; height: 75px; background: var(--sur2); border-radius: 150px 150px 0 0; position: relative; overflow: hidden; border: 2px solid var(--bor); }
+        .gauge-bar { width: 150px; height: 150px; position: absolute; top: 100%; left: 0; transform-origin: top center; transition: transform 1s ease-out; }
+        .gauge-val { position: absolute; bottom: 0; left: 0; width: 100%; text-align: center; font-size: 1.5rem; font-weight: 800; font-family: var(--font-display); }
         .stat-row { display: flex; flex-direction: column; gap: 8px; }
         .stat-bar-bg { width: 100%; height: 10px; background: var(--sur2); border-radius: 5px; overflow: hidden; border: 1px solid var(--bor); }
         .stat-bar { height: 100%; transition: width 0.5s ease; }

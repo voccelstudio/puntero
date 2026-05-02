@@ -5,30 +5,31 @@
 function renderLogs() {
     const el = document.getElementById("section-logs");
     if (!el) return;
+    const p = getActiveProject();
+    if (!p) { el.innerHTML = "<div class='empty'>Seleccioná un proyecto para ver su bitácora.</div>"; return; }
+    const dailyLogs = p.execution.dailyLogs || [];
 
     let h = `<div class="prices-wrap">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px">
             <div>
                 <h2 style="font-family:var(--font-display); font-weight:800; margin-bottom:4px">LIBRO DE OBRA</h2>
-                <p style="color:var(--tx3); font-size:0.9rem">Seguimiento diario y bitácora de campo</p>
+                <p style="color:var(--tx3); font-size:0.9rem">Seguimiento diario: <strong>${p.name}</strong></p>
             </div>
             <div style="display:flex; gap:8px">
-                <button class="btn" onclick="showStaffModal()">👥 Gestionar Personal</button>
                 <button class="btn primary" onclick="showDailyLogModal()">+ Nueva Entrada Diaria</button>
             </div>
         </div>
 
         <div class="log-timeline">`;
 
-    if (state.dailyLogs.length === 0) {
+    if (dailyLogs.length === 0) {
         h += `<div style="text-align:center; padding:60px; background:var(--sur); border-radius:var(--rad); border:1px dashed var(--bor)">
             <div style="font-size:3rem; margin-bottom:10px">📔</div>
             <p style="color:var(--tx3)">Aún no hay registros en el libro de obra.<br>Comenzá registrando el avance de hoy.</p>
         </div>`;
     }
 
-    // Ordenar por fecha descendente
-    const sortedLogs = [...state.dailyLogs].sort((a,b) => new Date(b.date) - new Date(a.date));
+    const sortedLogs = [...dailyLogs].sort((a,b) => new Date(b.date) - new Date(a.date));
 
     sortedLogs.forEach(log => {
         const weatherIco = { sunny: '☀️', cloudy: '☁️', rainy: '🌧️', windy: '💨', storm: '⛈️' }[log.weather] || '🌡️';
@@ -90,14 +91,34 @@ function renderLogs() {
 function showDailyLogModal() {
     const today = new Date().toISOString().split('T')[0];
     const el = document.getElementById("modal-area");
-    
-    // Preparar lista de asistencia basada en el personal actual
-    let attendanceHtml = state.staff.map(s => `
+    const proj = getActiveProject();
+
+    // Recolectar personal de los contratistas asignados a este proyecto
+    let allStaff = [];
+    if (proj && proj.execution.schedules) {
+        const assignedConIds = new Set(
+            Object.values(proj.execution.schedules).map(s => s && s.contractorId).filter(Boolean)
+        );
+        (state.contractors || []).forEach(con => {
+            if (assignedConIds.has(con.id)) {
+                (con.staff || []).forEach(s => {
+                    allStaff.push({
+                        name: s.name || '',
+                        surname: s.surname || '',
+                        idNumber: s.idNumber || '',
+                        contractor: con.name
+                    });
+                });
+            }
+        });
+    }
+
+    let attendanceHtml = allStaff.map(s => `
         <div style="display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid var(--bor)">
-            <input type="checkbox" class="log-att" data-name="${s.name} ${s.last}" checked>
+            <input type="checkbox" class="log-att" data-name="${s.surname}, ${s.name}" checked>
             <div style="flex:1">
-                <div style="font-size:0.875rem; font-weight:600">${s.last}, ${s.name}</div>
-                <div style="font-size:0.7rem; color:var(--tx3)">C.I.: ${s.cedula} | ${s.role}</div>
+                <div style="font-size:0.875rem; font-weight:600">${s.surname}, ${s.name}</div>
+                <div style="font-size:0.7rem; color:var(--tx3)">C.I.: ${s.idNumber || 'S/D'} | ${s.contractor}</div>
             </div>
         </div>
     `).join("");
@@ -108,7 +129,10 @@ function showDailyLogModal() {
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom:15px">
             <div>
                 <label class="stat-lbl">Fecha</label>
-                <input id="log-date" type="date" value="${today}" style="width:100%">
+                <div style="display:flex; gap:5px">
+                    <input id="log-date" type="date" value="${today}" style="flex:1" onchange="autoFetchWeather(this.value)">
+                    <button class="btn sm" onclick="autoFetchWeather(document.getElementById('log-date').value)" title="Consultar clima histórico">🔄</button>
+                </div>
             </div>
             <div>
                 <label class="stat-lbl">Clima</label>
@@ -124,7 +148,7 @@ function showDailyLogModal() {
 
         <div style="margin-bottom:15px">
             <label class="stat-lbl">Trabajos Realizados / Avance</label>
-            <textarea id="log-work" placeholder="Describe qué se hizo hoy, problemas encontrados, materiales recibidos..." rows="4" style="width:100%"></textarea>
+            <textarea id="log-work" placeholder="Describe qué se hizo hoy, problemas encontrados..." rows="4" style="width:100%"></textarea>
         </div>
 
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px">
@@ -147,7 +171,6 @@ function showDailyLogModal() {
         </div>
     </div></div>`;
 
-    // Preview de fotos
     document.getElementById('log-photos').onchange = function(e) {
         const preview = document.getElementById('photo-preview');
         preview.innerHTML = '';
@@ -156,10 +179,7 @@ function showDailyLogModal() {
             reader.onload = ev => {
                 const img = document.createElement('img');
                 img.src = ev.target.result;
-                img.style.width = '40px';
-                img.style.height = '40px';
-                img.style.objectFit = 'cover';
-                img.style.borderRadius = '4px';
+                img.style.width = '40px'; img.style.height = '40px'; img.style.objectFit = 'cover'; img.style.borderRadius = '4px';
                 preview.appendChild(img);
             };
             reader.readAsDataURL(file);
@@ -168,18 +188,18 @@ function showDailyLogModal() {
 }
 
 async function saveDailyLog() {
+    const p = getActiveProject();
+    if (!p) return toast("Sin proyecto activo", false);
     const date = document.getElementById("log-date").value;
     const weather = document.getElementById("log-weather").value;
     const workDone = document.getElementById("log-work").value;
     const photoFiles = document.getElementById("log-photos").files;
     
-    // Procesar asistencia
     const attendance = [];
     document.querySelectorAll(".log-att").forEach(ck => {
         attendance.push({ name: ck.dataset.name, present: ck.checked });
     });
 
-    // Procesar fotos a Base64
     const photos = [];
     for (let f of photoFiles) {
         const b64 = await toBase64(f);
@@ -188,82 +208,25 @@ async function saveDailyLog() {
 
     const newLog = {
         id: 'log_' + Date.now(),
-        date,
-        weather,
-        workDone,
-        attendance,
-        photos
+        date, weather, workDone, attendance, photos
     };
 
-    state.dailyLogs.push(newLog);
+    if (!p.execution.dailyLogs) p.execution.dailyLogs = [];
+    p.execution.dailyLogs.push(newLog);
     save();
     closeModal();
     renderLogs();
     toast("Entrada de bitácora registrada ✓");
 }
 
-function showStaffModal() {
-    let staffHtml = state.staff.map((s, idx) => `
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--bor)">
-            <div>
-                <strong>${s.last}, ${s.name}</strong> 
-                <div style="color:var(--tx3); font-size:0.75rem">C.I.: ${s.cedula} | ${s.role} ${s.phone ? `| 📱 ${s.phone}` : ''} ${s.phone ? `<button class="btn sm" onclick="window.open(waLink('${s.phone.replace(/'/g, "\\'")}'), '_blank')" style="padding:0 5px;background:#25D366;color:white;border:none;margin-left:5px" title="WhatsApp">💬</button>` : ''}</div>
-            </div>
-            <button class="delbtn" onclick="deleteStaff(${idx})">✕</button>
-        </div>
-    `).join("");
-
-    const el = document.getElementById("modal-area");
-    el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:400px">
-        <div class="modal-title">Gestionar Personal de Obra<button class="delbtn" onclick="closeModal()">✕</button></div>
-        <div style="max-height:200px; overflow-y:auto; margin-bottom:15px">
-            ${staffHtml || '<p style="color:var(--tx3); text-align:center">No hay personal registrado.</p>'}
-        </div>
-        <div style="background:rgba(var(--acc-rgb), 0.05); padding:12px; border-radius:var(--rad); display:flex; flex-direction:column; gap:8px">
-            <strong>Agregar Personal</strong>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px">
-                <input id="st-name" placeholder="Nombres">
-                <input id="st-last" placeholder="Apellidos">
-            </div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px">
-                <input id="st-cedula" placeholder="N° Cédula">
-                <input id="st-role" placeholder="Rubro (ej. Oficial Albañil)">
-            </div>
-            <input id="st-phone" placeholder="Teléfono / WhatsApp">
-            <button class="btn primary" onclick="addStaff()">Agregar 👤</button>
-        </div>
-    </div></div>`;
-}
-
-function addStaff() {
-    const name = document.getElementById("st-name").value.trim();
-    const last = document.getElementById("st-last").value.trim();
-    const cedula = document.getElementById("st-cedula").value.trim();
-    const role = document.getElementById("st-role").value.trim();
-    const phone = document.getElementById("st-phone").value.trim();
-    
-    if (!name || !last || !cedula || !role) return toast("Todos los campos son obligatorios", false);
-    
-    state.staff.push({ name, last, cedula, role, phone });
-    save();
-    showStaffModal();
-    toast("Personal añadido ✓");
-}
-
-function deleteStaff(idx) {
-    state.staff.splice(idx, 1);
-    save();
-    showStaffModal();
-}
-
 function deleteLog(id) {
+    const p = getActiveProject();
     if(!confirm("¿Eliminar esta entrada permanentemente?")) return;
-    state.dailyLogs = state.dailyLogs.filter(l => l.id !== id);
+    p.execution.dailyLogs = p.execution.dailyLogs.filter(l => l.id !== id);
     save();
     renderLogs();
 }
 
-// Helper para convertir archivos a Base64
 function toBase64(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -271,4 +234,25 @@ function toBase64(file) {
         reader.onload = () => resolve(reader.result);
         reader.onerror = error => reject(error);
     });
+}
+
+async function autoFetchWeather(date) {
+    const weatherSelect = document.getElementById("log-weather");
+    if (!weatherSelect) return;
+    toast("Consultando clima...");
+    try {
+        const lat = -25.26; const lon = -57.57;
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode&timezone=auto&start_date=${date}&end_date=${date}`;
+        const resp = await fetch(url);
+        const data = await resp.json();
+        if (data && data.daily && data.daily.weathercode) {
+            const code = data.daily.weathercode[0];
+            let val = "sunny";
+            if (code >= 1 && code <= 3) val = "cloudy";
+            if (code >= 51 && code <= 67) val = "rainy";
+            if (code >= 95) val = "storm";
+            weatherSelect.value = val;
+            toast("Clima actualizado ✓");
+        }
+    } catch (e) { toast("No se pudo obtener el clima", false); }
 }

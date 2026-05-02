@@ -20,25 +20,30 @@
     
     <div class="side-scroll">
       <div class="nav-group">
-        <div class="nav-label">Planificación</div>
-        <button id="btn-budget" class="nbtn on" onclick="setSection('budget')">📋 Presupuesto</button>
+        <div class="nav-label">Organización</div>
+        <button id="btn-global-dashboard" class="nbtn on" onclick="setSection('global_dashboard')">🚀 Panel General</button>
+        <button id="btn-projects" class="nbtn" onclick="setSection('projects')">🏢 Mis Proyectos</button>
+        <button id="btn-budget" class="nbtn" onclick="setSection('budget')">📋 Presupuesto</button>
+        <button id="btn-computo" class="nbtn" onclick="setSection('computo')">🧱 Cómputo de Materiales</button>
         <button id="btn-prices" class="nbtn" onclick="setSection('prices')">💰 Base de Precios</button>
       </div>
 
       <div class="nav-group">
-        <div class="nav-label">Ejecución de Obra</div>
+        <div class="nav-label">Seguimiento de Obra</div>
+        <button id="btn-dashboard" class="nbtn" onclick="setSection('dashboard')">🏠 Resumen Obra</button>
         <button id="btn-schedule" class="nbtn" onclick="setSection('schedule')">📅 Cronograma</button>
         <button id="btn-logs" class="nbtn" onclick="setSection('logs')">📔 Libro de Obra</button>
+        <button id="btn-aftercare" class="nbtn" onclick="setSection('aftercare')">🔧 Garantía y Ajustes</button>
         <button id="btn-materials" class="nbtn" onclick="setSection('materials')">🧱 Materiales</button>
         <button id="btn-contractors" class="nbtn" onclick="setSection('contractors')">👷 Contratistas</button>
-        <button id="btn-documents" class="nbtn" onclick="setSection('documents')">📁 Documentos</button>
       </div>
 
       <div class="nav-group">
         <div class="nav-label">Gestión y Análisis</div>
         <button id="btn-finances" class="nbtn" onclick="setSection('finances')">💰 Finanzas</button>
         <button id="btn-performance" class="nbtn" onclick="setSection('performance')">📈 Desempeño</button>
-        <button id="btn-dashboard" class="nbtn" onclick="setSection('dashboard')">📊 Panel General</button>
+        <button id="btn-documents" class="nbtn" onclick="setSection('documents')">📁 Planos y Fotos</button>
+        <button id="btn-suppliers" class="nbtn" onclick="setSection('suppliers')">🚛 Proveedores</button>
         <button id="btn-themes" class="nbtn" onclick="setSection('themes')">🎨 Temas Visuales</button>
         <button class="nbtn" onclick="showModal('profile')">👤 Mi Perfil</button>
       </div>
@@ -51,12 +56,25 @@
   </aside>
 
   <main class="main-content">
-    <header class="top-bar">
-      <div id="view-title" style="font-family:var(--font-display); font-weight:800; font-size:1.1rem; text-transform:uppercase; letter-spacing:0.04em">Presupuesto Actual</div>
-      <div style="flex:1"></div>
-      <div class="db-badge" id="db-badge-hdr">Precios mercado PY</div>
-    </header>
-    <div id="section-budget" class="view"></div>
+    <div class="top-bar">
+      <div id="view-title" style="font-family:var(--font-display); font-size:1.2rem; font-weight:800; text-transform:uppercase; color:var(--tx); flex:1">Presupuesto de Obra</div>
+      <div style="display:flex; align-items:center; gap:10px">
+      <div id="currency-area" style="display:flex; align-items:center; gap:10px">
+        <!-- Renderizado vía JS en app.js -->
+      </div>
+      </div>
+    </div>
+    <div id="section-budget" class="view" style="display:none">
+        <div style="display:flex; justify-content:flex-end; gap:10px; margin-bottom:10px">
+            <button class="btn sm" onclick="saveVersion()">💾 Guardar Versión</button>
+            <button class="btn sm" onclick="showModal('load_version')">📜 Historial Versiones</button>
+        </div>
+        <div id="budget-main-area"></div>
+    </div>
+    <div id="section-global_dashboard" class="view" style="display:none"></div>
+    <div id="section-projects" class="view" style="display:none"></div>
+    <div id="section-computo" class="view" style="display:none"></div>
+    <div id="section-aftercare" class="view" style="display:none"></div>
     <div id="section-schedule" class="view" style="display:none"></div>
     <div id="section-logs" class="view" style="display:none"></div>
     <div id="section-materials" class="view" style="display:none"></div>
@@ -67,6 +85,8 @@
     <div id="section-prices" class="view" style="display:none"></div>
     <div id="section-themes" class="view" style="display:none"></div> 
     <div id="section-documents" class="view" style="display:none"></div>
+    <div id="section-suppliers" class="view" style="display:none"></div>
+    <div id="section-resources" class="view" style="display:none"></div>
   </main>
 </div>
 
@@ -100,6 +120,8 @@
 <script src="finances.js"></script>
 <script src="performance.js"></script>
 <script src="documents.js"></script>
+<script src="suppliers.js"></script>
+<script src="resources.js"></script>
 
 </body>
 </html>
