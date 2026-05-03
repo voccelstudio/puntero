@@ -107,7 +107,7 @@ window.modals.add_income = () => `
     <div class="modal-title">Registrar Ingreso (Cobro)</div>
     <div class="grid2">
         <input id="fi-amount" type="number" placeholder="Monto (₲)">
-        <input id="fi-date" type="date" value="${todayISO()}">
+        ${dateInputPY('fi-date', todayISO(), '', 'width:100%')}
         <input id="fi-note" class="fullcol" placeholder="Concepto del cobro (ej: Entrega inicial)">
     </div>
     <div class="modal-acts">
@@ -119,7 +119,7 @@ window.modals.add_expense = () => `
     <div class="modal-title">Registrar Egreso (Gasto)</div>
     <div class="grid2">
         <input id="fe-amount" type="number" placeholder="Monto (₲)">
-        <input id="fe-date" type="date" value="${todayISO()}">
+        ${dateInputPY('fe-date', todayISO(), '', 'width:100%')}
         <input id="fe-note" class="fullcol" placeholder="Concepto del gasto (ej: Viáticos, Combustible)">
     </div>
     <div class="modal-acts">

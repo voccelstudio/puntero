@@ -169,7 +169,7 @@ function showPaymentModal(conId) {
         <div style="background:rgba(var(--acc-rgb), 0.05); padding:12px; border-radius:var(--rad)">
             <strong>Registrar Pago</strong>
             <input id="pay-amt" type="number" placeholder="Monto ₲" style="width:100%; margin:8px 0">
-            <input id="pay-date" type="date" value="${todayISO()}" style="width:100%; margin-bottom:8px">
+            ${dateInputPY('pay-date', todayISO(), '', 'width:100%; margin-bottom:8px')}
             <input id="pay-note" placeholder="Concepto" style="width:100%; margin-bottom:8px">
             <button class="btn primary full" onclick="addPayment('${conId}')">Confirmar Pago 💸</button>
         </div>

@@ -108,7 +108,7 @@ function showDeliveryModal(orderId) {
         <div style="display:flex; flex-direction:column; gap:15px">
             <div>
                 <label class="stat-lbl">Fecha de Llegada a Obra</label>
-                <input id="del-date" type="date" value="${todayISO()}">
+                ${dateInputPY('del-date', todayISO(), '', 'width:100%')}
             </div>
             <div>
                 <label class="stat-lbl">Foto de Remisión / Factura</label>
@@ -277,7 +277,7 @@ window.modals.new_order = () => {
             </div>
             <div>
                 <label class="stat-lbl">Fecha del Pedido</label>
-                <input id="mo-date" type="date" value="${today}">
+                ${dateInputPY('mo-date', today, '', 'width:100%')}
             </div>
             <div class="fullcol" style="grid-column:1/-1">
                 <label class="stat-lbl">Monto Total (₲)</label>

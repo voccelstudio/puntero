@@ -41,7 +41,7 @@ function renderSchedule() {
                 <div style="font-weight:700; font-size:0.875rem; color:var(--tx2)">Fecha de Inicio del Proyecto</div>
                 <div style="font-size:0.75rem; color:var(--tx3)">Todas las fechas se recalcularán a partir de esta fecha.</div>
             </div>
-            <input type="date" value="${p.execution.projectStartDate || ''}" class="sch-date" style="width:160px; background:var(--bg)" onchange="setProjectStartDate(this.value)">
+            ${dateInputPY('proj-start-date', p.execution.projectStartDate || '', "setProjectStartDate(this.value)", "width:160px")}
             <button class="btn sm" onclick="recalculateScheduleDates()" title="Recalcular todas las fechas secuencialmente a partir del inicio" style="margin-left:auto">🔄 Recalcular Todo</button>
         </div>
 
@@ -86,8 +86,8 @@ function renderSchedule() {
                     <option value="done" ${sch.status === 'done' ? 'selected' : ''}>✅ Completado</option>
                 </select>
             </div>
-            <div><input type="date" class="sch-date" value="${sch.start}" onchange="updateSchedule('${item.id}', 'start', this.value)"></div>
-            <div><input type="date" class="sch-date" value="${sch.end}" onchange="updateSchedule('${item.id}', 'end', this.value)"></div>
+            <div>${dateInputPY('sch-start-' + item.id, sch.start || '', "updateSchedule('" + item.id + "', 'start', this.value)", "width:100%")}</div>
+            <div>${dateInputPY('sch-end-' + item.id, sch.end || '', "updateSchedule('" + item.id + "', 'end', this.value)", "width:100%")}</div>
             <div>
                 <select class="sch-contractor" onchange="updateSchedule('${item.id}', 'contractorId', this.value)">
                     ${contractorsOptions}

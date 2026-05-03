@@ -83,6 +83,64 @@ function parseDate(input) {
   return isNaN(d.getTime()) ? null : d;
 }
 
+/**
+ * Genera un input de fecha custom que SIEMPRE muestra dd/mm/yyyy,
+ * independiente del idioma del browser.
+ *
+ * Estrategia: <input type="date"> nativo (mantiene el contrato `this.value = ISO`
+ * para todos los onchange existentes) + un overlay visual que muestra dd/mm/yyyy
+ * encima de lo que el browser pinta. Cuando el usuario hace click, abre el picker
+ * nativo. Cuando cambia el valor, el overlay se actualiza.
+ *
+ * @param {string} id          ID del input
+ * @param {string} value       Valor inicial en formato ISO yyyy-mm-dd
+ * @param {string} onchange    JS para onchange (recibe `this.value` en formato ISO)
+ * @param {string} style       CSS inline extra
+ * @param {string} cls         Clases CSS extra
+ * @returns {string} HTML del componente
+ */
+function dateInputPY(id, value, onchange, style = "", cls = "") {
+  const safeId = id || "date-" + Math.random().toString(36).slice(2, 9);
+  const displayValue = value ? formatDatePY(value) : "dd/mm/aaaa";
+  const wrappedOnchange = (onchange || "") + ";datePYUpdateLabel('" + safeId + "')";
+  return `<span class="date-py-wrap ${cls}" style="position:relative; display:inline-block; ${style}">
+    <input type="date" id="${safeId}" value="${value || ''}" class="date-py-native"
+      onchange="${wrappedOnchange.replace(/"/g, '&quot;')}"
+      style="opacity:0; position:absolute; inset:0; width:100%; height:100%; cursor:pointer; z-index:2; padding:0; border:none; margin:0">
+    <span class="date-py-label" data-date-label-for="${safeId}"
+      style="display:flex; align-items:center; justify-content:space-between; gap:6px; padding:8px 12px; border:1px solid var(--bor); border-radius:var(--rad); background:var(--bg); color:var(--tx); min-width:130px; font-size:14px; ${value ? '' : 'color:var(--tx3)'}">
+      <span>${displayValue}</span>
+      <span style="font-size:1rem">📅</span>
+    </span>
+  </span>`;
+}
+
+/**
+ * Actualiza el label visible del componente dateInputPY tras un cambio.
+ */
+function datePYUpdateLabel(id) {
+  const inp = document.getElementById(id);
+  if (!inp) return;
+  const labels = document.querySelectorAll(`[data-date-label-for="${id}"] > span:first-child`);
+  labels.forEach(l => {
+    l.textContent = inp.value ? formatDatePY(inp.value) : "dd/mm/aaaa";
+  });
+  // Color del placeholder vs valor real
+  const wraps = document.querySelectorAll(`[data-date-label-for="${id}"]`);
+  wraps.forEach(w => {
+    w.style.color = inp.value ? "var(--tx)" : "var(--tx3)";
+  });
+}
+
+/**
+ * Refresca todos los labels de todos los date inputs (útil tras render masivo).
+ */
+function datePYRefreshAll() {
+  document.querySelectorAll("input.date-py-native").forEach(inp => {
+    datePYUpdateLabel(inp.id);
+  });
+}
+
 const waLink = p => {
   if (!p) return "";
   let clean = p.replace(/\D/g, "");
@@ -431,7 +489,7 @@ window.modals.new_claim = () => `
     <div class="modal-title">Registrar Intervención / Reclamo</div>
     <div style="display:flex; flex-direction:column; gap:12px">
         <input id="cl-title" placeholder="Título (ej: Filtración en baño social)">
-        <input id="cl-date" type="date" value="${todayISO()}">
+        ${dateInputPY('cl-date', todayISO(), '', 'width:100%')}
         <textarea id="cl-desc" placeholder="Descripción del problema y acción a tomar..." rows="4"></textarea>
     </div>
     <div class="modal-acts">
@@ -749,11 +807,11 @@ function renderDashboard() {
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
         <div>
             <h2 class="sec-lbl" style="margin:0">Vista General</h2>
-            <div style="font-size:0.85rem; color:var(--tx3); margin-top:4px; display:flex; gap:10px; align-items:center">
+            <div style="font-size:0.85rem; color:var(--tx3); margin-top:4px; display:flex; gap:10px; align-items:center; flex-wrap:wrap">
                 <span>📅 Inicio:</span>
-                <input type="date" value="${p.execution.projectStartDate}" style="border:none; background:transparent; font-weight:700" onchange="updateProjectDate('start', this.value)">
+                ${dateInputPY('proj-overview-start', p.execution.projectStartDate || '', "updateProjectDate('start', this.value)")}
                 <span>Fin Est.:</span>
-                <input type="date" value="${p.execution.projectEndDate}" style="border:none; background:transparent; font-weight:700" onchange="updateProjectDate('end', this.value)">
+                ${dateInputPY('proj-overview-end', p.execution.projectEndDate || '', "updateProjectDate('end', this.value)")}
             </div>
         </div>
         <div class="db-badge">${p.name}</div>

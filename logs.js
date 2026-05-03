@@ -130,7 +130,7 @@ function showDailyLogModal() {
             <div>
                 <label class="stat-lbl">Fecha</label>
                 <div style="display:flex; gap:5px">
-                    <input id="log-date" type="date" value="${today}" style="flex:1" onchange="autoFetchWeather(this.value)">
+                    ${dateInputPY('log-date', today, "autoFetchWeather(this.value)", 'flex:1')}
                     <button class="btn sm" onclick="autoFetchWeather(document.getElementById('log-date').value)" title="Consultar clima histórico">🔄</button>
                 </div>
             </div>

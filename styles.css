@@ -848,6 +848,37 @@ table.tbl{width:100%;border-collapse:collapse;font-size:1rem;}
 .alert-txt{font-size:.875rem;flex:1;color:var(--tx2);}
 .alert-date{font-size:.95rem;color:var(--tx3);}
 
+/* ── DATE INPUT PY (componente custom dd/mm/yyyy) ─────────────────── */
+.date-py-wrap {
+  vertical-align: middle;
+}
+.date-py-wrap .date-py-label {
+  white-space: nowrap;
+  user-select: none;
+  transition: border-color .12s, background .12s;
+}
+.date-py-wrap:hover .date-py-label {
+  border-color: var(--acc);
+  background: var(--sur);
+}
+.date-py-wrap input.date-py-native {
+  /* Esconder visualmente pero mantener clickeable */
+  color: transparent;
+  background: transparent;
+}
+.date-py-wrap input.date-py-native::-webkit-calendar-picker-indicator {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+/* Firefox: el indicator es diferente */
+.date-py-wrap input.date-py-native::-moz-focus-inner {
+  border: 0;
+}
+
 /* Mobile FAB menu */
 .mobile-fab{display:none;position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));right:calc(20px + env(safe-area-inset-right));z-index:150;flex-direction:column;align-items:flex-end;gap:8px;}
 .mobile-fab-main{width:56px;height:56px;border-radius:50%;background:var(--acc);border:none;color:var(--bg);font-size:1.5rem;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;font-weight:800;}
