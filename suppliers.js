@@ -203,7 +203,7 @@ function saveQuote(supplierId, materialName, price) {
             supplierId,
             materialName,
             price: p,
-            date: new Date().toLocaleDateString('es-PY')
+            date: formatDatePY(new Date())
         });
     }
     

@@ -67,7 +67,7 @@ function renderMaterials() {
                                     <span style="font-weight:800; font-size:0.95rem">#${o.id.toString().slice(-4)} - ${o.supplier || 'Proveedor S/N'}</span>
                                     <span class="iva-badge" style="background:${o.status === 'delivered' ? 'var(--ok)' : 'var(--blue)'}; color:white">${o.status === 'delivered' ? 'RECIBIDO' : 'PEDIDO'}</span>
                                 </div>
-                                <div style="font-size:0.8rem; color:var(--tx3); margin-bottom:10px">Pedido: ${o.date}</div>
+                                <div style="font-size:0.8rem; color:var(--tx3); margin-bottom:10px">Pedido: ${formatDatePY(o.date)}</div>
                                 
                                 <div style="margin-top:8px; font-size:0.85rem; background:var(--sur2); padding:10px; border-radius:var(--rad)">
                                     ${o.items.map(i => `• ${i.name}: <strong>${i.qty} ${i.unit}</strong>`).join("<br>")}
@@ -77,7 +77,7 @@ function renderMaterials() {
                                     <div style="margin-top:12px; display:flex; gap:12px; align-items:center; border-top:1px dashed var(--bor); padding-top:12px">
                                         <div style="flex:1">
                                             <div style="font-size:0.75rem; color:var(--tx3); text-transform:uppercase; font-weight:700">Llegada Obra</div>
-                                            <div style="font-size:0.9rem; font-weight:600">${o.deliveryDate || 'S/D'}</div>
+                                            <div style="font-size:0.9rem; font-weight:600">${o.deliveryDate ? formatDatePY(o.deliveryDate) : 'S/D'}</div>
                                         </div>
                                         ${o.deliveryPhoto ? `
                                             <div onclick="previewImage('${o.deliveryPhoto}')" style="width:50px; height:50px; border-radius:4px; background:url(${o.deliveryPhoto}) center/cover; cursor:pointer; border:1px solid var(--bor)" title="Ver Remisión"></div>
@@ -108,7 +108,7 @@ function showDeliveryModal(orderId) {
         <div style="display:flex; flex-direction:column; gap:15px">
             <div>
                 <label class="stat-lbl">Fecha de Llegada a Obra</label>
-                <input id="del-date" type="date" value="${new Date().toISOString().split('T')[0]}">
+                <input id="del-date" type="date" value="${todayISO()}">
             </div>
             <div>
                 <label class="stat-lbl">Foto de Remisión / Factura</label>
@@ -183,7 +183,7 @@ function payOrder(id) {
     if (!o) return;
     if (confirm(`¿Registrar pago de ${fmt(o.total)} a ${o.supplier}?`)) {
         o.isPaid = true;
-        o.paymentDate = new Date().toISOString().split('T')[0];
+        o.paymentDate = todayISO();
 
         if (!p.execution.finances) p.execution.finances = { income: [], expenses: [] };
         if (!p.execution.finances.expenses) p.execution.finances.expenses = [];
@@ -244,7 +244,7 @@ window.modals.new_order = () => {
     if (!p) return `<div class="modal-title">Sin proyecto<button class="delbtn" onclick="closeModal()">✕</button></div><p>Seleccioná un proyecto primero.</p>`;
 
     const materialsNeeded = calcMaterials();
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayISO();
 
     // Sugerir proveedores existentes
     const supplierOpts = (state.suppliers || []).map(s => `<option value="${s.name.replace(/"/g, '&quot;')}">`).join("");

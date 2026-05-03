@@ -157,7 +157,7 @@ function showPaymentModal(conId) {
     if (!con) return;
     let payRows = (con.payments || []).map((p, idx) => `
         <div style="display:grid; grid-template-columns:1fr 1fr 40px; gap:8px; align-items:center; padding:6px 0; border-bottom:1px solid var(--bor)">
-            <div>${p.date} - ${p.note}</div>
+            <div>${formatDatePY(p.date)} - ${p.note}</div>
             <div style="font-weight:700; text-align:right">${fmt(p.amount)}</div>
             <button class="delbtn" onclick="deletePayment('${conId}', ${idx})">✕</button>
         </div>`).join("");
@@ -169,7 +169,7 @@ function showPaymentModal(conId) {
         <div style="background:rgba(var(--acc-rgb), 0.05); padding:12px; border-radius:var(--rad)">
             <strong>Registrar Pago</strong>
             <input id="pay-amt" type="number" placeholder="Monto ₲" style="width:100%; margin:8px 0">
-            <input id="pay-date" type="date" value="${new Date().toISOString().split('T')[0]}" style="width:100%; margin-bottom:8px">
+            <input id="pay-date" type="date" value="${todayISO()}" style="width:100%; margin-bottom:8px">
             <input id="pay-note" placeholder="Concepto" style="width:100%; margin-bottom:8px">
             <button class="btn primary full" onclick="addPayment('${conId}')">Confirmar Pago 💸</button>
         </div>

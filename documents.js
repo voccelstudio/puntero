@@ -16,12 +16,12 @@ function renderDocuments() {
         id: 'log-' + l.id,
         type: 'photo',
         category: 'Bitácora',
-        name: `Foto ${l.date}`,
+        name: `Foto ${formatDatePY(l.date)}`,
         date: l.date,
         url: p
     })));
 
-    const allDocs = [...proj.execution.documents, ...logPhotos].sort((a, b) => new Date(b.date) - new Date(a.date));
+    const allDocs = [...proj.execution.documents, ...logPhotos].sort((a, b) => parseDate(b.date) - parseDate(a.date));
 
     const categories = ['Todos', 'Planos', 'Fotos', 'Contratos', 'Facturas', 'Bitácora'];
     const currentCat = state._docFilter || 'Todos';
@@ -56,7 +56,7 @@ function renderDocuments() {
                         <div class="doc-name">${d.name}</div>
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px">
                             <span class="iva-badge" style="font-size:0.7rem">${d.category}</span>
-                            <span style="font-size:0.7rem; color:var(--tx3)">${d.date}</span>
+                            <span style="font-size:0.7rem; color:var(--tx3)">${formatDatePY(d.date)}</span>
                         </div>
                     </div>
                     <div class="doc-actions">
@@ -105,7 +105,7 @@ function uploadDocument(input) {
                 name: file.name,
                 type: isImg ? 'photo' : 'file',
                 category: category,
-                date: new Date().toLocaleDateString('es-PY'),
+                date: formatDatePY(new Date()),
                 url: isImg ? e.target.result : null
             });
 
@@ -143,7 +143,7 @@ function viewDocument(id) {
     if (!proj) return;
     const dailyLogs = proj.execution.dailyLogs || [];
     const docs = proj.execution.documents || [];
-    const doc = [...docs, ...dailyLogs.flatMap(l => (l.photos || []).map(p => ({ id: 'log-' + l.id, url: p, name: `Foto ${l.date}`, category: 'Bitácora' })))].find(d => d.id == id);
+    const doc = [...docs, ...dailyLogs.flatMap(l => (l.photos || []).map(p => ({ id: 'log-' + l.id, url: p, name: `Foto ${formatDatePY(l.date)}`, category: 'Bitácora' })))].find(d => d.id == id);
 
     if (!doc) return;
 

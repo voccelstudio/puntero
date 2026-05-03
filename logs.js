@@ -29,7 +29,7 @@ function renderLogs() {
         </div>`;
     }
 
-    const sortedLogs = [...dailyLogs].sort((a,b) => new Date(b.date) - new Date(a.date));
+    const sortedLogs = [...dailyLogs].sort((a,b) => parseDate(b.date) - parseDate(a.date));
 
     sortedLogs.forEach(log => {
         const weatherIco = { sunny: '☀️', cloudy: '☁️', rainy: '🌧️', windy: '💨', storm: '⛈️' }[log.weather] || '🌡️';
@@ -37,7 +37,7 @@ function renderLogs() {
         h += `<div class="sch-card" style="margin-bottom:20px; padding:20px">
             <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:1px solid var(--bor); padding-bottom:10px; margin-bottom:15px">
                 <div>
-                    <span style="font-size:1.2rem; font-weight:800; color:var(--acc)">${log.date}</span>
+                    <span style="font-size:1.2rem; font-weight:800; color:var(--acc)">${formatDatePY(log.date)}</span>
                     <span style="margin-left:10px; font-size:1.2rem">${weatherIco}</span>
                 </div>
                 <div style="display:flex; gap:6px">
@@ -89,7 +89,7 @@ function renderLogs() {
 }
 
 function showDailyLogModal() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayISO();
     const el = document.getElementById("modal-area");
     const proj = getActiveProject();
 

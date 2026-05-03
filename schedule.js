@@ -137,7 +137,7 @@ function recalculateScheduleDates() {
     if (!p || !adenda) return;
 
     if (!p.execution.projectStartDate && adenda.items.length > 0) {
-        p.execution.projectStartDate = new Date().toISOString().split('T')[0];
+        p.execution.projectStartDate = todayISO();
     }
     if (!p.execution.projectStartDate) return;
 
@@ -261,7 +261,7 @@ function exportSchedulePDF() {
     doc.text(`Proyecto: ${p.name}`, margin, y);
     y += 5;
     if (p.execution.projectStartDate) {
-        doc.text(`Inicio: ${fmtDate(p.execution.projectStartDate)}`, margin, y);
+        doc.text(`Inicio: ${formatDatePY(p.execution.projectStartDate)}`, margin, y);
         y += 5;
     }
     const { totalProgress } = calcOverallProgress();
@@ -278,8 +278,8 @@ function exportSchedulePDF() {
             item.name,
             `${item.qty} ${item.unit}`,
             statusLabel,
-            fmtDate(sch.start),
-            fmtDate(sch.end),
+            sch.start ? formatDatePY(sch.start) : '-',
+            sch.end ? formatDatePY(sch.end) : '-',
             con ? con.name : '-'
         ];
     });

@@ -81,11 +81,11 @@ function renderFinances() {
                             const expenses = finances.expenses.map(e => ({ ...e, type: 'expense', cat: 'Gasto General' }));
                             const payments = projectContractors.flatMap(c => (c.payments || []).map(pay => ({ ...pay, type: 'expense', cat: 'Mano de Obra', note: `${c.name}: ${pay.note}` })));
 
-                            const all = [...income, ...expenses, ...payments].sort((a, b) => new Date(b.date) - new Date(a.date));
+                            const all = [...income, ...expenses, ...payments].sort((a, b) => parseDate(b.date) - parseDate(a.date));
 
                             return all.length === 0 ? '<tr><td colspan="4" style="text-align:center; padding:20px">No hay movimientos registrados.</td></tr>' : all.map(t => `
                                 <tr>
-                                    <td>${t.date}</td>
+                                    <td>${formatDatePY(t.date)}</td>
                                     <td><span class="iva-badge" style="background:${t.type === 'income' ? 'var(--matbg)' : 'var(--labbg)'}; color:${t.type === 'income' ? 'var(--ok)' : 'var(--lab)'}">${t.cat}</span></td>
                                     <td>${t.note}</td>
                                     <td style="text-align:right; font-weight:700; color:${t.type === 'income' ? 'var(--ok)' : 'var(--err)'}">
@@ -107,7 +107,7 @@ window.modals.add_income = () => `
     <div class="modal-title">Registrar Ingreso (Cobro)</div>
     <div class="grid2">
         <input id="fi-amount" type="number" placeholder="Monto (₲)">
-        <input id="fi-date" type="date" value="${new Date().toISOString().split('T')[0]}">
+        <input id="fi-date" type="date" value="${todayISO()}">
         <input id="fi-note" class="fullcol" placeholder="Concepto del cobro (ej: Entrega inicial)">
     </div>
     <div class="modal-acts">
@@ -119,7 +119,7 @@ window.modals.add_expense = () => `
     <div class="modal-title">Registrar Egreso (Gasto)</div>
     <div class="grid2">
         <input id="fe-amount" type="number" placeholder="Monto (₲)">
-        <input id="fe-date" type="date" value="${new Date().toISOString().split('T')[0]}">
+        <input id="fe-date" type="date" value="${todayISO()}">
         <input id="fe-note" class="fullcol" placeholder="Concepto del gasto (ej: Viáticos, Combustible)">
     </div>
     <div class="modal-acts">

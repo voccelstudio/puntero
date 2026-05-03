@@ -13,6 +13,76 @@ const fmt = n => {
 const fmtRaw = (n, d = 0) => new Intl.NumberFormat("es-PY", { minimumFractionDigits: d, maximumFractionDigits: d }).format(n);
 const fmtD = (n, d = 2) => +n.toFixed(d);
 
+// ── HELPERS DE FECHAS (todo PY: dd/mm/yyyy) ──────────────────────────────
+/**
+ * Formatea cualquier fecha como dd/mm/yyyy (formato paraguayo).
+ * Acepta: Date, string ISO (yyyy-mm-dd), string dd/mm/yyyy, string d/m/yyyy (legacy), timestamp.
+ * Devuelve "" si la entrada es inválida.
+ */
+function formatDatePY(input) {
+  if (!input) return "";
+  let d;
+  if (input instanceof Date) {
+    d = input;
+  } else if (typeof input === "number") {
+    d = new Date(input);
+  } else if (typeof input === "string") {
+    // Formato dd/mm/yyyy con ceros — devolver tal cual
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(input)) return input;
+    // Formato legacy d/m/yyyy o dd/m/yyyy (sin ceros — datos viejos guardados con toLocaleDateString)
+    const pyLegacyMatch = input.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (pyLegacyMatch) {
+      const [, day, month, year] = pyLegacyMatch;
+      return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`;
+    }
+    // Formato ISO yyyy-mm-dd
+    const isoMatch = input.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) {
+      const [, y, m, day] = isoMatch;
+      return `${day}/${m}/${y}`;
+    }
+    d = new Date(input);
+  }
+  if (!d || isNaN(d.getTime())) return "";
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+
+/**
+ * Devuelve la fecha de hoy en formato ISO (yyyy-mm-dd) para inputs HTML date.
+ * Los <input type="date"> SIEMPRE usan ISO internamente, no se puede cambiar.
+ */
+function todayISO() {
+  return new Date().toISOString().split('T')[0];
+}
+
+/**
+ * Convierte cualquier formato a Date object para hacer cálculos/comparaciones.
+ * Soporta dd/mm/yyyy, d/m/yyyy (legacy) y yyyy-mm-dd.
+ */
+function parseDate(input) {
+  if (!input) return null;
+  if (input instanceof Date) return input;
+  if (typeof input === "string") {
+    // dd/mm/yyyy o d/m/yyyy (paraguayo, con o sin ceros)
+    const pyMatch = input.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (pyMatch) {
+      const [, d, m, y] = pyMatch;
+      return new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+    }
+    // yyyy-mm-dd (ISO)
+    const isoMatch = input.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) {
+      const [, y, m, d] = isoMatch;
+      return new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+    }
+  }
+  const d = new Date(input);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 const waLink = p => {
   if (!p) return "";
   let clean = p.replace(/\D/g, "");
@@ -253,12 +323,12 @@ function renderGlobalDashboard() {
                         </tr>
                     </thead>
                     <tbody>
-                        ${urgentItems.sort((a,b) => new Date(a.date) - new Date(b.date)).map(item => `
+                        ${urgentItems.sort((a,b) => parseDate(a.date) - parseDate(b.date)).map(item => `
                             <tr>
                                 <td style="font-weight:700">${item.project}</td>
                                 <td><span class="iva-badge" style="background:${item.color}; color:white">${item.type}</span></td>
                                 <td>${item.desc}</td>
-                                <td>${item.date}</td>
+                                <td>${formatDatePY(item.date)}</td>
                                 <td style="text-align:right; font-weight:700">${item.amount ? fmt(item.amount) : '—'}</td>
                                 <td><button class="btn sm" onclick="switchProjectFromName('${item.project.replace(/'/g, "\\'")}')">Ir →</button></td>
                             </tr>
@@ -299,7 +369,7 @@ function renderAftercare() {
             ${p.execution.aftercare.map((c, idx) => `
                 <div class="card" style="border-left: 4px solid ${c.status === 'resolved' ? 'var(--ok)' : 'var(--warn)'}">
                     <div style="display:flex; justify-content:space-between; margin-bottom:10px">
-                        <span class="iva-badge" style="background:var(--sur2); color:var(--tx2)">${c.date}</span>
+                        <span class="iva-badge" style="background:var(--sur2); color:var(--tx2)">${formatDatePY(c.date)}</span>
                         <span class="iva-badge" style="background:${c.status === 'resolved' ? 'var(--ok)' : 'var(--warn)'}; color:white">${c.status === 'resolved' ? 'RESUELTO' : 'PENDIENTE'}</span>
                     </div>
                     <h3 style="margin:0 0 8px 0; font-size:1.1rem">${c.title}</h3>
@@ -361,7 +431,7 @@ window.modals.new_claim = () => `
     <div class="modal-title">Registrar Intervención / Reclamo</div>
     <div style="display:flex; flex-direction:column; gap:12px">
         <input id="cl-title" placeholder="Título (ej: Filtración en baño social)">
-        <input id="cl-date" type="date" value="${new Date().toISOString().split('T')[0]}">
+        <input id="cl-date" type="date" value="${todayISO()}">
         <textarea id="cl-desc" placeholder="Descripción del problema y acción a tomar..." rows="4"></textarea>
     </div>
     <div class="modal-acts">
@@ -405,7 +475,7 @@ function migrateToV7() {
         client: state.clientName,
         phone: state.clientPhone,
         address: state.clientAddress,
-        date: new Date().toLocaleDateString("es-PY"),
+        date: formatDatePY(new Date()),
         status: 'active',
         activeAdendaId: 'main',
         budgets: [
@@ -726,7 +796,7 @@ function renderDashboard() {
                         <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; background:var(--sur2); border-radius:var(--rad)">
                             <div>
                                 <div style="font-weight:700; font-size:0.9rem">${i.name}</div>
-                                <div style="font-size:0.75rem; color:var(--tx3)">Inicia: ${s.start || 'S/D'}</div>
+                                <div style="font-size:0.75rem; color:var(--tx3)">Inicia: ${formatDatePY(s.start) || 'S/D'}</div>
                             </div>
                             <div class="iva-badge" style="background:var(--sur); color:var(--tx2)">${s.status === 'progress' ? 'EN CURSO' : 'PENDIENTE'}</div>
                         </div>
@@ -801,7 +871,7 @@ async function exportDailyPDF(logId) {
   doc.setFont("helvetica", "bold");
   doc.text("INFORME DIARIO DE OBRA", margin + 35, 30);
   doc.setFontSize(10);
-  doc.text(`${proj.name} | ${log.date}`, margin + 35, 38);
+  doc.text(`${proj.name} | ${formatDatePY(log.date)}`, margin + 35, 38);
 
   y = 80;
   doc.setTextColor("#333333");
@@ -811,7 +881,7 @@ async function exportDailyPDF(logId) {
   
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
-  doc.text(`Fecha: ${log.date}`, margin, y);
+  doc.text(`Fecha: ${formatDatePY(log.date)}`, margin, y);
   doc.text(`Clima: ${log.weather.toUpperCase()}`, margin + 80, y);
   y += 10;
 
@@ -865,7 +935,7 @@ async function exportDailyPDF(logId) {
     doc.text(`Generado por Puntero - Página ${i} de ${pageCount}`, margin, 285);
   }
 
-  doc.save(`Reporte_Diario_${log.date}.pdf`);
+  doc.save(`Reporte_Diario_${formatDatePY(log.date).replace(/\//g, '-')}.pdf`);
   toast("PDF Diario generado ✓");
 }
 
@@ -889,7 +959,7 @@ async function exportWeeklyReport() {
   doc.setFontSize(12);
   doc.text(`PROYECTO: ${(proj.name || '').toUpperCase()}`, margin, 140);
   doc.text(`CLIENTE: ${proj.client || ''}`, margin, 150);
-  doc.text(`FECHA DE EMISIÓN: ${new Date().toLocaleDateString()}`, margin, 160);
+  doc.text(`FECHA DE EMISIÓN: ${formatDatePY(new Date())}`, margin, 160);
 
   // ÍNDICE
   doc.addPage();
@@ -918,7 +988,7 @@ async function exportWeeklyReport() {
   const lastLogs = (proj.execution.dailyLogs || []).slice(-7);
   lastLogs.forEach(log => {
      doc.setFont("helvetica", "bold");
-     doc.text(`${log.date} - Clima: ${log.weather}`, margin, y);
+     doc.text(`${formatDatePY(log.date)} - Clima: ${log.weather}`, margin, y);
      doc.setFont("helvetica", "normal");
      const txt = doc.splitTextToSize(log.workDone || "", 160);
      doc.text(txt, margin + 5, y + 5);
@@ -969,7 +1039,7 @@ function addItem(cat, name) {
   const y = data.y || DEFAULT_YIELDS[cat] || 10;
   const days = Math.ceil(1 / y) || 1;
 
-  let startStr = p.execution.projectStartDate || new Date().toISOString().split('T')[0];
+  let startStr = p.execution.projectStartDate || todayISO();
   if (adenda.items.length > 0) {
     let maxEnd = 0;
     Object.values(p.execution.schedules).forEach(s => {
@@ -1081,7 +1151,7 @@ function saveVersion() {
     const snapshot = {
         id: 'v_' + Date.now() + '_' + Math.floor(Math.random()*1000),
         name: name,
-        date: new Date().toLocaleDateString("es-PY"),
+        date: formatDatePY(new Date()),
         adendaId: adenda.id,
         items: JSON.parse(JSON.stringify(adenda.items)),
         m2Area: p.m2Area || 0,
@@ -1547,7 +1617,7 @@ function exportXLS() {
   csv += q("Proyecto") + "," + q(p.name) + nl;
   csv += q("Cliente") + "," + q(p.client || "-") + nl;
   csv += q("Dirección") + "," + q(p.address || "-") + nl;
-  csv += q("Fecha") + "," + q(new Date().toLocaleDateString("es-PY")) + nl;
+  csv += q("Fecha") + "," + q(formatDatePY(new Date())) + nl;
   csv += nl;
   const ivaHeader = adenda.ivaEnabled ? q("IVA mat (₲)") + "," + q("IVA MO (₲)") + "," + q("IVA Total (₲)") + "," : "";
   csv += q("CATEGORÍA") + "," + q("DESCRIPCIÓN") + "," + q("UNIDAD") + "," + q("CANTIDAD") + "," + q("DESC.%") + "," + q("MATERIALES (₲)") + "," + q("MANO DE OBRA (₲)") + "," + q("P. UNITARIO (₲)") + "," + ivaHeader + q("TOTAL (₲)") + "," + q("NOTA INTERNA") + nl;
@@ -1777,7 +1847,7 @@ function createProject() {
         phone: document.getElementById("np-phone").value,
         address: document.getElementById("np-addr").value,
         m2Area: parseFloat(document.getElementById("np-m2").value) || 0,
-        date: new Date().toLocaleDateString("es-PY"),
+        date: formatDatePY(new Date()),
         status: 'active',
         activeAdendaId: 'main',
         budgets: [
@@ -1843,7 +1913,7 @@ function showModal(type, arg) {
         <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; border-bottom:1px solid var(--bor)">
             <div>
                 <div style="font-weight:700">${v.name}</div>
-                <div style="font-size:0.75rem; color:var(--tx3)">${v.date} - ${v.items?.length || 0} ítems</div>
+                <div style="font-size:0.75rem; color:var(--tx3)">${formatDatePY(v.date)} - ${v.items?.length || 0} ítems</div>
             </div>
             <div style="display:flex; gap:5px">
                 <button class="btn sm" onclick="loadVersion('${v.id}')">📂 Cargar</button>
@@ -1955,7 +2025,7 @@ function showModal(type, arg) {
   else if (type === "load") {
     const rows = state.budgets.length === 0
       ? `<p style="font-size:1rem;color:var(--tx3)">No hay presupuestos guardados.</p>`
-      : state.budgets.map(b => `<div class="modal-row"><div style="flex:1"><div class="modal-name">Nº${String(b.num || 0).padStart(4, "0")} — ${b.projectName}</div><div class="modal-meta">${b.clientName || "Sin cliente"} · ${b.date} · ${b.items.length} ítems</div></div><button class="btn sm" onclick="doLoad(${b.id})">Cargar</button><button class="btn sm" onclick="dupBudget(${b.id})" title="Duplicar">⎘</button><button class="btn sm danger" onclick="doDeleteBudget(${b.id})">✕</button></div>`).join("");
+      : state.budgets.map(b => `<div class="modal-row"><div style="flex:1"><div class="modal-name">Nº${String(b.num || 0).padStart(4, "0")} — ${b.projectName}</div><div class="modal-meta">${b.clientName || "Sin cliente"} · ${formatDatePY(b.date)} · ${b.items.length} ítems</div></div><button class="btn sm" onclick="doLoad(${b.id})">Cargar</button><button class="btn sm" onclick="dupBudget(${b.id})" title="Duplicar">⎘</button><button class="btn sm danger" onclick="doDeleteBudget(${b.id})">✕</button></div>`).join("");
     el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
       <div class="modal-title">Presupuestos Guardados<button class="delbtn" onclick="closeModal()">✕</button></div>
       ${rows}<div class="modal-acts"><button class="btn" onclick="closeModal()">Cerrar</button></div>
@@ -2160,7 +2230,7 @@ function importProject() {
             client: data.clientName || "",
             phone: data.clientPhone || "",
             address: data.clientAddress || "",
-            date: new Date().toLocaleDateString("es-PY"),
+            date: formatDatePY(new Date()),
             status: 'active',
             activeAdendaId: 'main',
             budgets: [{
@@ -2253,7 +2323,7 @@ function renderGlobalStats() {
   }, 0);
   const avg = total ? totalVal / total : 0;
   const thisMonth = state.budgets.filter(b => {
-    try { const p = b.date.split("/"); const d = new Date(parseInt(p[2]), parseInt(p[1]) - 1); return d.getMonth() === new Date().getMonth(); } catch (e) { return false; }
+    try { const d = parseDate(b.date); return d && d.getMonth() === new Date().getMonth(); } catch (e) { return false; }
   }).length;
   const rubros = {};
   for (const b of state.budgets) for (const i of b.items) { rubros[i.cat] = (rubros[i.cat] || 0) + 1; }
@@ -2261,8 +2331,8 @@ function renderGlobalStats() {
   const today = new Date();
   const alerts = state.budgets.map(b => {
     try {
-      const p = b.date.split("/");
-      const emision = new Date(parseInt(p[2]), parseInt(p[1]) - 1, parseInt(p[0]));
+      const emision = parseDate(b.date);
+      if (!emision) return { ...b, diff: 999 };
       const vence = new Date(emision.getTime() + (b.validDays || 30) * 86400000);
       const diff = Math.ceil((vence - today) / 86400000);
       return { ...b, diff, vence };
@@ -2480,7 +2550,7 @@ function loadDemoProject() {
     phone: "0981 555 000",
     address: "San Bernardino, Cordillera",
     m2Area: 120,
-    date: new Date().toLocaleDateString("es-PY"),
+    date: formatDatePY(new Date()),
     status: 'active',
     activeAdendaId: 'main',
     budgets: [{
