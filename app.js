@@ -592,6 +592,8 @@ function toast(msg, ok = true) {
 
 function setSection(s) {
   state.section = s;
+  // Cerrar drawer automáticamente al navegar (UX mobile)
+  if (typeof closeSidebar === 'function') closeSidebar();
   const titles = { 
     budget: "Presupuesto de Obra", 
     schedule: "Cronograma de Ejecución", 
@@ -1189,15 +1191,20 @@ function getBreakdown() {
 function calcMaterials() {
   const p = getActiveProject();
   if (!p) return [];
-  
+
   const allItems = p.budgets.flatMap(b => b.items);
   const m = {};
   for (const item of allItems) {
     if (!item.mats) continue;
     for (const mat of item.mats) {
-      const key = mat.name + "|" + mat.unit;
-      if (!m[key]) m[key] = { name: mat.name, unit: mat.unit, qty: 0 };
-      m[key].qty += (mat.qty * item.qty);
+      // Soportar ambos formatos: el compacto {n,q,u} de la DB y el extendido {name,qty,unit}
+      const name = mat.name || mat.n;
+      const unit = mat.unit || mat.u;
+      const qty = mat.qty != null ? mat.qty : mat.q;
+      if (!name || qty == null) continue;
+      const key = name + "|" + (unit || "");
+      if (!m[key]) m[key] = { name, unit: unit || "", qty: 0 };
+      m[key].qty += (qty * (item.qty || 0));
     }
   }
   return Object.values(m).sort((a, b) => a.name.localeCompare(b.name));
@@ -1287,16 +1294,16 @@ function renderTable() {
     <button class="btn sm" onclick="setSection('computo')">🧱 Ver Cómputo</button>
     <button class="btn sm" onclick="showModal('breakdown')">📊 Desglose</button>
   </div>
-  <table class="tbl"><thead><tr><th>Descripción</th><th>U.</th><th>Cant.</th><th>Desc.%</th><th>P. Unit.</th>${adenda.ivaEnabled ? "<th style='color:var(--iva)'>IVA</th>" : ""}<th>Total</th><th></th></tr></thead><tbody>`;
+  <table class="tbl budget-tbl"><thead><tr><th>Descripción</th><th>U.</th><th>Cant.</th><th>Desc.%</th><th>P. Unit.</th>${adenda.ivaEnabled ? "<th style='color:var(--iva)'>IVA</th>" : ""}<th>Total</th><th></th></tr></thead><tbody>`;
   for (const [cat, ci] of Object.entries(grouped)) {
-    h += `<tr class="tbl-cat"><td colspan="${adenda.ivaEnabled ? 7 : 6}">${cat}</td></tr>`;
+    h += `<tr class="tbl-cat cat-row"><td colspan="${adenda.ivaEnabled ? 8 : 7}">${cat}</td></tr>`;
     for (const item of ci) {
       const mf = item.unitPrice > 0 ? item.matCost / item.unitPrice : 0.5;
       const ep = item.unitPrice * (1 - (item.disc || 0) / 100);
       const iva = adenda.ivaEnabled ? calcIVA(item.matCost, item.laborCost, item.qty).ivaTotal : 0;
       const totalItem = (ep * item.qty) + iva;
       h += `<tr>
-        <td>
+        <td data-label="Item">
           <input value="${item.name.replace(/"/g, '&quot;')}" style="font-weight:600;color:var(--tx);font-size:.875rem;border:none;background:transparent;width:100%;padding:0;outline:none;" oninput="const i=getActiveAdenda().items.find(x=>x.id==${item.id});if(i){i.name=this.value;save();}">
           <div style="display:flex;gap:4px;margin-top:2px;flex-wrap:wrap">
             <span class="ichip mat">Mat ₲${fmt(item.matCost)}</span>
@@ -1305,13 +1312,13 @@ function renderTable() {
           </div>
           <textarea class="item-note-input" rows="1" placeholder="Nota interna..." oninput="const i=getActiveAdenda().items.find(x=>x.id==${item.id});if(i){i.note=this.value;save();}">${item.note || ""}</textarea>
         </td>
-        <td><span class="utag">${item.unit}</span></td>
-        <td><input class="qty-in" type="number" min="0" step="0.5" value="${item.qty}" oninput="updateQty(${item.id},this.value)"></td>
-        <td><input class="qty-in" type="number" min="0" max="100" step="1" value="${item.disc || 0}" style="width:42px" oninput="updateDisc(${item.id},this.value)"></td>
-        <td style="font-size:.875rem;color:var(--tx3)">₲${fmt(ep)}</td>
-        ${adenda.ivaEnabled ? `<td style="font-size:.95rem;color:var(--iva);font-weight:600">₲${fmt(iva)}</td>` : ""}
-        <td style="font-weight:700;color:var(--acc);font-size:1rem">₲${fmt(totalItem)}</td>
-        <td><button class="delbtn" onclick="removeItem(${item.id})">✕</button></td>
+        <td data-label="Unid."><span class="utag">${item.unit}</span></td>
+        <td data-label="Cant."><input class="qty-in" type="number" min="0" step="0.5" value="${item.qty}" oninput="updateQty(${item.id},this.value)"></td>
+        <td data-label="Desc.%"><input class="qty-in" type="number" min="0" max="100" step="1" value="${item.disc || 0}" style="width:42px" oninput="updateDisc(${item.id},this.value)"></td>
+        <td data-label="P. Unit." style="font-size:.875rem;color:var(--tx3)">₲${fmt(ep)}</td>
+        ${adenda.ivaEnabled ? `<td data-label="IVA" style="font-size:.95rem;color:var(--iva);font-weight:600">₲${fmt(iva)}</td>` : ""}
+        <td data-label="Total" style="font-weight:700;color:var(--acc);font-size:1rem">₲${fmt(totalItem)}</td>
+        <td data-label=""><button class="delbtn" onclick="removeItem(${item.id})">✕</button></td>
       </tr>`;
     }
   }
@@ -2032,9 +2039,59 @@ function showModal(type, arg) {
       </div>
     </div></div>`;
   }
+
+  // Activar gestos de swipe-to-close en mobile (después de render)
+  setTimeout(attachModalSwipeGestures, 0);
+  // Bloquear scroll del body cuando hay modal
+  document.body.style.overflow = 'hidden';
 }
 
-function closeModal() { document.getElementById("modal-area").innerHTML = ""; }
+function closeModal() { document.getElementById("modal-area").innerHTML = ""; document.body.style.overflow = ''; }
+
+// ── Gesture: deslizar modal hacia abajo para cerrar (mobile) ───────────────
+let _modalDragStart = 0;
+let _modalDragCurrent = 0;
+let _modalElement = null;
+function attachModalSwipeGestures() {
+  const modal = document.querySelector('#modal-area .modal');
+  if (!modal || window.innerWidth > 768) return;
+
+  modal.addEventListener('touchstart', e => {
+    // Solo iniciar swipe si toca el área superior (los primeros 60px = la "agarradera")
+    const rect = modal.getBoundingClientRect();
+    const y = e.touches[0].clientY;
+    if (y - rect.top > 60) return;
+    _modalDragStart = y;
+    _modalDragCurrent = y;
+    _modalElement = modal;
+    modal.style.transition = 'none';
+  }, { passive: true });
+
+  modal.addEventListener('touchmove', e => {
+    if (!_modalElement) return;
+    _modalDragCurrent = e.touches[0].clientY;
+    const delta = _modalDragCurrent - _modalDragStart;
+    if (delta > 0) {
+      _modalElement.style.transform = `translateY(${delta}px)`;
+    }
+  }, { passive: true });
+
+  modal.addEventListener('touchend', () => {
+    if (!_modalElement) return;
+    const delta = _modalDragCurrent - _modalDragStart;
+    _modalElement.style.transition = 'transform 0.25s ease';
+    if (delta > 100) {
+      // Cerrar
+      _modalElement.style.transform = 'translateY(100%)';
+      setTimeout(closeModal, 220);
+    } else {
+      _modalElement.style.transform = '';
+    }
+    _modalElement = null;
+    _modalDragStart = 0;
+    _modalDragCurrent = 0;
+  });
+}
 function exportDB() {
   const blob = new Blob([JSON.stringify(DB, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -2344,9 +2401,33 @@ let _fabOpen = false;
 function toggleFab() {
   _fabOpen = !_fabOpen;
   document.getElementById("fab-items").className = "mobile-fab-items" + (_fabOpen ? "" : " closed");
-  document.getElementById("fab-btn").textContent = _fabOpen ? "✕" : "☰";
+  document.getElementById("fab-btn").textContent = _fabOpen ? "✕" : "⚡";
 }
-function closeFab() { _fabOpen = false; document.getElementById("fab-items").className = "mobile-fab-items closed"; document.getElementById("fab-btn").textContent = "☰"; }
+function closeFab() { _fabOpen = false; document.getElementById("fab-items").className = "mobile-fab-items closed"; document.getElementById("fab-btn").textContent = "⚡"; }
+
+// ── MOBILE DRAWER (sidebar como cajón deslizable) ─────────────────────────
+function toggleSidebar() {
+  const sb = document.querySelector('.sidebar');
+  const ov = document.getElementById('drawer-overlay');
+  if (!sb || !ov) return;
+  const isOpen = sb.classList.contains('open');
+  if (isOpen) {
+    sb.classList.remove('open');
+    ov.classList.remove('show');
+    document.body.style.overflow = '';
+  } else {
+    sb.classList.add('open');
+    ov.classList.add('show');
+    document.body.style.overflow = 'hidden';
+  }
+}
+function closeSidebar() {
+  const sb = document.querySelector('.sidebar');
+  const ov = document.getElementById('drawer-overlay');
+  if (sb) sb.classList.remove('open');
+  if (ov) ov.classList.remove('show');
+  document.body.style.overflow = '';
+}
 
 // ── LOGO UPLOAD ───────────────────────────────────────────────────────────────────────
 function uploadLogo(input) {
