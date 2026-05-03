@@ -23,7 +23,9 @@ function renderSuppliers() {
         </div>
 
         <div class="con-grid">
-            ${suppliers.map(s => `
+            ${suppliers.map(s => {
+                const phoneClean = (s.phone || '').replace(/[^\d+]/g, '');
+                return `
                 <div class="card con-card" onclick="viewSupplier('${s.id}')">
                     <div class="con-name">${s.name}</div>
                     <div class="con-meta">
@@ -31,7 +33,11 @@ function renderSuppliers() {
                         <span>🏢 ${s.category || 'General'}</span>
                         <span>📍 ${s.address || 'S/D'}</span>
                     </div>
-                    <div class="con-stats">
+                    ${s.phone ? `<div style="display:flex; gap:6px; margin-top:8px" onclick="event.stopPropagation()">
+                        <a href="tel:${phoneClean}" class="btn sm" style="flex:1; background:var(--blue); color:white; border:none; text-decoration:none; text-align:center">📞 Llamar</a>
+                        <a href="${waLink(s.phone)}" target="_blank" class="btn sm" style="flex:1; background:#25D366; color:white; border:none; text-decoration:none; text-align:center">💬 WhatsApp</a>
+                    </div>` : ''}
+                    <div class="con-stats" style="margin-top:10px">
                         <div class="stat-box">
                             <div class="stat-lbl">Calificación</div>
                             <div class="stat-val">${'⭐'.repeat(s.rating || 5)}</div>
@@ -42,11 +48,10 @@ function renderSuppliers() {
                         </div>
                     </div>
                     <div style="display:flex; gap:5px; margin-top:12px">
-                        ${s.phone ? `<button class="btn sm" onclick="event.stopPropagation(); window.open(waLink('${s.phone}'), '_blank')" style="background:#25D366; color:white; border:none">💬 WhatsApp</button>` : ''}
                         <button class="btn sm danger" onclick="event.stopPropagation(); deleteSupplier('${s.id}')">✕</button>
                     </div>
-                </div>
-            `).join("") || '<div style="grid-column:1/-1; text-align:center; padding:60px; color:var(--tx3)">No hay proveedores registrados.</div>'}
+                </div>`;
+            }).join("") || '<div style="grid-column:1/-1; text-align:center; padding:60px; color:var(--tx3)">No hay proveedores registrados.</div>'}
         </div>
     </div>
     `;

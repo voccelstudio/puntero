@@ -113,9 +113,13 @@ function showDeliveryModal(orderId) {
             <div>
                 <label class="stat-lbl">Foto de Remisión / Factura</label>
                 <div style="display:flex; flex-direction:column; gap:8px">
+                    <input type="file" id="del-photo-cam" accept="image/*" capture="environment" style="display:none" onchange="handleDeliveryPhoto(this)">
                     <input type="file" id="del-photo" accept="image/*" style="display:none" onchange="handleDeliveryPhoto(this)">
-                    <button class="btn sm full" onclick="document.getElementById('del-photo').click()">📸 Subir Foto de Remisión</button>
-                    <div id="del-photo-preview" style="width:100%; height:120px; border:2px dashed var(--bor); border-radius:var(--rad); display:flex; align-items:center; justify-content:center; overflow:hidden">
+                    <div style="display:flex; gap:6px">
+                        <button class="btn sm" style="flex:1" onclick="document.getElementById('del-photo-cam').click()">📸 Tomar foto</button>
+                        <button class="btn sm" style="flex:1" onclick="document.getElementById('del-photo').click()">🖼️ De galería</button>
+                    </div>
+                    <div id="del-photo-preview" style="width:100%; height:140px; border:2px dashed var(--bor); border-radius:var(--rad); display:flex; align-items:center; justify-content:center; overflow:hidden">
                         <span style="color:var(--tx3); font-size:0.8rem">Vista previa de la foto</span>
                     </div>
                 </div>
@@ -162,10 +166,13 @@ function confirmDelivery(orderId) {
 
 function previewImage(src) {
     const el = document.getElementById("modal-area");
-    el.innerHTML = `<div class="overlay" onclick="closeModal()"><div class="modal" style="max-width:90vw; background:none; box-shadow:none; padding:0">
-        <img src="${src}" style="max-width:100%; max-height:90vh; border-radius:var(--rad); box-shadow:var(--sha-lg)">
-        <button class="delbtn" style="position:fixed; top:20px; right:20px; background:rgba(0,0,0,0.5); color:white; border-radius:50%; width:40px; height:40px" onclick="closeModal()">✕</button>
-    </div></div>`;
+    el.innerHTML = `<div class="overlay img-viewer" onclick="if(event.target.classList.contains('img-viewer')||event.target.classList.contains('img-viewer-content'))closeModal()" style="background:rgba(0,0,0,0.92); padding:0; align-items:center;">
+        <div class="img-viewer-content" style="width:100%; height:100vh; display:flex; align-items:center; justify-content:center; overflow:auto; -webkit-overflow-scrolling:touch; padding:20px; box-sizing:border-box;">
+            <img src="${src}" style="max-width:100%; max-height:90vh; object-fit:contain; touch-action:pinch-zoom; user-select:none; cursor:zoom-in;" ondblclick="this.style.maxWidth=this.style.maxWidth==='200%'?'100%':'200%'">
+        </div>
+        <button class="delbtn" style="position:fixed; top:14px; right:14px; background:rgba(0,0,0,0.7); color:white; border-radius:50%; width:44px; height:44px; font-size:1.3rem; z-index:10" onclick="closeModal()">✕</button>
+        <div style="position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.7); color:white; padding:8px 16px; border-radius:20px; font-size:0.8rem; pointer-events:none">Doble tap para acercar / Pellizcar para zoom</div>
+    </div>`;
 }
 
 function payOrder(id) {

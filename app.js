@@ -611,7 +611,7 @@ function setSection(s) {
     projects: "Gestión de Proyectos"
   };
   const vtitle = document.getElementById("view-title");
-  if (vtitle) vtitle.textContent = titles[s] || "PresupuestadorPY";
+  if (vtitle) vtitle.textContent = titles[s] || "Puntero";
 
   ["global_dashboard", "budget", "schedule", "contractors", "prices", "dashboard", "themes", "logs", "materials", "finances", "performance", "documents", "suppliers", "resources", "projects", "aftercare", "computo"].forEach(x => {
     const el = document.getElementById("section-" + x);
@@ -862,7 +862,7 @@ async function exportDailyPDF(logId) {
     doc.setPage(i);
     doc.setFontSize(8);
     doc.setTextColor("#999999");
-    doc.text(`Generado por PresupuestadorPY - Página ${i} de ${pageCount}`, margin, 285);
+    doc.text(`Generado por Puntero - Página ${i} de ${pageCount}`, margin, 285);
   }
 
   doc.save(`Reporte_Diario_${log.date}.pdf`);
@@ -1643,7 +1643,7 @@ function generarPDF() {
   }
   const tX = M + 24;
   doc.setFontSize(13); doc.setFont("helvetica", "bold");
-  doc.text(pdfTxt(p.company || p.professional || "PresupuestadorPY"), tX, 13);
+  doc.text(pdfTxt(p.company || p.professional || "Puntero"), tX, 13);
   doc.setFontSize(7.5); doc.setFont("helvetica", "normal");
   const lines = [];
   if (p.professional) lines.push(pdfTxt(p.professional + (p.matricula ? " - " + p.matricula : "")));
@@ -1757,7 +1757,7 @@ function generarPDF() {
   for (let i = 1; i <= pages; i++) {
     doc.setPage(i); doc.setFontSize(6.5); doc.setFont("helvetica", "normal"); doc.setTextColor(...C.mutedTx);
     doc.setDrawColor(...C.borderC); doc.setLineWidth(0.3); doc.line(M, 287, W - M, 287);
-    doc.text((p.company || "PresupuestadorPY") + (p.ruc ? " - RUC: " + p.ruc : ""), M, 292);
+    doc.text((p.company || "Puntero") + (p.ruc ? " - RUC: " + p.ruc : ""), M, 292);
     doc.text("Pagina " + i + " de " + pages, W - M, 292, { align: "right" });
   }
   const fn = "Presupuesto_" + String(budgetNum).padStart(4, "0") + "_" + (clientName || projectName || "Proyecto").replace(/\s+/g, "_") + ".pdf";
@@ -1888,7 +1888,7 @@ function showModal(type, arg) {
           ✅ Contratistas asignados a este proyecto<br>
           ✅ Notas, honorarios e IVA
         </div>
-        <p style="font-size:0.875rem; color:var(--tx3)">Tu colega solo tiene que arrastrar este archivo a su instancia de PresupuestadorPY para ver todo.</p>
+        <p style="font-size:0.875rem; color:var(--tx3)">Tu colega solo tiene que arrastrar este archivo a su instancia de Puntero para ver todo.</p>
       </div>
       <div class="modal-acts">
         <button class="btn sm" onclick="importProject()">📥 Importar Proyecto</button>
@@ -2095,7 +2095,7 @@ function attachModalSwipeGestures() {
 function exportDB() {
   const blob = new Blob([JSON.stringify(DB, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a"); a.href = url; a.download = "presupuestadorpy_db.json"; a.click(); URL.revokeObjectURL(url);
+  const a = document.createElement("a"); a.href = url; a.download = "puntero_db.json"; a.click(); URL.revokeObjectURL(url);
   toast("DB exportada ✓");
 }
 
@@ -2116,7 +2116,7 @@ function exportProject() {
     contractors,
     profile: state.profile,
     exportDate: new Date().toISOString(),
-    app: "PresupuestadorPY",
+    app: "Puntero",
     version: "7.0"
   };
 
@@ -2142,7 +2142,8 @@ function importProject() {
     reader.onload = ev => {
       try {
         const data = JSON.parse(ev.target.result);
-        if (data.app !== "PresupuestadorPY" && !confirm("El archivo no parece ser un proyecto oficial. ¿Intentar importar de todos modos?")) return;
+        const validApps = ["Puntero", "PresupuestadorPY"]; // retrocompatibilidad con .ppy viejos
+        if (!validApps.includes(data.app) && !confirm("El archivo no parece ser un proyecto oficial. ¿Intentar importar de todos modos?")) return;
 
         // Soporte para formato nuevo (v7) y legacy (v5)
         let newProject;

@@ -75,6 +75,7 @@ function renderContractors() {
         const totalPaid = (con.payments || []).reduce((s, pay) => s + pay.amount, 0);
         const balance = totalMO - totalPaid;
 
+        const phoneClean = (con.phone || '').replace(/[^\d+]/g, '');
         h += `<div class="con-card ${con.isBlacklisted ? 'blacklist' : ''}" ${con.isBlacklisted ? 'style="border-left:4px solid var(--err); background:rgba(248,113,113,0.05)"' : ''}>
             ${con.isBlacklisted ? '<div style="font-size:0.7rem; font-weight:800; color:var(--err); text-transform:uppercase; margin-bottom:4px">🚨 Lista Negra</div>' : ''}
             <div class="con-name">${con.name}</div>
@@ -82,7 +83,11 @@ function renderContractors() {
                 <span>📱 ${con.phone || 'S/T'}</span>
                 <span>🔨 ${con.specialty || 'Gral'}</span>
             </div>
-            <div class="con-stats">
+            ${con.phone ? `<div style="display:flex; gap:6px; margin-top:8px">
+                <a href="tel:${phoneClean}" class="btn sm" style="flex:1; background:var(--blue); color:white; border:none; text-decoration:none; text-align:center">📞 Llamar</a>
+                <a href="${waLink(con.phone)}" target="_blank" class="btn sm" style="flex:1; background:#25D366; color:white; border:none; text-decoration:none; text-align:center">💬 WhatsApp</a>
+            </div>` : ''}
+            <div class="con-stats" style="margin-top:10px">
                 <div class="stat-box">
                     <div class="stat-lbl">Mano de Obra</div>
                     <div class="stat-val">${fmt(totalMO)}</div>

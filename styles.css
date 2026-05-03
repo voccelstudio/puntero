@@ -130,8 +130,13 @@ input, textarea, select { max-width: 100%; }
 
 /* ── HEADER ── */
 .hdr{background:var(--sur);border-bottom:1px solid var(--bor);padding:0 14px;height:52px;display:flex;align-items:center;gap:6px;position:sticky;top:0;z-index:100;flex-wrap:nowrap;overflow-x:auto;}
-.logo{font-family:var(--font-display);font-size:1.15rem;font-weight:800;color:var(--acc);letter-spacing:.02em;flex-shrink:0;display:flex;align-items:center;gap:7px;margin-right:4px;}
-.logo-dot{width:7px;height:7px;background:var(--acc);border-radius:50%;box-shadow:0 0 8px var(--acc);}
+.logo{font-family:var(--font-display);font-size:1.15rem;font-weight:800;color:var(--tx);letter-spacing:.02em;flex-shrink:0;display:flex;align-items:center;gap:10px;margin-right:4px;}
+.logo-mark{flex-shrink:0;display:block;}
+.logo-text{display:flex;flex-direction:column;line-height:1;}
+.logo-name{font-family:var(--font-display);font-weight:800;font-size:1.15rem;color:var(--tx);letter-spacing:.04em;}
+.logo-tag{font-family:var(--font-body);font-weight:600;font-size:.6rem;color:var(--tx3);letter-spacing:.18em;margin-top:3px;}
+/* Compatibilidad con elementos antiguos (logo-dot ya no se usa pero por si acaso) */
+.logo-dot{display:none;}
 .db-badge{font-size:.875rem;background:var(--matbg);color:var(--mat);border:1px solid rgba(52,211,153,.3);padding:2px 7px;border-radius:999px;font-weight:600;white-space:nowrap;}
 .nbtn{padding:5px 11px;border-radius:var(--rad);border:1px solid var(--bor);background:transparent;color:var(--tx2);font-family:var(--font-body);font-size:.875rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0;}
 .nbtn:hover,.nbtn.on{background:var(--acc);color:var(--bg);border-color:var(--acc);}

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Maskable: el contenido importante debe estar dentro del 80% central (safe zone) -->
+  <!-- Background fill todo el cuadrado -->
+  <rect width="512" height="512" fill="#0f172a"/>
+
+  <!-- Sello más chico para respetar safe zone -->
+  <circle cx="256" cy="256" r="160" fill="#0f172a"/>
+  <circle cx="256" cy="256" r="148" fill="none" stroke="#f59e0b" stroke-width="5"/>
+
+  <g transform="translate(256 256) rotate(-30)">
+    <path d="M -96 -7 L 96 -7 L 76 56 L -76 56 Z" fill="#f59e0b" stroke="#c2410c" stroke-width="3"/>
+    <rect x="-10" y="-52" width="20" height="46" rx="4" fill="#78350f"/>
+  </g>
+
+  <g transform="translate(256 256)">
+    <ellipse cx="0" cy="27" rx="69" ry="10" fill="#e2e8f0"/>
+    <path d="M -62 27 Q -62 -40 0 -40 Q 62 -40 62 27 Z" fill="#ffffff" stroke="#cbd5e1" stroke-width="3"/>
+    <path d="M -27 -24 Q 0 -34 27 -24" fill="none" stroke="#cbd5e1" stroke-width="3"/>
+    <circle cx="-45" cy="11" r="5" fill="#94a3b8"/>
+    <circle cx="45" cy="11" r="5" fill="#94a3b8"/>
+  </g>
+</svg>

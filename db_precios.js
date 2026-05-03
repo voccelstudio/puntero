@@ -1,5 +1,5 @@
 /**
- * PresupuestadorPY — Base de Datos de Precios v2
+ * Puntero — Base de Datos de Precios v2
  * Fuentes cruzadas:
  *   A) Guía de precios de la construcción — Marzo 2026
  *   B) Guía de precios de la construcción — Agosto 2025
@@ -11,8 +11,8 @@
  * Actualizado: Marzo 2026
  */
 
-const DB_VERSION = "2026-05-vidrios";
-const DB_FECHA   = "Mayo 2026 (categoría VIDRIOS añadida)";
+const DB_VERSION = "2026-05-mega";
+const DB_FECHA   = "Mayo 2026 (10 categorías nuevas: PCI, climatización, piscinas, paisajismo, etc.)";
 
 // ── PRECIOS UNITARIOS DE MATERIALES (referencia interna) ──────────────────
 // Rango A-B documentado en comentarios para transparencia interna
@@ -170,6 +170,156 @@ const MAT_PRECIOS = {
   // Selladores específicos
   "Silicona neutra estructural": { p: 38000, u: "un" }, // cartucho 280ml
   "Silicona acética transparente":{ p: 22000, u: "un" }, // cartucho 280ml
+
+  // ═══ MATERIALES — NUEVAS CATEGORÍAS (Mayo 2026) ════════════════════════
+  // Precios verificados PY 2026: Regimiento 8, Sensorview, Ulix, Clasipar, Tupi, Bristol
+
+  // ─── PREVENCIÓN DE INCENDIOS ──────────────────────────────────────────
+  "Detector de humo autónomo":     { p: 140000, u: "un" }, // Sensorview/Clasipar
+  "Detector humo/calor compatible": { p: 180000, u: "un" }, // sistema centralizado
+  "Detector termovelocimétrico":   { p: 210000, u: "un" },
+  "Pulsador manual PCI":           { p: 90000,  u: "un" },
+  "Sirena audiovisual PCI":        { p: 140000, u: "un" },
+  "Central de alarma DSC 4 zonas": { p: 950000, u: "un" }, // incluye gabinete + batería
+  "Luz emergencia LED 30 LED":     { p: 95000,  u: "un" }, // batería integrada 2-4hs
+  "Cartel señal salida emerg.":    { p: 65000,  u: "un" }, // acrílico fotoluminiscente
+  "Cartel salida emerg. luminoso": { p: 185000, u: "un" }, // con LED y batería
+  "Cartel EXTINTOR 20x40":         { p: 35000,  u: "un" },
+  "Extintor PQS 6kg ABC":          { p: 220000, u: "un" }, // Regimiento 8
+  "Extintor PQS 10kg ABC":         { p: 352000, u: "un" },
+  "Extintor CO2 5kg":              { p: 380000, u: "un" },
+  "Extintor agua hidro 6lt":       { p: 195000, u: "un" },
+  "Extintor espuma AFFF 4lt":      { p: 200000, u: "un" },
+  "Soporte metálico extintor":     { p: 45000,  u: "un" },
+  "Manguera contra incendio 30m":  { p: 850000, u: "un" }, // 1.5"
+  "Hidrante de muro tipo gabinete":{ p: 1400000,u: "un" }, // completo
+  "Boquilla chorro/niebla":        { p: 280000, u: "un" },
+  "Cable PCI BF 2x1.5mm² (rollo)": { p: 6500,   u: "ml" },
+  "Caño hidráulico PCI 1.5\" galv.":{ p: 85000, u: "ml" }, // SCH40 c/ acceso
+  "Rociador sprinkler estándar":   { p: 75000,  u: "un" },
+
+  // ─── CLIMATIZACIÓN ────────────────────────────────────────────────────
+  "Split 9000 BTU frío/calor":     { p: 3200000,u: "un" }, // entrada de gama
+  "Split 12000 BTU frío/calor":    { p: 3500000,u: "un" }, // Goodweather/Mabe
+  "Split 18000 BTU frío/calor":    { p: 4500000,u: "un" }, // promedio mercado
+  "Split 24000 BTU frío/calor":    { p: 5400000,u: "un" }, // Mabe/JAM
+  "Split 36000 BTU frío/calor":    { p: 8500000,u: "un" },
+  "Split inverter 12000 BTU":      { p: 4200000,u: "un" },
+  "Split inverter 18000 BTU":      { p: 5500000,u: "un" }, // mejor eficiencia
+  "Split inverter 24000 BTU":      { p: 7700000,u: "un" }, // Haustec/JAM
+  "Kit instalación split 3m":      { p: 350000, u: "un" }, // caños, drenaje, soporte
+  "Caño cobre A/A 1/4\" (ml)":     { p: 38000,  u: "ml" },
+  "Caño cobre A/A 1/2\" (ml)":     { p: 48000,  u: "ml" },
+  "Aislante térmico p/ caño A/A":  { p: 18000,  u: "ml" },
+  "Soporte exterior split":        { p: 120000, u: "un" }, // metálico galvanizado
+  "Carga gas R410A (operación)":   { p: 280000, u: "un" }, // 1 carga estándar
+  "Ventilador de techo 132cm":     { p: 480000, u: "un" }, // 5 aspas con luz
+  "Ventilador de techo industrial":{ p: 850000, u: "un" }, // alto rendimiento
+  "Extractor de aire baño 100mm":  { p: 95000,  u: "un" },
+  "Extractor de aire cocina 250mm":{ p: 380000, u: "un" }, // potencia comercial
+  "Conducto flexible aluminio 4\"":{ p: 18000,  u: "ml" },
+
+  // ─── PISCINAS ─────────────────────────────────────────────────────────
+  "Cemento alto contenido sulfato":{ p: 88000,  u: "un" }, // bolsa 50kg, p/ piscina
+  "Aditivo impermeabilizante":     { p: 42000,  u: "kg" },
+  "Pegamento p/ piscina":          { p: 18000,  u: "kg" }, // adhesivo cementicio especial
+  "Malla electrosoldada Q-92":     { p: 38000,  u: "m2" }, // p/ contrapisos y veredas
+  "Skimmer estándar":              { p: 380000, u: "un" },
+  "Boquilla impulsión piscina":    { p: 95000,  u: "un" },
+  "Toma limpiafondos":             { p: 110000, u: "un" },
+  "Reflector LED RGB submarino":   { p: 580000, u: "un" }, // con caja sumergible
+  "Equipo bomba+filtro arena 0.5HP":{p: 2800000,u: "un" }, // hasta 50m³
+  "Equipo bomba+filtro arena 1HP": { p: 4200000,u: "un" }, // hasta 100m³
+  "Arena de sílex (filtro)":       { p: 18000,  u: "kg" },
+  "Caño PVC piscina 1.5\"":        { p: 18000,  u: "ml" }, // presión
+  "Tablero eléctrico piscina":     { p: 850000, u: "un" }, // diferencial+térmico
+  "Cerámica esmaltada piscina":    { p: 145000, u: "m2" }, // azul tradicional
+  "Venecitas vitreas piscina":     { p: 280000, u: "m2" }, // alta gama
+  "Borde atérmico antideslizante": { p: 95000,  u: "ml" },
+  "Membrana líquida pileta":       { p: 95000,  u: "kg" }, // poliuretano
+
+  // ─── PAISAJISMO ───────────────────────────────────────────────────────
+  "Tierra negra (camión 6m³)":     { p: 850000, u: "un" }, // entregada
+  "Tierra negra suelta":           { p: 145000, u: "m3" },
+  "Compost orgánico":              { p: 95000,  u: "m3" },
+  "Grama San Agustín en panes":    { p: 18000,  u: "m2" }, // colocada
+  "Grama Bahiana semilla":         { p: 28000,  u: "kg" },
+  "Grama esmeralda en panes":      { p: 22000,  u: "m2" },
+  "Geotextil para jardín":         { p: 12000,  u: "m2" },
+  "Mantillo / cobertura corteza":  { p: 35000,  u: "m3" },
+  "Aspersor emergente PE":         { p: 45000,  u: "un" },
+  "Aspersor turbinado sectorial":  { p: 95000,  u: "un" },
+  "Goteo por línea (rollo 100m)":  { p: 280000, u: "un" },
+  "Programador riego 4 zonas":     { p: 380000, u: "un" }, // a batería
+  "Caño PE riego 16mm":            { p: 4500,   u: "ml" },
+  "Palmera Pindó 1.5m":            { p: 280000, u: "un" }, // ejemplar
+  "Palmera Areca 1m":              { p: 180000, u: "un" },
+  "Lapacho rosado plantín 50cm":   { p: 95000,  u: "un" },
+  "Plantín ornamental mediano":    { p: 25000,  u: "un" }, // bromelias, helechos, etc.
+  "Cerco vivo San Antonio (ml)":   { p: 85000,  u: "ml" }, // Duranta plantada
+
+  // ─── MOVIMIENTO DE SUELO ──────────────────────────────────────────────
+  "Hora máquina retroexcavadora":  { p: 380000, u: "un" }, // hora con operador
+  "Hora máquina topadora":         { p: 480000, u: "un" },
+  "Suelo seleccionado p/ relleno": { p: 45000,  u: "m3" },
+  "Ripio para subbase":            { p: 95000,  u: "m3" },
+  "Adoquín hormigón antiestres":   { p: 78000,  u: "m2" }, // ya colocado material
+  "Bordillo/cordón hormigón":      { p: 38000,  u: "ml" },
+
+  // ─── BAJA CORRIENTE / DOMÓTICA ────────────────────────────────────────
+  "Cable UTP cat6 (rollo 100m)":   { p: 280000, u: "un" },
+  "Conector RJ45 cat6":            { p: 1200,   u: "un" },
+  "Patch panel 24 puertos":        { p: 480000, u: "un" },
+  "Switch 8 puertos gigabit":      { p: 380000, u: "un" },
+  "Cable coaxial RG6 (ml)":        { p: 4500,   u: "ml" },
+  "Cámara IP exterior 4MP":        { p: 580000, u: "un" }, // visión nocturna
+  "Cámara IP domo interior 2MP":   { p: 320000, u: "un" },
+  "DVR/NVR 8 canales":             { p: 1450000,u: "un" }, // sin disco
+  "Disco rígido vigilancia 2TB":   { p: 480000, u: "un" },
+  "Portero eléctrico simple":      { p: 380000, u: "un" }, // audio
+  "Videoportero a color":          { p: 1850000,u: "un" }, // pantalla 7\"
+  "Motor portón corredizo 600kg":  { p: 2200000,u: "un" }, // con control remoto
+  "Motor portón basculante":       { p: 2800000,u: "un" },
+  "Control remoto adicional":      { p: 95000,  u: "un" },
+  "Sensor PIR alarma":             { p: 95000,  u: "un" },
+  "Panel alarma 8 zonas DSC":      { p: 1400000,u: "un" }, // central + teclado
+  "Sirena exterior alarma":        { p: 220000, u: "un" },
+
+  // ─── SANITARIOS COMPLEMENTARIOS ───────────────────────────────────────
+  "Calefón eléctrico 80lt":        { p: 1450000,u: "un" }, // marca media
+  "Calefón eléctrico 150lt":       { p: 2200000,u: "un" },
+  "Termotanque a gas 110lt":       { p: 2850000,u: "un" },
+  "Termotanque solar 200lt":       { p: 6500000,u: "un" }, // con kit completo
+  "Bomba presurizadora 0.5HP":     { p: 1200000,u: "un" }, // doméstica
+  "Bomba sumergible pozo 1HP":     { p: 2800000,u: "un" },
+  "Tanque polietileno 500lt":      { p: 380000, u: "un" }, // tricapa
+  "Tanque polietileno 1000lt":     { p: 580000, u: "un" },
+  "Tanque polietileno 2000lt":     { p: 1100000,u: "un" },
+  "Tanque cisterna fibra 2500lt":  { p: 1850000,u: "un" }, // enterrable
+  "Biodigestor 600lt":             { p: 1850000,u: "un" }, // p/ fosa séptica moderna
+  "Biodigestor 1300lt":            { p: 2850000,u: "un" },
+  "Anillos pozo absorbente 1m":    { p: 220000, u: "un" }, // hormigón premoldeado
+
+  // ─── IMPERMEABILIZACIONES ─────────────────────────────────────────────
+  "Membrana asfáltica 4mm aluminizada":{ p: 95000, u: "m2" }, // rollo
+  "Membrana líquida poliuretano":  { p: 85000,  u: "kg" },
+  "Imprimación asfáltica (lt)":    { p: 28000,  u: "lt" },
+  "Sika top 107 seal (kit)":       { p: 380000, u: "un" }, // cementicio impermeable
+  "Banda butílica autoadhesiva":   { p: 18000,  u: "ml" },
+  "Geomembrana HDPE 1mm":          { p: 28000,  u: "m2" }, // p/ piletas/cisternas
+
+  // ─── ESCALERAS Y BARANDAS ─────────────────────────────────────────────
+  "Hierro estructural caño rect.": { p: 18000,  u: "kg" },
+  "Tubo redondo 2\" hierro":       { p: 22000,  u: "ml" },
+  "Pasamano hierro forjado":       { p: 145000, u: "ml" }, // diseño simple
+  "Baranda hierro torneado":       { p: 280000, u: "ml" }, // con detalles
+  "Peldaño metálico chapa estriada":{ p: 95000, u: "un" },
+  "Escalón premoldeado hormigón":  { p: 145000, u: "un" },
+
+  // ─── OBRA HÚMEDA COMPLEMENTARIA ───────────────────────────────────────
+  "Hidrolavadora hora alquiler":   { p: 95000,  u: "un" },
+  "Sellador de juntas poliuretano":{ p: 65000,  u: "un" }, // cartucho 600ml
+  "Cinta alta adherencia juntas":  { p: 28000,  u: "ml" },
 };
 
 // ── PORCENTAJES MO POR CATEGORÍA ─────────────────────────────────────────
@@ -213,6 +363,28 @@ const LABOR_PCT = {
   "INSTALACIÓN ELÉCTRICA":45,
   // A=30%  B=~30% → 30%
   "VARIOS":               30,
+
+  // ─── NUEVAS CATEGORÍAS (Mayo 2026) ──────────────────────────────────────
+  // PCI: tendido + colocación + pruebas, equipos pesan más → ~22%
+  "PREVENCIÓN DE INCENDIOS": 22,
+  // Climatización: equipo es la mayor parte, instalación/cañería/eléctrico → ~20%
+  "CLIMATIZACIÓN":           20,
+  // Piscinas: hormigón + impermeabilización + equipos. Mucha MO → ~38%
+  "PISCINAS":                38,
+  // Paisajismo: alta mano de obra (preparación suelo, plantación) → ~45%
+  "PAISAJISMO":              45,
+  // Movimiento de suelo: máquinas + operarios → ~30%
+  "MOVIMIENTO DE SUELO":     30,
+  // Baja corriente: tendido cuidadoso, certificación → ~40%
+  "BAJA CORRIENTE":          40,
+  // Sanitarios complementarios: equipo + instalación → ~25%
+  "SANITARIOS COMPLEMENTARIOS": 25,
+  // Impermeabilización: aplicación cuidadosa, pruebas → ~38%
+  "IMPERMEABILIZACIONES":    38,
+  // Escaleras y barandas: trabajo de herrería + instalación → ~28%
+  "ESCALERAS Y BARANDAS":    28,
+  // Obra húmeda complementaria: trabajos finales → ~50%
+  "OBRA HÚMEDA COMPLEMENTARIA": 50,
 };
 
 // ── IVA POR TIPO ──────────────────────────────────────────────────────────
@@ -1803,6 +1975,914 @@ const DB_RAW = {
       {n:"Burlete EPDM",q:5,u:"ml"},
       {n:"Silicona neutra estructural",q:0.5,u:"un"},
     ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"PREVENCIÓN DE INCENDIOS": {
+// ════════════════════════════════════════════════════════════════════════
+// Sistema completo PCI para edificaciones según normativa paraguaya
+// Fuentes: Regimiento 8, Sensorview, Clasipar, todoluz PY 2026
+// MO 22%: tendido de cables, colocación, prueba de funcionamiento
+// ──────────────────────────────────────────────────────────────────────
+
+// ─── 1. DETECCIÓN ──────────────────────────────────────────────────
+  "Detector de humo autónomo (residencial)": {
+    u:"un", m:175000,
+    mats:[
+      {n:"Detector de humo autónomo",q:1,u:"un"},
+    ]
+  },
+  "Detector humo/calor centralizado colocado": {
+    u:"un", m:240000,
+    mats:[
+      {n:"Detector humo/calor compatible",q:1,u:"un"},
+      {n:"Cable PCI BF 2x1.5mm² (rollo)",q:8,u:"ml"},
+    ]
+  },
+  "Detector termovelocimétrico colocado": {
+    u:"un", m:275000,
+    mats:[
+      {n:"Detector termovelocimétrico",q:1,u:"un"},
+      {n:"Cable PCI BF 2x1.5mm² (rollo)",q:8,u:"ml"},
+    ]
+  },
+  "Pulsador manual con caja": {
+    u:"un", m:140000,
+    mats:[
+      {n:"Pulsador manual PCI",q:1,u:"un"},
+      {n:"Cable PCI BF 2x1.5mm² (rollo)",q:6,u:"ml"},
+    ]
+  },
+  "Sirena audiovisual colocada": {
+    u:"un", m:190000,
+    mats:[
+      {n:"Sirena audiovisual PCI",q:1,u:"un"},
+      {n:"Cable PCI BF 2x1.5mm² (rollo)",q:6,u:"ml"},
+    ]
+  },
+  "Central alarma DSC 4 zonas instalada": {
+    u:"un", m:1180000,
+    mats:[
+      {n:"Central de alarma DSC 4 zonas",q:1,u:"un"},
+      {n:"Cable PCI BF 2x1.5mm² (rollo)",q:20,u:"ml"},
+    ]
+  },
+
+// ─── 2. SEÑALÉTICA Y EMERGENCIA ────────────────────────────────────
+  "Luz de emergencia LED autónoma": {
+    u:"un", m:130000,
+    mats:[
+      {n:"Luz emergencia LED 30 LED",q:1,u:"un"},
+    ]
+  },
+  "Cartel salida emergencia fotolum.": {
+    u:"un", m:80000,
+    mats:[
+      {n:"Cartel señal salida emerg.",q:1,u:"un"},
+    ]
+  },
+  "Cartel salida emergencia luminoso": {
+    u:"un", m:230000,
+    // Con LED y batería para apagones
+    mats:[
+      {n:"Cartel salida emerg. luminoso",q:1,u:"un"},
+    ]
+  },
+  "Cartel señalización extintor 20x40": {
+    u:"un", m:42000,
+    mats:[
+      {n:"Cartel EXTINTOR 20x40",q:1,u:"un"},
+    ]
+  },
+
+// ─── 3. EXTINTORES ─────────────────────────────────────────────────
+  "Extintor PQS 6kg ABC con soporte": {
+    u:"un", m:285000,
+    // Polvo químico seco — el más común en oficinas/locales
+    mats:[
+      {n:"Extintor PQS 6kg ABC",q:1,u:"un"},
+      {n:"Soporte metálico extintor",q:1,u:"un"},
+    ]
+  },
+  "Extintor PQS 10kg ABC con soporte": {
+    u:"un", m:420000,
+    // Para áreas más amplias
+    mats:[
+      {n:"Extintor PQS 10kg ABC",q:1,u:"un"},
+      {n:"Soporte metálico extintor",q:1,u:"un"},
+    ]
+  },
+  "Extintor CO2 5kg con soporte": {
+    u:"un", m:445000,
+    // Para áreas con equipos eléctricos
+    mats:[
+      {n:"Extintor CO2 5kg",q:1,u:"un"},
+      {n:"Soporte metálico extintor",q:1,u:"un"},
+    ]
+  },
+  "Extintor agua hidro 6lt con soporte": {
+    u:"un", m:255000,
+    mats:[
+      {n:"Extintor agua hidro 6lt",q:1,u:"un"},
+      {n:"Soporte metálico extintor",q:1,u:"un"},
+    ]
+  },
+
+// ─── 4. SISTEMA HIDRÁULICO ─────────────────────────────────────────
+  "Hidrante de muro completo (gabinete)": {
+    u:"un", m:2400000,
+    // Gabinete + manguera + boquilla
+    mats:[
+      {n:"Hidrante de muro tipo gabinete",q:1,u:"un"},
+      {n:"Manguera contra incendio 30m",q:1,u:"un"},
+      {n:"Boquilla chorro/niebla",q:1,u:"un"},
+    ]
+  },
+  "Cañería incendio 1.5\" galvanizada": {
+    u:"ml", m:105000,
+    mats:[
+      {n:"Caño hidráulico PCI 1.5\" galv.",q:1,u:"ml"},
+    ]
+  },
+  "Rociador sprinkler estándar colocado": {
+    u:"un", m:110000,
+    mats:[
+      {n:"Rociador sprinkler estándar",q:1,u:"un"},
+    ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"CLIMATIZACIÓN": {
+// ════════════════════════════════════════════════════════════════════════
+// Aires split, ventiladores, extractores. Precios mercado PY 2026.
+// Fuentes: Bristol, Tupi, Artaza, Tienda Movil, Inverfin
+// MO 20%: instalación + caños + carga gas + pruebas
+// ──────────────────────────────────────────────────────────────────────
+
+// ─── 1. AIRES ACONDICIONADOS SPLIT (FRÍO/CALOR) ────────────────────
+  "Split 9000 BTU instalado": {
+    u:"un", m:3850000,
+    // Para ambiente chico (hasta 12m²)
+    mats:[
+      {n:"Split 9000 BTU frío/calor",q:1,u:"un"},
+      {n:"Kit instalación split 3m",q:1,u:"un"},
+    ]
+  },
+  "Split 12000 BTU instalado (12-18m²)": {
+    u:"un", m:4150000,
+    // El más vendido — dormitorios principales
+    mats:[
+      {n:"Split 12000 BTU frío/calor",q:1,u:"un"},
+      {n:"Kit instalación split 3m",q:1,u:"un"},
+    ]
+  },
+  "Split 18000 BTU instalado (18-30m²)": {
+    u:"un", m:5150000,
+    // Living/comedor mediano
+    mats:[
+      {n:"Split 18000 BTU frío/calor",q:1,u:"un"},
+      {n:"Kit instalación split 3m",q:1,u:"un"},
+    ]
+  },
+  "Split 24000 BTU instalado (30-40m²)": {
+    u:"un", m:6050000,
+    // Living/comedor grande, oficinas
+    mats:[
+      {n:"Split 24000 BTU frío/calor",q:1,u:"un"},
+      {n:"Kit instalación split 3m",q:1,u:"un"},
+    ]
+  },
+  "Split 36000 BTU instalado (40-60m²)": {
+    u:"un", m:9300000,
+    // Locales comerciales / espacios grandes
+    mats:[
+      {n:"Split 36000 BTU frío/calor",q:1,u:"un"},
+      {n:"Kit instalación split 3m",q:1,u:"un"},
+      {n:"Soporte exterior split",q:1,u:"un"},
+    ]
+  },
+
+// ─── 2. AIRES INVERTER (BAJO CONSUMO) ──────────────────────────────
+  "Split inverter 12000 BTU instalado": {
+    u:"un", m:4900000,
+    // 30-50% menos consumo eléctrico
+    mats:[
+      {n:"Split inverter 12000 BTU",q:1,u:"un"},
+      {n:"Kit instalación split 3m",q:1,u:"un"},
+    ]
+  },
+  "Split inverter 18000 BTU instalado": {
+    u:"un", m:6300000,
+    mats:[
+      {n:"Split inverter 18000 BTU",q:1,u:"un"},
+      {n:"Kit instalación split 3m",q:1,u:"un"},
+    ]
+  },
+  "Split inverter 24000 BTU instalado": {
+    u:"un", m:8500000,
+    mats:[
+      {n:"Split inverter 24000 BTU",q:1,u:"un"},
+      {n:"Kit instalación split 3m",q:1,u:"un"},
+      {n:"Soporte exterior split",q:1,u:"un"},
+    ]
+  },
+
+// ─── 3. INSTALACIÓN ADICIONAL (POR ML EXTRA) ───────────────────────
+  "Cañería A/A extra (por metro)": {
+    u:"ml", m:115000,
+    // Cuando la distancia supera el kit estándar
+    mats:[
+      {n:"Caño cobre A/A 1/4\" (ml)",q:1,u:"ml"},
+      {n:"Caño cobre A/A 1/2\" (ml)",q:1,u:"ml"},
+      {n:"Aislante térmico p/ caño A/A",q:2,u:"ml"},
+    ]
+  },
+  "Recarga gas R410A": {
+    u:"un", m:300000,
+    // Servicio técnico
+    mats:[
+      {n:"Carga gas R410A (operación)",q:1,u:"un"},
+    ]
+  },
+
+// ─── 4. VENTILACIÓN ────────────────────────────────────────────────
+  "Ventilador de techo 132cm con luz": {
+    u:"un", m:540000,
+    mats:[
+      {n:"Ventilador de techo 132cm",q:1,u:"un"},
+    ]
+  },
+  "Ventilador industrial colocado": {
+    u:"un", m:920000,
+    mats:[
+      {n:"Ventilador de techo industrial",q:1,u:"un"},
+    ]
+  },
+  "Extractor aire baño 100mm instalado": {
+    u:"un", m:140000,
+    mats:[
+      {n:"Extractor de aire baño 100mm",q:1,u:"un"},
+    ]
+  },
+  "Extractor aire cocina 250mm con conducto": {
+    u:"un", m:480000,
+    mats:[
+      {n:"Extractor de aire cocina 250mm",q:1,u:"un"},
+      {n:"Conducto flexible aluminio 4\"",q:3,u:"ml"},
+    ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"PISCINAS": {
+// ════════════════════════════════════════════════════════════════════════
+// Construcción completa de piscinas + equipos. Precios mercado PY 2026.
+// MO 38%: hormigón + impermeabilización + colocación azulejo + pruebas
+// ──────────────────────────────────────────────────────────────────────
+
+// ─── 1. PISCINAS COMPLETAS (LLAVE EN MANO) ──────────────────────────
+  "Piscina H°A° 5x3m completa": {
+    u:"un", m:30000000,
+    // Llave en mano: H°A° 210kg/cm², azulejos, motor+filtro Vulcano,
+    // 1 dreno + 2 retornos + 1 aspiración + 1 skimmer + 2 luces LED
+    // Bordes atérmicos. NO incluye excavación.
+    // Referencia Clasipar PY 2026
+    mats:[]
+  },
+  "Piscina H°A° 6x3m completa": {
+    u:"un", m:35000000,
+    mats:[]
+  },
+  "Piscina H°A° 7x3m completa": {
+    u:"un", m:39000000,
+    mats:[]
+  },
+  "Piscina H°A° 8x3m completa": {
+    u:"un", m:45000000,
+    mats:[]
+  },
+
+// ─── 2. POR PARTES (PARA OBRAS PERSONALIZADAS) ──────────────────────
+  "Vaso piscina H°A° proyectado (m²)": {
+    u:"m2", m:425000,
+    // Hormigón gunitado fck 300 con doble armadura ø6 c/10cm
+    // Ref: CYPE Paraguay 2026
+    mats:[
+      {n:"Cemento alto contenido sulfato",q:0.3,u:"un"},
+      {n:"Aditivo impermeabilizante",q:1.5,u:"kg"},
+      {n:"Varilla conformada Ø8mm",q:8,u:"kg"},
+    ]
+  },
+  "Revestimiento azulejo cerámico piscina": {
+    u:"m2", m:185000,
+    mats:[
+      {n:"Cerámica esmaltada piscina",q:1.05,u:"m2"},
+      {n:"Pegamento p/ piscina",q:5,u:"kg"},
+    ]
+  },
+  "Revestimiento venecitas vítreas": {
+    u:"m2", m:340000,
+    // Acabado premium
+    mats:[
+      {n:"Venecitas vitreas piscina",q:1.05,u:"m2"},
+      {n:"Pegamento p/ piscina",q:5,u:"kg"},
+    ]
+  },
+  "Borde atérmico antideslizante": {
+    u:"ml", m:115000,
+    mats:[
+      {n:"Borde atérmico antideslizante",q:1,u:"ml"},
+    ]
+  },
+
+// ─── 3. EQUIPAMIENTO ELECTROMECÁNICO ────────────────────────────────
+  "Equipo bomba+filtro 0.5HP (≤50m³)": {
+    u:"un", m:3450000,
+    // Para piscinas residenciales chicas/medianas
+    mats:[
+      {n:"Equipo bomba+filtro arena 0.5HP",q:1,u:"un"},
+      {n:"Arena de sílex (filtro)",q:25,u:"kg"},
+    ]
+  },
+  "Equipo bomba+filtro 1HP (≤100m³)": {
+    u:"un", m:5100000,
+    // Piscinas residenciales grandes
+    mats:[
+      {n:"Equipo bomba+filtro arena 1HP",q:1,u:"un"},
+      {n:"Arena de sílex (filtro)",q:50,u:"kg"},
+    ]
+  },
+  "Skimmer + boquilla + dreno (set)": {
+    u:"un", m:680000,
+    mats:[
+      {n:"Skimmer estándar",q:1,u:"un"},
+      {n:"Boquilla impulsión piscina",q:1,u:"un"},
+      {n:"Toma limpiafondos",q:1,u:"un"},
+    ]
+  },
+  "Reflector LED RGB submarino instalado": {
+    u:"un", m:720000,
+    mats:[
+      {n:"Reflector LED RGB submarino",q:1,u:"un"},
+    ]
+  },
+  "Tablero eléctrico piscina": {
+    u:"un", m:1050000,
+    mats:[
+      {n:"Tablero eléctrico piscina",q:1,u:"un"},
+    ]
+  },
+  "Cañería PVC 1.5\" piscina": {
+    u:"ml", m:24000,
+    mats:[
+      {n:"Caño PVC piscina 1.5\"",q:1,u:"ml"},
+    ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"PAISAJISMO": {
+// ════════════════════════════════════════════════════════════════════════
+// Jardinería y paisaje exterior. Mucha mano de obra (preparación + plantación)
+// MO 45%: nivelación, plantación, riego, mantenimiento inicial
+// ──────────────────────────────────────────────────────────────────────
+
+// ─── 1. PREPARACIÓN DE TERRENO ─────────────────────────────────────
+  "Tierra negra zarandeada (suministro)": {
+    u:"m3", m:175000,
+    mats:[
+      {n:"Tierra negra suelta",q:1,u:"m3"},
+    ]
+  },
+  "Compost orgánico aplicado": {
+    u:"m3", m:130000,
+    mats:[
+      {n:"Compost orgánico",q:1,u:"m3"},
+    ]
+  },
+  "Geotextil para jardín": {
+    u:"m2", m:18000,
+    mats:[
+      {n:"Geotextil para jardín",q:1.1,u:"m2"},
+    ]
+  },
+  "Cobertura de corteza decorativa": {
+    u:"m3", m:55000,
+    mats:[
+      {n:"Mantillo / cobertura corteza",q:1,u:"m3"},
+    ]
+  },
+
+// ─── 2. CÉSPED Y GRAMA ─────────────────────────────────────────────
+  "Grama San Agustín en panes colocada": {
+    u:"m2", m:32000,
+    // El más popular en PY: tropical, soporta sombra parcial
+    mats:[
+      {n:"Grama San Agustín en panes",q:1.05,u:"m2"},
+      {n:"Tierra negra suelta",q:0.05,u:"m3"},
+    ]
+  },
+  "Grama esmeralda en panes colocada": {
+    u:"m2", m:38000,
+    // Más fina, alto tránsito
+    mats:[
+      {n:"Grama esmeralda en panes",q:1.05,u:"m2"},
+      {n:"Tierra negra suelta",q:0.05,u:"m3"},
+    ]
+  },
+  "Siembra grama Bahiana": {
+    u:"m2", m:18000,
+    // Económica, semilla, ideal grandes superficies
+    mats:[
+      {n:"Grama Bahiana semilla",q:0.025,u:"kg"},
+      {n:"Tierra negra suelta",q:0.05,u:"m3"},
+    ]
+  },
+
+// ─── 3. RIEGO AUTOMÁTICO ───────────────────────────────────────────
+  "Aspersor emergente con conexión": {
+    u:"un", m:65000,
+    // Para jardín grande con aspersión amplia
+    mats:[
+      {n:"Aspersor emergente PE",q:1,u:"un"},
+      {n:"Caño PE riego 16mm",q:2,u:"ml"},
+    ]
+  },
+  "Aspersor turbinado sectorial": {
+    u:"un", m:115000,
+    // Mayor alcance, sectorial
+    mats:[
+      {n:"Aspersor turbinado sectorial",q:1,u:"un"},
+      {n:"Caño PE riego 16mm",q:2,u:"ml"},
+    ]
+  },
+  "Sistema riego por goteo (por ml)": {
+    u:"ml", m:6500,
+    // Para canteros y plantaciones
+    mats:[
+      {n:"Goteo por línea (rollo 100m)",q:0.012,u:"un"},
+    ]
+  },
+  "Programador riego 4 zonas instalado": {
+    u:"un", m:430000,
+    mats:[
+      {n:"Programador riego 4 zonas",q:1,u:"un"},
+    ]
+  },
+
+// ─── 4. PLANTAS Y ESPECIES ─────────────────────────────────────────
+  "Palmera Pindó plantada": {
+    u:"un", m:340000,
+    // Especie nativa más usada en jardines PY
+    mats:[
+      {n:"Palmera Pindó 1.5m",q:1,u:"un"},
+      {n:"Tierra negra suelta",q:0.1,u:"m3"},
+      {n:"Compost orgánico",q:0.05,u:"m3"},
+    ]
+  },
+  "Palmera Areca plantada": {
+    u:"un", m:230000,
+    // Decorativa, ornamental
+    mats:[
+      {n:"Palmera Areca 1m",q:1,u:"un"},
+      {n:"Tierra negra suelta",q:0.08,u:"m3"},
+    ]
+  },
+  "Lapacho rosado plantado": {
+    u:"un", m:150000,
+    // Árbol nacional de Paraguay
+    mats:[
+      {n:"Lapacho rosado plantín 50cm",q:1,u:"un"},
+      {n:"Tierra negra suelta",q:0.1,u:"m3"},
+      {n:"Compost orgánico",q:0.05,u:"m3"},
+    ]
+  },
+  "Plantín ornamental cantero": {
+    u:"un", m:38000,
+    // Bromelias, helechos, agapantos, etc.
+    mats:[
+      {n:"Plantín ornamental mediano",q:1,u:"un"},
+    ]
+  },
+  "Cerco vivo San Antonio plantado": {
+    u:"ml", m:115000,
+    // Duranta erecta, cerco florido típico PY
+    mats:[
+      {n:"Cerco vivo San Antonio (ml)",q:1,u:"ml"},
+    ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"MOVIMIENTO DE SUELO": {
+// ════════════════════════════════════════════════════════════════════════
+// Excavación, nivelación, relleno, exteriores, pavimentos
+// MO 30%: operadores de máquina + obreros para tareas manuales
+// ──────────────────────────────────────────────────────────────────────
+
+  "Excavación a máquina (m³)": {
+    u:"m3", m:35000,
+    // Hora máquina rinde ~25m³, prorrateado
+    mats:[
+      {n:"Hora máquina retroexcavadora",q:0.04,u:"un"},
+    ]
+  },
+  "Excavación manual (m³)": {
+    u:"m3", m:85000,
+    // Para zonas inaccesibles a máquina
+    mats:[]
+  },
+  "Relleno con suelo seleccionado compactado": {
+    u:"m3", m:75000,
+    mats:[
+      {n:"Suelo seleccionado p/ relleno",q:1.1,u:"m3"},
+    ]
+  },
+  "Subbase de ripio compactado": {
+    u:"m3", m:130000,
+    // Para soportar vereda o pavimento
+    mats:[
+      {n:"Ripio para subbase",q:1.1,u:"m3"},
+    ]
+  },
+  "Nivelación de terreno con topadora": {
+    u:"m2", m:12000,
+    mats:[
+      {n:"Hora máquina topadora",q:0.003,u:"un"},
+    ]
+  },
+  "Pavimento adoquines hormigón colocado": {
+    u:"m2", m:135000,
+    // Antiestrés trabado, antideslizante
+    mats:[
+      {n:"Adoquín hormigón antiestres",q:1.05,u:"m2"},
+      {n:"Arena lavada",q:0.05,u:"m3"},
+    ]
+  },
+  "Cordón cuneta hormigón": {
+    u:"ml", m:65000,
+    // Para delimitar veredas y jardines
+    mats:[
+      {n:"Bordillo/cordón hormigón",q:1,u:"ml"},
+      {n:"Cemento tipo 1",q:8,u:"kg"},
+    ]
+  },
+  "Vereda hormigón 7cm con malla": {
+    u:"m2", m:185000,
+    // Vereda exterior estándar
+    mats:[
+      {n:"Cemento tipo 1",q:18,u:"kg"},
+      {n:"Arena lavada",q:0.04,u:"m3"},
+      {n:"Piedra triturada IV",q:0.07,u:"tn"},
+      {n:"Malla electrosoldada Q-92",q:1.05,u:"m2"},
+    ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"BAJA CORRIENTE": {
+// ════════════════════════════════════════════════════════════════════════
+// Cableado de red, CCTV, alarmas, automatización portones, video-portero
+// MO 40%: tendido cuidadoso por canalización + certificación + programación
+// ──────────────────────────────────────────────────────────────────────
+
+// ─── 1. RED DATOS ───────────────────────────────────────────────────
+  "Punto de red cat6 con tomacorriente": {
+    u:"un", m:185000,
+    // Cable + RJ45 + roseta + certificación
+    mats:[
+      {n:"Cable UTP cat6 (rollo 100m)",q:0.12,u:"un"},
+      {n:"Conector RJ45 cat6",q:2,u:"un"},
+    ]
+  },
+  "Patch panel 24 puertos instalado": {
+    u:"un", m:600000,
+    mats:[
+      {n:"Patch panel 24 puertos",q:1,u:"un"},
+    ]
+  },
+  "Switch de red 8 puertos gigabit": {
+    u:"un", m:435000,
+    mats:[
+      {n:"Switch 8 puertos gigabit",q:1,u:"un"},
+    ]
+  },
+
+// ─── 2. CCTV / VIDEOVIGILANCIA ──────────────────────────────────────
+  "Cámara IP exterior 4MP instalada": {
+    u:"un", m:780000,
+    // Visión nocturna, antivandálica
+    mats:[
+      {n:"Cámara IP exterior 4MP",q:1,u:"un"},
+      {n:"Cable UTP cat6 (rollo 100m)",q:0.18,u:"un"},
+    ]
+  },
+  "Cámara IP domo interior 2MP instalada": {
+    u:"un", m:480000,
+    mats:[
+      {n:"Cámara IP domo interior 2MP",q:1,u:"un"},
+      {n:"Cable UTP cat6 (rollo 100m)",q:0.15,u:"un"},
+    ]
+  },
+  "DVR/NVR 8 canales con disco 2TB": {
+    u:"un", m:2200000,
+    // Sistema completo de grabación
+    mats:[
+      {n:"DVR/NVR 8 canales",q:1,u:"un"},
+      {n:"Disco rígido vigilancia 2TB",q:1,u:"un"},
+    ]
+  },
+
+// ─── 3. CONTROL DE ACCESO ───────────────────────────────────────────
+  "Portero eléctrico simple instalado": {
+    u:"un", m:520000,
+    mats:[
+      {n:"Portero eléctrico simple",q:1,u:"un"},
+    ]
+  },
+  "Videoportero a color 7\" instalado": {
+    u:"un", m:2300000,
+    mats:[
+      {n:"Videoportero a color",q:1,u:"un"},
+    ]
+  },
+  "Motor portón corredizo 600kg instalado": {
+    u:"un", m:2750000,
+    mats:[
+      {n:"Motor portón corredizo 600kg",q:1,u:"un"},
+      {n:"Control remoto adicional",q:1,u:"un"},
+    ]
+  },
+  "Motor portón basculante instalado": {
+    u:"un", m:3450000,
+    mats:[
+      {n:"Motor portón basculante",q:1,u:"un"},
+      {n:"Control remoto adicional",q:1,u:"un"},
+    ]
+  },
+
+// ─── 4. ALARMAS Y SEGURIDAD ─────────────────────────────────────────
+  "Sistema alarma 8 zonas DSC instalado": {
+    u:"un", m:1850000,
+    // Central + sirena + 4 sensores PIR
+    mats:[
+      {n:"Panel alarma 8 zonas DSC",q:1,u:"un"},
+      {n:"Sensor PIR alarma",q:4,u:"un"},
+      {n:"Sirena exterior alarma",q:1,u:"un"},
+    ]
+  },
+  "Sensor PIR adicional instalado": {
+    u:"un", m:135000,
+    mats:[
+      {n:"Sensor PIR alarma",q:1,u:"un"},
+    ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"SANITARIOS COMPLEMENTARIOS": {
+// ════════════════════════════════════════════════════════════════════════
+// Calefones, termotanques, bombas, tanques, biodigestores, pozos
+// MO 25%: instalación hidráulica + eléctrica + pruebas
+// ──────────────────────────────────────────────────────────────────────
+
+// ─── 1. CALEFACCIÓN AGUA ────────────────────────────────────────────
+  "Calefón eléctrico 80lt instalado": {
+    u:"un", m:1700000,
+    mats:[
+      {n:"Calefón eléctrico 80lt",q:1,u:"un"},
+    ]
+  },
+  "Calefón eléctrico 150lt instalado": {
+    u:"un", m:2580000,
+    mats:[
+      {n:"Calefón eléctrico 150lt",q:1,u:"un"},
+    ]
+  },
+  "Termotanque a gas 110lt instalado": {
+    u:"un", m:3340000,
+    mats:[
+      {n:"Termotanque a gas 110lt",q:1,u:"un"},
+    ]
+  },
+  "Termotanque solar 200lt completo": {
+    u:"un", m:7800000,
+    // Kit completo con paneles + tanque
+    mats:[
+      {n:"Termotanque solar 200lt",q:1,u:"un"},
+    ]
+  },
+
+// ─── 2. BOMBAS Y RESERVAS ───────────────────────────────────────────
+  "Bomba presurizadora 0.5HP instalada": {
+    u:"un", m:1450000,
+    mats:[
+      {n:"Bomba presurizadora 0.5HP",q:1,u:"un"},
+    ]
+  },
+  "Bomba sumergible pozo 1HP instalada": {
+    u:"un", m:3400000,
+    // Para pozos de hasta ~30m
+    mats:[
+      {n:"Bomba sumergible pozo 1HP",q:1,u:"un"},
+    ]
+  },
+  "Tanque polietileno 500lt instalado": {
+    u:"un", m:480000,
+    mats:[
+      {n:"Tanque polietileno 500lt",q:1,u:"un"},
+    ]
+  },
+  "Tanque polietileno 1000lt instalado": {
+    u:"un", m:720000,
+    mats:[
+      {n:"Tanque polietileno 1000lt",q:1,u:"un"},
+    ]
+  },
+  "Tanque polietileno 2000lt instalado": {
+    u:"un", m:1340000,
+    mats:[
+      {n:"Tanque polietileno 2000lt",q:1,u:"un"},
+    ]
+  },
+  "Cisterna fibra 2500lt enterrada": {
+    u:"un", m:2400000,
+    // Reserva subterránea
+    mats:[
+      {n:"Tanque cisterna fibra 2500lt",q:1,u:"un"},
+    ]
+  },
+
+// ─── 3. CLOACAL Y POZOS ─────────────────────────────────────────────
+  "Biodigestor 600lt instalado": {
+    u:"un", m:2400000,
+    // Sistema sanitario moderno (sin pozo séptico tradicional)
+    mats:[
+      {n:"Biodigestor 600lt",q:1,u:"un"},
+    ]
+  },
+  "Biodigestor 1300lt instalado": {
+    u:"un", m:3450000,
+    // Para vivienda más grande / familia numerosa
+    mats:[
+      {n:"Biodigestor 1300lt",q:1,u:"un"},
+    ]
+  },
+  "Pozo absorbente 4 anillos H°": {
+    u:"un", m:1450000,
+    // Sistema tradicional, 4m profundidad
+    mats:[
+      {n:"Anillos pozo absorbente 1m",q:4,u:"un"},
+      {n:"Piedra triturada IV",q:1.5,u:"tn"},
+    ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"IMPERMEABILIZACIONES": {
+// ════════════════════════════════════════════════════════════════════════
+// Membranas, líquidos, juntas, tratamientos especiales
+// MO 38%: aplicación cuidadosa, varias capas, pruebas de estanqueidad
+// ──────────────────────────────────────────────────────────────────────
+
+  "Membrana asfáltica 4mm aluminizada": {
+    u:"m2", m:115000,
+    // La más usada en techos planos PY
+    mats:[
+      {n:"Membrana asfáltica 4mm aluminizada",q:1.1,u:"m2"},
+      {n:"Imprimación asfáltica (lt)",q:0.3,u:"lt"},
+    ]
+  },
+  "Membrana líquida poliuretano (2 manos)": {
+    u:"m2", m:125000,
+    // Para superficies irregulares, baños, terrazas
+    mats:[
+      {n:"Membrana líquida poliuretano",q:1.4,u:"kg"},
+    ]
+  },
+  "Imprimación asfáltica previa": {
+    u:"m2", m:25000,
+    mats:[
+      {n:"Imprimación asfáltica (lt)",q:0.5,u:"lt"},
+    ]
+  },
+  "Sellado estanco baño/terraza (Sika top 107)": {
+    u:"m2", m:95000,
+    // Cementicio elástico, ideal baños y duchas
+    mats:[
+      {n:"Sika top 107 seal (kit)",q:0.15,u:"un"},
+    ]
+  },
+  "Banda butílica autoadhesiva": {
+    u:"ml", m:24000,
+    // Para juntas de dilatación y fisuras
+    mats:[
+      {n:"Banda butílica autoadhesiva",q:1.05,u:"ml"},
+    ]
+  },
+  "Geomembrana HDPE piscinas/cisternas": {
+    u:"m2", m:38000,
+    mats:[
+      {n:"Geomembrana HDPE 1mm",q:1.1,u:"m2"},
+    ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"ESCALERAS Y BARANDAS": {
+// ════════════════════════════════════════════════════════════════════════
+// Escaleras metálicas, barandas, pasamanos, escalones premoldeados
+// MO 28%: trabajo de herrería + colocación + pintura final
+// ──────────────────────────────────────────────────────────────────────
+
+  "Escalera metálica recta (por escalón)": {
+    u:"un", m:480000,
+    // Estructura tubular + peldaño chapa estriada, sin pintura final
+    mats:[
+      {n:"Hierro estructural caño rect.",q:8,u:"kg"},
+      {n:"Peldaño metálico chapa estriada",q:1,u:"un"},
+    ]
+  },
+  "Escalera caracol metálica (por escalón)": {
+    u:"un", m:680000,
+    // Estructura central + peldaños radiales
+    mats:[
+      {n:"Hierro estructural caño rect.",q:12,u:"kg"},
+      {n:"Peldaño metálico chapa estriada",q:1,u:"un"},
+    ]
+  },
+  "Escalón premoldeado hormigón": {
+    u:"un", m:185000,
+    mats:[
+      {n:"Escalón premoldeado hormigón",q:1,u:"un"},
+    ]
+  },
+  "Pasamano hierro forjado simple": {
+    u:"ml", m:185000,
+    // Diseño clásico
+    mats:[
+      {n:"Pasamano hierro forjado",q:1,u:"ml"},
+    ]
+  },
+  "Baranda hierro torneado decorativa": {
+    u:"ml", m:340000,
+    // Con detalles forjados
+    mats:[
+      {n:"Baranda hierro torneado",q:1,u:"ml"},
+    ]
+  },
+  "Baranda tubo redondo 2\" simple": {
+    u:"ml", m:115000,
+    // La más económica, industrial
+    mats:[
+      {n:"Tubo redondo 2\" hierro",q:1.5,u:"ml"},
+    ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"OBRA HÚMEDA COMPLEMENTARIA": {
+// ════════════════════════════════════════════════════════════════════════
+// Trabajos finales de obra: hidrolavado, sellado de juntas, retoques
+// MO 50%: poco material, mucha mano de obra fina
+// ──────────────────────────────────────────────────────────────────────
+
+  "Hidrolavado fachada (m²)": {
+    u:"m2", m:18000,
+    // Limpieza profunda con presión antes de pintura
+    mats:[
+      {n:"Hidrolavadora hora alquiler",q:0.05,u:"un"},
+    ]
+  },
+  "Sellado juntas dilatación poliuretano": {
+    u:"ml", m:28000,
+    mats:[
+      {n:"Sellador de juntas poliuretano",q:0.15,u:"un"},
+    ]
+  },
+  "Retape y retoque general": {
+    u:"m2", m:22000,
+    // Trabajos finales antes de entrega
+    mats:[
+      {n:"Cemento tipo 1",q:1,u:"kg"},
+      {n:"Cal triturada",q:1,u:"kg"},
+    ]
+  },
+  "Limpieza final de obra (m²)": {
+    u:"m2", m:8000,
+    // Por superficie cubierta
+    mats:[]
+  },
+  "Prueba presión instalación agua": {
+    u:"un", m:380000,
+    // Test global del sistema antes de cerrar paredes
+    mats:[]
+  },
+  "Prueba estanqueidad cloacal": {
+    u:"un", m:280000,
+    mats:[]
   },
 },
 

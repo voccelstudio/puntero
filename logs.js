@@ -159,8 +159,14 @@ function showDailyLogModal() {
                 </div>
             </div>
             <div>
-                <label class="stat-lbl">Fotos (Cargar múltiples)</label>
-                <input type="file" id="log-photos" multiple accept="image/*" style="font-size:0.8rem">
+                <label class="stat-lbl">Fotos del avance</label>
+                <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px">
+                    <button type="button" class="btn sm" onclick="document.getElementById('log-photos-cam').click()" style="flex:1">📸 Tomar foto</button>
+                    <button type="button" class="btn sm" onclick="document.getElementById('log-photos-gal').click()" style="flex:1">🖼️ De galería</button>
+                </div>
+                <input type="file" id="log-photos-cam" accept="image/*" capture="environment" multiple style="display:none">
+                <input type="file" id="log-photos-gal" accept="image/*" multiple style="display:none">
+                <input type="file" id="log-photos" multiple accept="image/*" style="display:none">
                 <div id="photo-preview" style="display:flex; gap:5px; margin-top:5px; flex-wrap:wrap"></div>
             </div>
         </div>
@@ -171,20 +177,35 @@ function showDailyLogModal() {
         </div>
     </div></div>`;
 
-    document.getElementById('log-photos').onchange = function(e) {
+    // Acumulador de fotos (cámara + galería)
+    window._logPhotosBuffer = [];
+    const handlePhotoInput = function(e) {
         const preview = document.getElementById('photo-preview');
-        preview.innerHTML = '';
         Array.from(this.files).forEach(file => {
             const reader = new FileReader();
             reader.onload = ev => {
+                window._logPhotosBuffer.push(ev.target.result);
+                const wrap = document.createElement('div');
+                wrap.style.position = 'relative';
                 const img = document.createElement('img');
                 img.src = ev.target.result;
-                img.style.width = '40px'; img.style.height = '40px'; img.style.objectFit = 'cover'; img.style.borderRadius = '4px';
-                preview.appendChild(img);
+                img.style.width = '50px'; img.style.height = '50px'; img.style.objectFit = 'cover'; img.style.borderRadius = '4px'; img.style.border = '1px solid var(--bor)';
+                const idx = window._logPhotosBuffer.length - 1;
+                const del = document.createElement('button');
+                del.textContent = '✕';
+                del.style.cssText = 'position:absolute;top:-4px;right:-4px;width:18px;height:18px;border-radius:50%;background:var(--err);color:white;border:none;font-size:10px;cursor:pointer;line-height:1;padding:0';
+                del.onclick = () => { window._logPhotosBuffer[idx] = null; wrap.remove(); };
+                wrap.appendChild(img); wrap.appendChild(del);
+                preview.appendChild(wrap);
             };
             reader.readAsDataURL(file);
         });
+        // Reset input para poder agregar más sin pisar
+        this.value = '';
     };
+    document.getElementById('log-photos-cam').onchange = handlePhotoInput;
+    document.getElementById('log-photos-gal').onchange = handlePhotoInput;
+    document.getElementById('log-photos').onchange = handlePhotoInput;
 }
 
 async function saveDailyLog() {
@@ -193,18 +214,14 @@ async function saveDailyLog() {
     const date = document.getElementById("log-date").value;
     const weather = document.getElementById("log-weather").value;
     const workDone = document.getElementById("log-work").value;
-    const photoFiles = document.getElementById("log-photos").files;
-    
+
     const attendance = [];
     document.querySelectorAll(".log-att").forEach(ck => {
         attendance.push({ name: ck.dataset.name, present: ck.checked });
     });
 
-    const photos = [];
-    for (let f of photoFiles) {
-        const b64 = await toBase64(f);
-        photos.push(b64);
-    }
+    // Tomar fotos del buffer (filtra null = borrados por el usuario)
+    const photos = (window._logPhotosBuffer || []).filter(p => p !== null);
 
     const newLog = {
         id: 'log_' + Date.now(),
@@ -213,6 +230,7 @@ async function saveDailyLog() {
 
     if (!p.execution.dailyLogs) p.execution.dailyLogs = [];
     p.execution.dailyLogs.push(newLog);
+    window._logPhotosBuffer = []; // limpiar buffer
     save();
     closeModal();
     renderLogs();
