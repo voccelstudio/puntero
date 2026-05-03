@@ -135,6 +135,41 @@ const MAT_PRECIOS = {
   "Clavo":                    { p: 18000,  u: "kg"  },
   "Clavo 1 a 7 pulgadas":     { p: 18000,  u: "kg"  },
   "Tirafondo galvanizado 3/8x5": { p: 1500, u: "un" },
+
+  // ─── VIDRIOS Y CARPINTERÍA DE VIDRIO ───────────────────────────────
+  // Precios mercado PY 2026 (Vidriería Templar, VidrioMAS, Clasipar, Construex)
+  // Vidrio plano (dulce/float) sin templar
+  "Vidrio dulce 3mm":         { p: 110000, u: "m2"  }, // común para mueblería
+  "Vidrio dulce 4mm":         { p: 145000, u: "m2"  }, // ventanas estándar
+  "Vidrio dulce 5mm":         { p: 185000, u: "m2"  },
+  "Vidrio dulce 6mm":         { p: 235000, u: "m2"  },
+  // Vidrio templado / Blindex (importado, instalado solo material)
+  "Vidrio blindex/templado 8mm":  { p: 580000, u: "m2"  }, // Clasipar PY 2026
+  "Vidrio blindex/templado 10mm": { p: 720000, u: "m2"  },
+  "Vidrio blindex/templado 12mm": { p: 920000, u: "m2"  },
+  // Vidrio laminado (de seguridad, dos láminas + PVB)
+  "Vidrio laminado 3+3mm":    { p: 320000, u: "m2"  },
+  "Vidrio laminado 4+4mm":    { p: 410000, u: "m2"  },
+  // Vidrio espejado / reflectante
+  "Espejo 4mm":               { p: 195000, u: "m2"  },
+  "Espejo 6mm":               { p: 275000, u: "m2"  },
+  // DVH (doble vidriado hermético) — termopanel
+  "DVH 3+9+3 (termopanel)":   { p: 480000, u: "m2"  },
+  // Perfilería de aluminio (kg perfil + pintura electrostática)
+  "Perfil aluminio línea 20": { p: 38000,  u: "ml"  }, // económico, ventanas
+  "Perfil aluminio línea 25": { p: 55000,  u: "ml"  }, // medio
+  "Perfil aluminio reforzado":{ p: 78000,  u: "ml"  }, // para frentes grandes
+  // Herrajes y accesorios
+  "Herraje p/ corrediza blindex": { p: 285000, u: "un" }, // juego ruedas + cierres
+  "Bisagra hidráulica blindex":   { p: 380000, u: "un" }, // pivotante
+  "Cerradura central blindex":    { p: 425000, u: "un" },
+  "Manija acero inox blindex":    { p: 95000,  u: "un" }, // par
+  "Tirador acero inox blindex":   { p: 145000, u: "un" }, // tipo H
+  "Burlete EPDM":             { p: 4500,   u: "ml"  },
+  "Felpa para corrediza":     { p: 2800,   u: "ml"  },
+  // Selladores específicos
+  "Silicona neutra estructural": { p: 38000, u: "un" }, // cartucho 280ml
+  "Silicona acética transparente":{ p: 22000, u: "un" }, // cartucho 280ml
 };
 
 // ── PORCENTAJES MO POR CATEGORÍA ─────────────────────────────────────────
@@ -165,6 +200,9 @@ const LABOR_PCT = {
   "CARPINTERÍA MADERA":   21,
   // A=15%  B=~15% → 15%
   "CARPINTERÍA METÁLICA": 15,
+  // Vidrios: instalación liviana, mayor parte material → ~13%
+  // (cortes, pulido, sellado, herrajes, regulación de paño)
+  "VIDRIOS":              13,
   // A=40%  B=~42% → 41%
   "DESAGÜE CLOACAL":      41,
   // A=35%  B=~36% → 35%
@@ -1499,6 +1537,271 @@ const DB_RAW = {
     mats:[
       {n:"Barniz sintético brillante",q:0.12,u:"lt"},
       {n:"Lija",q:0.25,u:"un"},
+    ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"VIDRIOS": {
+// ════════════════════════════════════════════════════════════════════════
+// Precios verificados Paraguay 2026 — Vidriería Templar, VidrioMAS, Clasipar
+// Incluyen: vidrio, perfilería aluminio, herrajes, sellado silicona americana,
+// instalación. NO incluyen IVA (se calcula aparte si aplica).
+// MO baja (13%) porque domina el costo del material/perfil.
+// ──────────────────────────────────────────────────────────────────────
+
+// ─── 1. VIDRIO PLANO (DULCE/FLOAT) PARA VENTANAS COMUNES ───────────
+  "Vidrio dulce 4mm colocado en abertura": {
+    u:"m2", m:175000,
+    // Vidrio + sellado en marco existente (ventana de madera/aluminio)
+    mats:[
+      {n:"Vidrio dulce 4mm",q:1.05,u:"m2"},
+      {n:"Silicona acética transparente",q:0.15,u:"un"},
+    ]
+  },
+  "Vidrio dulce 5mm colocado en abertura": {
+    u:"m2", m:215000,
+    mats:[
+      {n:"Vidrio dulce 5mm",q:1.05,u:"m2"},
+      {n:"Silicona acética transparente",q:0.15,u:"un"},
+    ]
+  },
+  "Vidrio dulce 6mm colocado en abertura": {
+    u:"m2", m:265000,
+    mats:[
+      {n:"Vidrio dulce 6mm",q:1.05,u:"m2"},
+      {n:"Silicona acética transparente",q:0.15,u:"un"},
+    ]
+  },
+
+// ─── 2. VENTANAS ALUMINIO + VIDRIO DULCE (SISTEMA COMPLETO) ────────
+  "Ventana corrediza aluminio L20 + vidrio dulce 4mm": {
+    u:"m2", m:380000,
+    // Línea económica para vivienda estándar
+    mats:[
+      {n:"Vidrio dulce 4mm",q:1.05,u:"m2"},
+      {n:"Perfil aluminio línea 20",q:7,u:"ml"},
+      {n:"Felpa para corrediza",q:6,u:"ml"},
+      {n:"Silicona acética transparente",q:0.5,u:"un"},
+    ]
+  },
+  "Ventana corrediza aluminio L25 + vidrio dulce 5mm": {
+    u:"m2", m:520000,
+    // Línea media, mejor cierre y aislación
+    mats:[
+      {n:"Vidrio dulce 5mm",q:1.05,u:"m2"},
+      {n:"Perfil aluminio línea 25",q:7,u:"ml"},
+      {n:"Felpa para corrediza",q:6,u:"ml"},
+      {n:"Burlete EPDM",q:4,u:"ml"},
+      {n:"Silicona acética transparente",q:0.5,u:"un"},
+    ]
+  },
+  "Ventana fija aluminio + vidrio dulce 5mm": {
+    u:"m2", m:430000,
+    mats:[
+      {n:"Vidrio dulce 5mm",q:1.05,u:"m2"},
+      {n:"Perfil aluminio línea 25",q:5,u:"ml"},
+      {n:"Burlete EPDM",q:4,u:"ml"},
+      {n:"Silicona acética transparente",q:0.5,u:"un"},
+    ]
+  },
+  "Ventana abatible aluminio + vidrio dulce 5mm": {
+    u:"m2", m:580000,
+    // Más herrajes (bisagras + cierre)
+    mats:[
+      {n:"Vidrio dulce 5mm",q:1.05,u:"m2"},
+      {n:"Perfil aluminio línea 25",q:6,u:"ml"},
+      {n:"Burlete EPDM",q:5,u:"ml"},
+      {n:"Silicona acética transparente",q:0.5,u:"un"},
+    ]
+  },
+
+// ─── 3. VENTANAS BLINDEX (TEMPLADO) — UNIDADES ESTÁNDAR ────────────
+// Precios fijos por dimensiones de mercado (Templar / VidrioMAS)
+  "Ventana corrediza blindex 8mm 1.50x1.00m": {
+    u:"un", m:850000,
+    // Templar: ₲850.000 instalada
+    mats:[
+      {n:"Vidrio blindex/templado 8mm",q:1.5,u:"m2"},
+      {n:"Perfil aluminio línea 25",q:5,u:"ml"},
+      {n:"Herraje p/ corrediza blindex",q:1,u:"un"},
+      {n:"Silicona neutra estructural",q:1,u:"un"},
+    ]
+  },
+  "Ventana corrediza blindex 8mm por m²": {
+    u:"m2", m:580000,
+    // Para medidas no estándar
+    mats:[
+      {n:"Vidrio blindex/templado 8mm",q:1,u:"m2"},
+      {n:"Perfil aluminio línea 25",q:3.5,u:"ml"},
+      {n:"Herraje p/ corrediza blindex",q:0.7,u:"un"},
+      {n:"Silicona neutra estructural",q:0.7,u:"un"},
+    ]
+  },
+  "Ventana fija blindex 8mm por m²": {
+    u:"m2", m:520000,
+    mats:[
+      {n:"Vidrio blindex/templado 8mm",q:1,u:"m2"},
+      {n:"Perfil aluminio línea 25",q:3.5,u:"ml"},
+      {n:"Silicona neutra estructural",q:1,u:"un"},
+    ]
+  },
+
+// ─── 4. PUERTAS BLINDEX ─────────────────────────────────────────────
+  "Puerta batiente blindex 10mm 0.80x2.10m": {
+    u:"un", m:1250000,
+    // Templar: ₲1.250.000 instalada
+    mats:[
+      {n:"Vidrio blindex/templado 10mm",q:1.68,u:"m2"},
+      {n:"Bisagra hidráulica blindex",q:2,u:"un"},
+      {n:"Cerradura central blindex",q:1,u:"un"},
+      {n:"Manija acero inox blindex",q:1,u:"un"},
+      {n:"Silicona neutra estructural",q:1,u:"un"},
+    ]
+  },
+  "Puerta batiente blindex 10mm 0.90x2.10m": {
+    u:"un", m:1450000,
+    mats:[
+      {n:"Vidrio blindex/templado 10mm",q:1.89,u:"m2"},
+      {n:"Bisagra hidráulica blindex",q:2,u:"un"},
+      {n:"Cerradura central blindex",q:1,u:"un"},
+      {n:"Manija acero inox blindex",q:1,u:"un"},
+      {n:"Silicona neutra estructural",q:1,u:"un"},
+    ]
+  },
+  "Puerta corrediza blindex 10mm 1.50x2.10m": {
+    u:"un", m:1700000,
+    // Templar: ₲1.700.000 instalada
+    mats:[
+      {n:"Vidrio blindex/templado 10mm",q:3.15,u:"m2"},
+      {n:"Perfil aluminio reforzado",q:7,u:"ml"},
+      {n:"Herraje p/ corrediza blindex",q:1,u:"un"},
+      {n:"Tirador acero inox blindex",q:1,u:"un"},
+      {n:"Silicona neutra estructural",q:1.5,u:"un"},
+    ]
+  },
+
+// ─── 5. FRENTES Y CERRAMIENTOS BLINDEX (FACHADAS) ──────────────────
+  "Frente blindex 10mm 4 hojas 2.00x2.10m (2fijas+2corredizas)": {
+    u:"un", m:2500000,
+    // VidrioMAS: ₲2.500.000 — incluye cerradura central
+    mats:[
+      {n:"Vidrio blindex/templado 10mm",q:4.2,u:"m2"},
+      {n:"Perfil aluminio reforzado",q:12,u:"ml"},
+      {n:"Herraje p/ corrediza blindex",q:2,u:"un"},
+      {n:"Cerradura central blindex",q:1,u:"un"},
+      {n:"Tirador acero inox blindex",q:2,u:"un"},
+      {n:"Silicona neutra estructural",q:2,u:"un"},
+    ]
+  },
+  "Cerramiento blindex 10mm fachada por m²": {
+    u:"m2", m:680000,
+    // Para fachadas mayores a la unidad estándar
+    mats:[
+      {n:"Vidrio blindex/templado 10mm",q:1,u:"m2"},
+      {n:"Perfil aluminio reforzado",q:3,u:"ml"},
+      {n:"Silicona neutra estructural",q:1,u:"un"},
+    ]
+  },
+  "Frente corrediza vidrio dulce 8mm 2.00x2.10m": {
+    u:"un", m:2000000,
+    // Alternativa económica al blindex (Templar)
+    mats:[
+      {n:"Vidrio dulce 6mm",q:4.2,u:"m2"},
+      {n:"Perfil aluminio reforzado",q:10,u:"ml"},
+      {n:"Herraje p/ corrediza blindex",q:2,u:"un"},
+      {n:"Tirador acero inox blindex",q:1,u:"un"},
+      {n:"Silicona neutra estructural",q:1.5,u:"un"},
+    ]
+  },
+
+// ─── 6. MAMPARAS Y BOX DE BAÑO BLINDEX ──────────────────────────────
+  "Mampara baño blindex 8mm 1.50x2.00m fija": {
+    u:"un", m:1500000,
+    // VidrioMAS: ₲1.400.000-1.650.000 según diseño
+    mats:[
+      {n:"Vidrio blindex/templado 8mm",q:3,u:"m2"},
+      {n:"Perfil aluminio línea 25",q:4,u:"ml"},
+      {n:"Silicona neutra estructural",q:1,u:"un"},
+    ]
+  },
+  "Mampara baño blindex 8mm con puerta batiente": {
+    u:"un", m:1850000,
+    // Con puerta + bisagra hidráulica
+    mats:[
+      {n:"Vidrio blindex/templado 8mm",q:3.5,u:"m2"},
+      {n:"Perfil aluminio línea 25",q:5,u:"ml"},
+      {n:"Bisagra hidráulica blindex",q:2,u:"un"},
+      {n:"Manija acero inox blindex",q:1,u:"un"},
+      {n:"Silicona neutra estructural",q:1.5,u:"un"},
+    ]
+  },
+  "Box esquinero baño blindex 8mm corredizo": {
+    u:"un", m:1850000,
+    // Box esquinero (2 lados con corrediza)
+    mats:[
+      {n:"Vidrio blindex/templado 8mm",q:3.5,u:"m2"},
+      {n:"Perfil aluminio línea 25",q:8,u:"ml"},
+      {n:"Herraje p/ corrediza blindex",q:1,u:"un"},
+      {n:"Manija acero inox blindex",q:1,u:"un"},
+      {n:"Silicona neutra estructural",q:1.5,u:"un"},
+    ]
+  },
+
+// ─── 7. BARANDAS DE VIDRIO ──────────────────────────────────────────
+  "Baranda blindex 10mm escalera/balcón con perfil U": {
+    u:"ml", m:850000,
+    // Por metro lineal, altura estándar 1.10m
+    mats:[
+      {n:"Vidrio blindex/templado 10mm",q:1.15,u:"m2"},
+      {n:"Perfil aluminio reforzado",q:1.2,u:"ml"},
+      {n:"Silicona neutra estructural",q:0.5,u:"un"},
+    ]
+  },
+  "Baranda blindex 12mm piscina con botones acero": {
+    u:"ml", m:1100000,
+    // Sistema de botones (más limpio visualmente)
+    mats:[
+      {n:"Vidrio blindex/templado 12mm",q:1.3,u:"m2"},
+      {n:"Tirador acero inox blindex",q:4,u:"un"},
+      {n:"Silicona neutra estructural",q:0.5,u:"un"},
+    ]
+  },
+
+// ─── 8. ESPEJOS ─────────────────────────────────────────────────────
+  "Espejo 4mm colocado con clips/silicona": {
+    u:"m2", m:235000,
+    mats:[
+      {n:"Espejo 4mm",q:1,u:"m2"},
+      {n:"Silicona neutra estructural",q:0.3,u:"un"},
+    ]
+  },
+  "Espejo 6mm colocado con marco aluminio": {
+    u:"m2", m:340000,
+    mats:[
+      {n:"Espejo 6mm",q:1,u:"m2"},
+      {n:"Perfil aluminio línea 20",q:4,u:"ml"},
+      {n:"Silicona neutra estructural",q:0.3,u:"un"},
+    ]
+  },
+
+// ─── 9. VIDRIOS DE SEGURIDAD Y EFICIENCIA ──────────────────────────
+  "Vidrio laminado 3+3mm seguridad": {
+    u:"m2", m:380000,
+    // Para frentes / techos donde rompe pero no cae
+    mats:[
+      {n:"Vidrio laminado 3+3mm",q:1.05,u:"m2"},
+      {n:"Silicona neutra estructural",q:0.3,u:"un"},
+    ]
+  },
+  "DVH termopanel 3+9+3mm con marco aluminio": {
+    u:"m2", m:680000,
+    // Doble vidriado hermético — aislación térmica/acústica
+    mats:[
+      {n:"DVH 3+9+3 (termopanel)",q:1.05,u:"m2"},
+      {n:"Perfil aluminio reforzado",q:4,u:"ml"},
+      {n:"Burlete EPDM",q:5,u:"ml"},
+      {n:"Silicona neutra estructural",q:0.5,u:"un"},
     ]
   },
 },
