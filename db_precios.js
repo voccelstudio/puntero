@@ -11,8 +11,8 @@
  * Actualizado: Marzo 2026
  */
 
-const DB_VERSION = "2026-03v2";
-const DB_FECHA   = "Marzo 2026";
+const DB_VERSION = "2026-05-vidrios";
+const DB_FECHA   = "Mayo 2026 (categoría VIDRIOS añadida)";
 
 // ── PRECIOS UNITARIOS DE MATERIALES (referencia interna) ──────────────────
 // Rango A-B documentado en comentarios para transparencia interna

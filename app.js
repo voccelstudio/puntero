@@ -12,12 +12,6 @@ const fmt = n => {
 };
 const fmtRaw = (n, d = 0) => new Intl.NumberFormat("es-PY", { minimumFractionDigits: d, maximumFractionDigits: d }).format(n);
 const fmtD = (n, d = 2) => +n.toFixed(d);
-const fmtDate = (iso) => {
-    if (!iso) return "—";
-    const parts = iso.split("-");
-    if (parts.length !== 3) return iso;
-    return `${parts[2]}/${parts[1]}/${parts[0]}`;
-};
 
 const waLink = p => {
   if (!p) return "";
@@ -123,8 +117,43 @@ try {
 
 try {
   const d = localStorage.getItem("ppy_db5");
-  if (d) DB = JSON.parse(d);
-} catch (e) { }
+  const cachedVersion = localStorage.getItem("ppy_db_version");
+  if (d) {
+    const cachedDB = JSON.parse(d);
+    // Si la versión cacheada coincide con la actual, usarla tal cual
+    if (cachedVersion === DB_VERSION) {
+      DB = cachedDB;
+    } else {
+      // Si no, hacer merge: arrancar de la DB fresca (con categorías nuevas)
+      // y sobrescribir con las ediciones manuales del usuario que existan
+      const freshDB = buildDB();
+      const mergedDB = JSON.parse(JSON.stringify(freshDB));
+      // Aplicar ediciones del usuario sobre items que sigan existiendo
+      for (const [cat, items] of Object.entries(cachedDB)) {
+        if (mergedDB[cat]) {
+          for (const [name, data] of Object.entries(items)) {
+            if (mergedDB[cat][name]) {
+              // Mantener precios editados por el usuario
+              mergedDB[cat][name] = { ...mergedDB[cat][name], ...data };
+            } else {
+              // Item personalizado del usuario que no está en la nueva DB → conservarlo
+              mergedDB[cat][name] = data;
+            }
+          }
+        } else {
+          // Categoría que el usuario tenía pero ya no está en la DB → conservarla
+          mergedDB[cat] = items;
+        }
+      }
+      DB = mergedDB;
+      localStorage.setItem("ppy_db5", JSON.stringify(DB));
+      localStorage.setItem("ppy_db_version", DB_VERSION);
+      console.log("[DB] Migrada de", cachedVersion || "(sin versión)", "a", DB_VERSION, "— categorías nuevas añadidas, ediciones del usuario preservadas");
+    }
+  } else {
+    localStorage.setItem("ppy_db_version", DB_VERSION);
+  }
+} catch (e) { console.warn("[DB] Error en merge, usando DB fresca:", e); }
 
 applyTheme(state.theme);
 
@@ -294,8 +323,6 @@ function renderComputoSection() {
     if (!p) { el.innerHTML = "<div class='empty'>Seleccioná un proyecto.</div>"; return; }
 
     const mats = calcMaterials();
-    const allItems = p.budgets.flatMap(b => b.items || []);
-    const itemsWithMats = allItems.filter(i => (i.mats && i.mats.length > 0) || (!i.custom && DB[i.cat] && DB[i.cat][i.name]?.mats?.length > 0));
     
     let h = `
     <div class="prices-wrap">
@@ -322,15 +349,7 @@ function renderComputoSection() {
                     <div class="mat-qty" style="font-size:1.2rem; color:var(--acc)"><strong>${qty}</strong> ${m.unit}</div>
                     ${bolsas ? `<div class="mat-bags" style="font-size:0.8rem; color:var(--tx3); margin-top:5px">≈ ${bolsas} bolsas de 50kg</div>` : ""}
                 </div>`;
-            }).join("") || `
-                <div class="fullcol empty" style="padding:40px">
-                    <div style="font-size:3rem; margin-bottom:15px">🧱</div>
-                    <h3>No se encontraron materiales</h3>
-                    <p>Se analizaron <strong>${allItems.length} ítems</strong> en total.</p>
-                    ${allItems.length > 0 && itemsWithMats.length === 0 ? '<p style="color:var(--warn); margin-top:10px">⚠️ Los ítems actuales no tienen materiales definidos en sus fichas técnicas o son ítems personalizados.</p>' : ''}
-                    <button class="btn primary" onclick="setSection('budget')" style="margin-top:20px">Ir al Presupuesto</button>
-                </div>
-            `}
+            }).join("") || '<div class="fullcol empty">No hay materiales calculados. Agregá rubros al presupuesto.</div>'}
         </div>
     </div>`;
 
@@ -1169,28 +1188,16 @@ function getBreakdown() {
 
 function calcMaterials() {
   const p = getActiveProject();
-  if (!p || !p.budgets) return [];
+  if (!p) return [];
   
-  const allItems = p.budgets.flatMap(b => b.items || []);
+  const allItems = p.budgets.flatMap(b => b.items);
   const m = {};
   for (const item of allItems) {
-    let mats = item.mats;
-    const itemQty = parseFloat(item.qty) || 0;
-    if (itemQty <= 0) continue;
-
-    // Fallback: si no hay materiales guardados (o es []), buscamos en la DB si no es personalizado
-    if ((!mats || mats.length === 0) && !item.custom) {
-        const dbItem = DB[item.cat] ? DB[item.cat][item.name] : null;
-        if (dbItem && dbItem.mats) mats = dbItem.mats;
-    }
-    
-    if (!mats || mats.length === 0) continue;
-
-    for (const mat of mats) {
+    if (!item.mats) continue;
+    for (const mat of item.mats) {
       const key = mat.name + "|" + mat.unit;
       if (!m[key]) m[key] = { name: mat.name, unit: mat.unit, qty: 0 };
-      const matQtyPerUnit = parseFloat(mat.qty) || 0;
-      m[key].qty += (matQtyPerUnit * itemQty);
+      m[key].qty += (mat.qty * item.qty);
     }
   }
   return Object.values(m).sort((a, b) => a.name.localeCompare(b.name));
@@ -1784,8 +1791,7 @@ function createProject() {
             documents: [],
             aftercare: [],
             projectStartDate: "",
-            projectEndDate: "",
-            sectors: document.getElementById("np-sectors")?.value.split(",").map(s => s.trim()).filter(Boolean) || ["Cocina", "Estar", "Dormitorios", "Jardín", "Fachada"]
+            projectEndDate: ""
         }
     };
 
@@ -1816,10 +1822,6 @@ function showModal(type, arg) {
         <div><label class="stat-lbl">Teléfono</label><input id="np-phone" placeholder="WhatsApp"></div>
         <div class="fullcol"><label class="stat-lbl">Ubicación / Dirección</label><input id="np-addr" placeholder="Ciudad, Barrio..."></div>
         <div><label class="stat-lbl">Superficie (m²)</label><input id="np-m2" type="number" placeholder="0"></div>
-        <div class="fullcol"><label class="stat-lbl">Sectores de Obra (separados por coma)</label>
-            <input id="np-sectors" value="Cocina, Estar, Baños, Dormitorios, Fachada, Jardín">
-            <p style="font-size:0.75rem; color:var(--tx3); margin-top:4px">Usalos para organizar las fotos de avance.</p>
-        </div>
       </div>
       <div class="modal-acts">
         <button class="btn" onclick="closeModal()">Cancelar</button>
