@@ -1442,7 +1442,7 @@ function renderTable() {
         </td>
         <td data-label="Unid."><span class="utag">${item.unit}</span></td>
         <td data-label="Cant."><input class="qty-in" type="number" min="0" step="0.5" value="${item.qty}" oninput="updateQty(${item.id},this.value)"></td>
-        <td data-label="Desc.%"><input class="qty-in" type="number" min="0" max="100" step="1" value="${item.disc || 0}" style="width:42px" oninput="updateDisc(${item.id},this.value)"></td>
+        <td data-label="Desc.%"><input class="qty-in disc" type="number" min="0" max="100" step="1" value="${item.disc || 0}" oninput="updateDisc(${item.id},this.value)"></td>
         <td data-label="P. Unit." style="font-size:.875rem;color:var(--tx3)">₲${fmt(ep)}</td>
         ${adenda.ivaEnabled ? `<td data-label="IVA" style="font-size:.95rem;color:var(--iva);font-weight:600">₲${fmt(iva)}</td>` : ""}
         <td data-label="Total" style="font-weight:700;color:var(--acc);font-size:1rem">₲${fmt(totalItem)}</td>
@@ -1724,6 +1724,72 @@ function pdfTxt(s) {
   return (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .replace(/[₲]/g, "Gs.").replace(/[—–]/g, "-").replace(/[""]/g, '"').replace(/['']/g, "'");
 }
+
+/**
+ * Dibuja el logo de Puntero (sello con casco + llana) directamente en el PDF
+ * usando primitivas de jsPDF. No requiere imagen externa.
+ *
+ * @param {jsPDF} doc      Instancia del documento
+ * @param {number} cx      Centro X en mm
+ * @param {number} cy      Centro Y en mm
+ * @param {number} r       Radio del sello en mm (recomendado: 9-10)
+ */
+function drawPunteroLogo(doc, cx, cy, r) {
+  // Círculo de fondo oscuro
+  doc.setFillColor(15, 23, 42); // #0f172a
+  doc.circle(cx, cy, r, "F");
+  // Anillo naranja
+  doc.setDrawColor(245, 158, 11); // #f59e0b
+  doc.setLineWidth(0.4);
+  doc.circle(cx, cy, r - 0.7, "S");
+
+  // Llana inclinada (rectángulo trapezoidal naranja, simulado con líneas)
+  // Centro del logo, escalado al radio
+  const s = r / 9; // factor de escala (radio 9 = tamaño base)
+  doc.setFillColor(245, 158, 11);
+  // Cuerpo de la llana — un trapecio inclinado -30°
+  // Aproximación: dos triángulos que forman el trapecio rotado
+  const cos30 = Math.cos(-Math.PI / 6);
+  const sin30 = Math.sin(-Math.PI / 6);
+  const rotate = (px, py) => [
+    cx + (px * cos30 - py * sin30) * s,
+    cy + (px * sin30 + py * cos30) * s
+  ];
+  // Trapecio: (-5, -0.5) (5, -0.5) (4, 3) (-4, 3)
+  const p1 = rotate(-5, -0.5);
+  const p2 = rotate(5, -0.5);
+  const p3 = rotate(4, 3);
+  const p4 = rotate(-4, 3);
+  doc.triangle(p1[0], p1[1], p2[0], p2[1], p3[0], p3[1], "F");
+  doc.triangle(p1[0], p1[1], p3[0], p3[1], p4[0], p4[1], "F");
+
+  // Casco blanco al frente
+  doc.setFillColor(255, 255, 255);
+  // Visera (elipse achatada)
+  doc.ellipse(cx, cy + 1.5 * s, 4.5 * s, 0.7 * s, "F");
+  // Cuerpo del casco (semicírculo aproximado con triángulos)
+  // Dibujo el cuerpo como un sector circular
+  doc.setFillColor(255, 255, 255);
+  const segments = 16;
+  for (let i = 0; i < segments; i++) {
+    const a1 = Math.PI + (i / segments) * Math.PI;
+    const a2 = Math.PI + ((i + 1) / segments) * Math.PI;
+    const ax = cx + Math.cos(a1) * 4 * s;
+    const ay = cy + 1.5 * s + Math.sin(a1) * 3 * s;
+    const bx = cx + Math.cos(a2) * 4 * s;
+    const by = cy + 1.5 * s + Math.sin(a2) * 3 * s;
+    doc.triangle(cx, cy + 1.5 * s, ax, ay, bx, by, "F");
+  }
+  // Borde sutil del casco
+  doc.setDrawColor(203, 213, 225); // #cbd5e1
+  doc.setLineWidth(0.15);
+  doc.ellipse(cx, cy + 1.5 * s, 4.5 * s, 0.7 * s, "S");
+
+  // Reset
+  doc.setLineWidth(0.2);
+  doc.setDrawColor(0, 0, 0);
+}
+
 function generarPDF() {
   const adenda = getActiveAdenda();
   const proj = getActiveProject();
@@ -1760,14 +1826,11 @@ function generarPDF() {
   doc.setFillColor(...C.hdrBg); doc.rect(0, 0, W, 36, "F");
   if (state.logoDataUrl) {
     try { doc.addImage(state.logoDataUrl, "PNG", M, 8, 24, 16); } catch (e) {
-      doc.setFillColor(255, 255, 255, 20); doc.circle(M + 10, 18, 10, "F");
-      doc.setTextColor(...C.hdrTx); doc.setFontSize(9); doc.setFont("helvetica", "bold");
-      doc.text((p.company || p.professional || "PY").substring(0, 2).toUpperCase(), M + 5.5, 21);
+      drawPunteroLogo(doc, M + 10, 18, 9);
     }
   } else {
-    doc.setFillColor(255, 255, 255, 20); doc.circle(M + 10, 18, 10, "F");
-    doc.setTextColor(...C.hdrTx); doc.setFontSize(9); doc.setFont("helvetica", "bold");
-    doc.text((p.company || p.professional || "PY").substring(0, 2).toUpperCase(), M + 5.5, 21);
+    // Logo Puntero por defecto: sello con casco + llana
+    drawPunteroLogo(doc, M + 10, 18, 9);
   }
   const tX = M + 24;
   doc.setFontSize(13); doc.setFont("helvetica", "bold");

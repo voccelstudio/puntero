@@ -11,8 +11,8 @@
  * Actualizado: Marzo 2026
  */
 
-const DB_VERSION = "2026-05-mega";
-const DB_FECHA   = "Mayo 2026 (10 categorías nuevas: PCI, climatización, piscinas, paisajismo, etc.)";
+const DB_VERSION = "2026-05-techos-electrica";
+const DB_FECHA   = "Mayo 2026 (techos termoacústicos + tableros trifásicos + pluviales)";
 
 // ── PRECIOS UNITARIOS DE MATERIALES (referencia interna) ──────────────────
 // Rango A-B documentado en comentarios para transparencia interna
@@ -320,6 +320,140 @@ const MAT_PRECIOS = {
   "Hidrolavadora hora alquiler":   { p: 95000,  u: "un" },
   "Sellador de juntas poliuretano":{ p: 65000,  u: "un" }, // cartucho 600ml
   "Cinta alta adherencia juntas":  { p: 28000,  u: "ml" },
+
+  // ─── CIELOS RASO — DURLOCK / PVC / YESO (Mayo 2026) ──────────────────
+  // Precios verificados: Tecnofor PY, Clasipar, Generador CYPE PY 2026
+  "Metal desplegado":              { p: 35000,  u: "m2" }, // p/ revoque cielo raso
+  // Placas Durlock (1.20 x 2.40m = 2.88m² rinde efectivo ~2.80m² en cielo)
+  "Placa durlock estándar 9.5mm":  { p: 95000,  u: "un" }, // p/ cielo raso, 1.20x2.40m
+  "Placa durlock estándar 12.5mm": { p: 115000, u: "un" }, // p/ pared, 1.20x2.40m
+  "Placa durlock RH 12.5mm verde": { p: 165000, u: "un" }, // resistente humedad, baño/cocina
+  "Placa durlock RF 12.5mm roja":  { p: 195000, u: "un" }, // resistente fuego
+  // Perfilería metálica
+  "Perfil omega 35mm x 2.60m":     { p: 28000,  u: "un" }, // p/ cielo raso
+  "Perfil solera 35mm x 2.60m":    { p: 32000,  u: "un" },
+  "Perfil montante 35mm x 2.60m":  { p: 38000,  u: "un" },
+  "Perfil F530 cielo raso x 4m":   { p: 65000,  u: "un" }, // primario
+  "Perfil CR2 perimetral":         { p: 22000,  u: "ml" },
+  "Cuelgue/tensor cielo raso":     { p: 4500,   u: "un" }, // varilla + ojal
+  // Accesorios y terminación
+  "Tornillo T1 punta fina (cien)": { p: 18000,  u: "un" }, // 100 unidades
+  "Tornillo T2 punta mecha (cien)":{ p: 22000,  u: "un" },
+  "Cinta papel junta durlock 75m": { p: 35000,  u: "un" },
+  "Masilla durlock balde 28kg":    { p: 145000, u: "un" }, // tipo Placomix
+  "Masilla secado rápido 25kg":    { p: 165000, u: "un" }, // p/ pegamento + base
+  "Lana de vidrio 50mm Isover":    { p: 52000,  u: "m2" }, // aislante térmico/acústico
+  // PVC machimbre
+  "Cieloraso PVC blanco 6mm":      { p: 26000,  u: "m2" }, // económico
+  "Cieloraso PVC blanco 8mm":      { p: 30000,  u: "m2" }, // estándar
+  "Cieloraso PVC color pino 8mm":  { p: 48000,  u: "m2" }, // imitación madera
+  "Perfil terminación U PVC 6m":   { p: 33000,  u: "un" },
+  "Perfil terminación H PVC 6m":   { p: 38000,  u: "un" }, // p/ unión de paneles
+  // Yeso (placas tradicionales y molduras)
+  "Placa yeso 60x60cm":            { p: 38000,  u: "un" }, // p/ cielo raso modular
+  "Placa yeso 60x120cm":           { p: 65000,  u: "un" },
+  "Yeso París bolsa 25kg":         { p: 45000,  u: "un" }, // yesito
+  "Moldura yeso 8cm":              { p: 18000,  u: "ml" }, // perimetral decorativa
+  "Moldura yeso 12cm":             { p: 24000,  u: "ml" },
+  "Moldura yeso 14cm":             { p: 32000,  u: "ml" },
+  "Junta dilatación cielo raso":   { p: 16000,  u: "ml" },
+
+  // ─── TECHOS METÁLICOS / TERMOACÚSTICOS (Mayo 2026) ───────────────────
+  // Fuentes: Tecnimetal PY, Mercofer, Isopanel SA, Clasipar 2026
+  "Chapa termoacústica trapez. EPS 30mm": { p: 220000, u: "m2" }, // núcleo isopor 3cm
+  "Chapa termoacústica trapez. EPS 50mm": { p: 250000, u: "m2" }, // núcleo isopor 5cm — más usada
+  "Chapa termoacústica trapez. PUR 30mm": { p: 320000, u: "m2" }, // poliuretano, mejor aisl.
+  "Chapa termoacústica colonial EPS 40mm":{ p: 290000, u: "m2" }, // imitación teja con aisl.
+  "Chapa traslúcida fibra vidrio acanal.":{ p: 165000, u: "m2" }, // p/ lucernarios laterales
+  "Policarbonato alveolar 6mm":           { p: 95000,  u: "m2" }, // p/ lucernarios cenitales
+  "Perfil C galvanizado 100x50":          { p: 38000,  u: "ml" }, // p/ tinglado liviano
+  "Perfil C galvanizado 150x50":          { p: 52000,  u: "ml" }, // p/ tinglado mediano
+  "Cabriada metálica armada (kg)":        { p: 12000,  u: "kg" }, // hierro armado p/ galpón
+  "Tornillo autoperforante c/ arandela":  { p: 800,    u: "un" }, // p/ chapa termoacústica
+  "Cumbrera galvanizada universal":       { p: 28000,  u: "ml" },
+  "Canaleta zinc Nº24 desarrollada":      { p: 35000,  u: "ml" }, // p/ desagüe pluvial
+  "Bajada PVC 100mm pluvial":             { p: 18000,  u: "ml" },
+  "Codos y accesorios pluvial PVC 100mm": { p: 25000,  u: "un" },
+
+  // ─── INSTALACIÓN ELÉCTRICA AVANZADA (Mayo 2026) ──────────────────────
+  // Fuentes: Sensorview, Conecta, Construex, Promart, AutoSolar 2026
+  "Tablero PVC 12 polos riel DIN":        { p: 280000, u: "un" }, // gabinete vacío
+  "Tablero PVC 24 polos riel DIN":        { p: 480000, u: "un" },
+  "Tablero metálico 36 polos industrial": { p: 1450000,u: "un" }, // c/ puerta y cerradura
+  "Llave termomagnética 1P 16A":          { p: 65000,  u: "un" }, // monofásica circuitos pequeños
+  "Llave termomagnética 1P 25A":          { p: 75000,  u: "un" },
+  "Llave termomagnética 1P 32A":          { p: 85000,  u: "un" },
+  "Llave termomagnética 2P 32A":          { p: 165000, u: "un" }, // bipolar (fase + neutro)
+  "Llave termomagnética 3P 25A":          { p: 285000, u: "un" }, // tripolar trifásica
+  "Llave termomagnética 3P 40A":          { p: 350000, u: "un" }, // p/ tablero principal
+  "Llave termomagnética 3P 63A":          { p: 480000, u: "un" }, // industrial mediana
+  "Llave diferencial 2P 25A 30mA":        { p: 285000, u: "un" }, // salvavidas residencial
+  "Llave diferencial 4P 40A 30mA":        { p: 580000, u: "un" }, // trifásica
+  "Toma trifásico industrial 25A IP44":   { p: 145000, u: "un" }, // tomacorriente p/ máquinas
+  "Toma trifásico industrial 32A IP44":   { p: 195000, u: "un" },
+  "Jabalina cobre 1.5m + tomatierra":     { p: 185000, u: "un" }, // puesta a tierra
+  "Cable cobre desnudo 35mm² (tierra)":   { p: 18000,  u: "ml" },
+  "Borne unión bimetálico tierra":        { p: 38000,  u: "un" },
+  "Riel DIN 35mm x 1m":                   { p: 28000,  u: "ml" },
+
+  // ─── MATERIALES ANTIGUOS FALTANTES (corrige cómputos preexistentes) ──
+  "Chapa zinc Nº28":                  { p: 75000,  u: "m2" },
+  "Chapa trapezoidal Nº27":           { p: 95000,  u: "m2" },
+  "Chapa fibrocemento ondulada 6mm":  { p: 195000, u: "un" }, // placa 1.10x2.44m
+  "Caño rectangular 30x50x1.20mm":    { p: 28000,  u: "ml" },
+  "Perfil U 100x40 1.8mm":            { p: 38000,  u: "ml" },
+  "Perfil C 100x38 1.80mm":           { p: 35000,  u: "ml" },
+  "Tornillo autoroscante 2":          { p: 1200,   u: "un" }, // unidad
+  "Tornillos 12x2":                   { p: 1500,   u: "un" },
+  "Caja tablero principal":           { p: 280000, u: "un" }, // gabinete viejo (no DIN)
+  "Llave para calefón 25":            { p: 95000,  u: "un" }, // legacy
+  "Caño galvanizado":                 { p: 85000,  u: "un" }, // tira de 6m
+  "Curva galvanizada 1 pulgada":      { p: 18000,  u: "un" },
+
+  // ─── MATERIALES ANTIGUOS DE OTRAS CATEGORÍAS (corrige cómputos) ──────
+  "Colorante 100cc":                  { p: 12000,  u: "un" },
+  "Marco ybyrapyta":                  { p: 285000, u: "un" }, // marco puerta interior
+  "Puerta tablero eucalipto":         { p: 580000, u: "un" }, // puerta común interior
+  "Puerta tablero punta diamante":    { p: 850000, u: "un" }, // diseño superior
+  "Puerta vidriera eucalipto":        { p: 1180000,u: "un" }, // c/ vidrio
+  "Hoja persiana varilla 45cm":       { p: 145000, u: "un" },
+  "Cerradura externa c/manija":       { p: 165000, u: "un" },
+  "Tornillo 1x7":                     { p: 800,    u: "un" },
+  "Ficha 5 agujeros":                 { p: 35000,  u: "un" },
+  "Balancín fabricado":               { p: 1850000,u: "un" }, // ventana balancín soldada
+  "Portón con cerradura":             { p: 4500000,u: "un" }, // portón corredizo metálico
+  "Escalera metálica":                { p: 2800000,u: "un" }, // escalera completa estándar
+  "Reja artística":                   { p: 580000, u: "m2" }, // reja decorativa para ventana
+  "Cortina metálica enrollable":      { p: 850000, u: "m2" }, // p/ locales comerciales
+  // Sanitarios e hidráulica (legacy)
+  "Caja sifonada 150x150x50mm":       { p: 95000,  u: "un" },
+  "Caño 1/2 roscable":                { p: 22000,  u: "ml" }, // hidráulico FV
+  "Codo 90° roscable 1/2":            { p: 8500,   u: "un" },
+  "Llave de paso 1/2 FV cromada":     { p: 75000,  u: "un" },
+  "Tapón roscable 1/2":               { p: 6500,   u: "un" },
+  "Cinta teflón 18mmx25m":            { p: 8500,   u: "un" },
+  "Tanque Fibrac 500lt":              { p: 480000, u: "un" }, // marca local PY
+  "Tanque Fibrac 1000lt":             { p: 750000, u: "un" },
+  // Artefactos sanitarios
+  "Juego WC cisterna Deca Ravena":    { p: 1350000,u: "un" }, // inodoro completo Deca
+  "Juego WC cisterna alta Deca":      { p: 1180000,u: "un" }, // modelo clásico
+  "Grifería FV Línea Clásica":        { p: 280000, u: "un" }, // monocomando lavatorio
+  "Grifería externa FV":              { p: 165000, u: "un" }, // canilla exterior
+  "Canilla lavatorio FV":             { p: 145000, u: "un" },
+  "Prolongador FV cromo":             { p: 38000,  u: "un" },
+  "Termocalefón 80lt":                { p: 1450000,u: "un" }, // calefón eléctrico legacy
+  "Ducha eléctrica Corona":           { p: 380000, u: "un" }, // ducha calentadora
+  "Botiquín 44x58x11cm":              { p: 285000, u: "un" }, // espejo c/ guardado
+  "Bañera 1.60x0.70m":                { p: 2200000,u: "un" }, // bañera fibra/acrílico
+  "Pileta 1 bacha acero inox":        { p: 580000, u: "un" }, // pileta cocina simple
+  // Pisos y revestimientos
+  "Granito natural":                  { p: 285000, u: "m2" }, // mesada/escalón
+  "Mármol blanco":                    { p: 380000, u: "m2" }, // alta gama
+  "Zócalo de granito":                { p: 65000,  u: "ml" },
+  "Moldura pecho paloma":             { p: 32000,  u: "ml" }, // moldura clásica
+  // Otros
+  "Parrilla enlozada con carbonera":  { p: 1850000,u: "un" }, // parrilla quincho completa
+  "Yeso para construcción":           { p: 38000,  u: "un" }, // bolsa 25kg (legacy de yesito)
 };
 
 // ── PORCENTAJES MO POR CATEGORÍA ─────────────────────────────────────────
@@ -849,6 +983,117 @@ const DB_RAW = {
       {n:"Tirante ybyrapyta",q:20,u:"pulg/m"},
       {n:"Machimbre ybyrapyta 1x3",q:1.10,u:"m2"},
       {n:"Clavo",q:0.25,u:"kg"},
+    ]
+  },
+
+// ─── TECHOS TERMOACÚSTICOS / METÁLICOS MODERNOS (Mayo 2026) ──────────
+// Sistemas premium con aislación térmica/acústica integrada
+// Fuentes: Tecnimetal PY, Mercofer, Isopanel SA, Clasipar 2026
+
+  "Chapa termoacústica trapez. EPS 30mm s/ estructura existente": {
+    u:"m2", m:240000,
+    // Solo provisión y colocación, estructura aparte
+    // Ref: Tecnimetal PY 2026 ~₲240k/m² instalado
+    mats:[
+      {n:"Chapa termoacústica trapez. EPS 30mm",q:1.05,u:"m2"},
+      {n:"Tornillo autoperforante c/ arandela",q:8,u:"un"},
+    ]
+  },
+  "Chapa termoacústica trapez. EPS 50mm s/ estructura existente": {
+    u:"m2", m:275000,
+    // La más usada — buen balance precio/aislación
+    // Ref: Tecnimetal PY 2026 ~₲290k/m²
+    mats:[
+      {n:"Chapa termoacústica trapez. EPS 50mm",q:1.05,u:"m2"},
+      {n:"Tornillo autoperforante c/ arandela",q:8,u:"un"},
+    ]
+  },
+  "Chapa termoacústica PUR 30mm (premium)": {
+    u:"m2", m:355000,
+    // Núcleo poliuretano — mejor aislación térmica que EPS
+    // Ref: Tecnimetal PY 2026 ~₲390k/m²
+    mats:[
+      {n:"Chapa termoacústica trapez. PUR 30mm",q:1.05,u:"m2"},
+      {n:"Tornillo autoperforante c/ arandela",q:8,u:"un"},
+    ]
+  },
+  "Chapa termoacústica colonial (imit. teja)": {
+    u:"m2", m:325000,
+    // Estética colonial paraguaya con aislación moderna
+    mats:[
+      {n:"Chapa termoacústica colonial EPS 40mm",q:1.05,u:"m2"},
+      {n:"Tornillo autoperforante c/ arandela",q:8,u:"un"},
+    ]
+  },
+
+  "Tinglado completo c/ estructura + chapa trapez.": {
+    u:"m2", m:185000,
+    // Llave en mano: estructura metálica + chapa simple acanalada/trapezoidal
+    // Ref: Tecnimetal PY 2026: ₲160k-180k/m²
+    mats:[
+      {n:"Perfil C galvanizado 100x50",q:0.8,u:"ml"},
+      {n:"Cabriada metálica armada (kg)",q:5,u:"kg"},
+      {n:"Chapa trapezoidal Nº27",q:1.05,u:"m2"},
+      {n:"Tornillo autoperforante c/ arandela",q:8,u:"un"},
+    ]
+  },
+  "Tinglado completo c/ estructura + termoacústica": {
+    u:"m2", m:295000,
+    // Llave en mano: estructura + chapa termoacústica EPS 50mm
+    // Ref: Clasipar PY 2026: ₲250k-290k/m²
+    mats:[
+      {n:"Perfil C galvanizado 100x50",q:0.8,u:"ml"},
+      {n:"Cabriada metálica armada (kg)",q:5,u:"kg"},
+      {n:"Chapa termoacústica trapez. EPS 50mm",q:1.05,u:"m2"},
+      {n:"Tornillo autoperforante c/ arandela",q:8,u:"un"},
+    ]
+  },
+  "Cabriada metálica armada (por kg)": {
+    u:"kg", m:14500,
+    // Para galpones/tinglados grandes — armada y soldada en obra
+    mats:[
+      {n:"Cabriada metálica armada (kg)",q:1,u:"kg"},
+    ]
+  },
+
+// ─── ACCESORIOS Y TERMINACIONES DE TECHO ────────────────────────────
+  "Lucernario policarbonato alveolar 6mm": {
+    u:"m2", m:135000,
+    // Translúcido para iluminación natural — quinchos, locales
+    mats:[
+      {n:"Policarbonato alveolar 6mm",q:1.05,u:"m2"},
+      {n:"Tornillo autoperforante c/ arandela",q:6,u:"un"},
+    ]
+  },
+  "Cerramiento lateral chapa traslúcida": {
+    u:"m2", m:195000,
+    // Para galpones y tinglados — entra luz natural
+    mats:[
+      {n:"Chapa traslúcida fibra vidrio acanal.",q:1.05,u:"m2"},
+      {n:"Tornillo autoperforante c/ arandela",q:6,u:"un"},
+    ]
+  },
+  "Cumbrera galvanizada universal": {
+    u:"ml", m:38000,
+    // Remate superior del techo
+    mats:[
+      {n:"Cumbrera galvanizada universal",q:1.05,u:"ml"},
+      {n:"Tornillo autoperforante c/ arandela",q:4,u:"un"},
+    ]
+  },
+  "Canaleta zinc Nº24 colocada": {
+    u:"ml", m:55000,
+    // Desagüe pluvial perimetral
+    mats:[
+      {n:"Canaleta zinc Nº24 desarrollada",q:1.05,u:"ml"},
+    ]
+  },
+  "Bajada pluvial PVC 100mm completa": {
+    u:"ml", m:32000,
+    // Caño + abrazaderas + codos
+    mats:[
+      {n:"Bajada PVC 100mm pluvial",q:1.05,u:"ml"},
+      {n:"Codos y accesorios pluvial PVC 100mm",q:0.2,u:"un"},
     ]
   },
 },
@@ -1449,6 +1694,112 @@ const DB_RAW = {
       {n:"Cable 4mm",q:40,u:"ml"},
     ]
   },
+
+// ─── TABLEROS Y PROTECCIONES MODERNAS (Mayo 2026) ────────────────────
+// Sistemas con riel DIN, llaves termomagnéticas y diferenciales
+// Fuentes: Sensorview, Conecta PY, Promart, AutoSolar 2026
+
+  "Tablero monofásico 12 polos completo": {
+    u:"un", m:1180000,
+    // Vivienda media: 1 termomagnética principal + 4 secundarias + 1 diferencial
+    mats:[
+      {n:"Tablero PVC 12 polos riel DIN",q:1,u:"un"},
+      {n:"Llave termomagnética 1P 32A",q:1,u:"un"},
+      {n:"Llave termomagnética 1P 16A",q:4,u:"un"},
+      {n:"Llave diferencial 2P 25A 30mA",q:1,u:"un"},
+      {n:"Riel DIN 35mm x 1m",q:0.5,u:"ml"},
+    ]
+  },
+  "Tablero TRIFÁSICO 12 polos completo": {
+    u:"un", m:1850000,
+    // Vivienda grande / local comercial chico
+    // 1 llave principal trifásica + diferencial trifásico + 6 termomagnéticas
+    mats:[
+      {n:"Tablero PVC 12 polos riel DIN",q:1,u:"un"},
+      {n:"Llave termomagnética 3P 40A",q:1,u:"un"},
+      {n:"Llave diferencial 4P 40A 30mA",q:1,u:"un"},
+      {n:"Llave termomagnética 1P 16A",q:4,u:"un"},
+      {n:"Llave termomagnética 1P 32A",q:2,u:"un"},
+      {n:"Riel DIN 35mm x 1m",q:0.5,u:"ml"},
+    ]
+  },
+  "Tablero TRIFÁSICO 24 polos completo": {
+    u:"un", m:3200000,
+    // Local comercial mediano / oficina
+    mats:[
+      {n:"Tablero PVC 24 polos riel DIN",q:1,u:"un"},
+      {n:"Llave termomagnética 3P 63A",q:1,u:"un"},
+      {n:"Llave diferencial 4P 40A 30mA",q:2,u:"un"},
+      {n:"Llave termomagnética 1P 16A",q:8,u:"un"},
+      {n:"Llave termomagnética 1P 32A",q:4,u:"un"},
+      {n:"Llave termomagnética 3P 25A",q:1,u:"un"},
+      {n:"Riel DIN 35mm x 1m",q:1,u:"ml"},
+    ]
+  },
+  "Tablero TRIFÁSICO 36 polos industrial": {
+    u:"un", m:5800000,
+    // Industria liviana / locales grandes con maquinaria
+    mats:[
+      {n:"Tablero metálico 36 polos industrial",q:1,u:"un"},
+      {n:"Llave termomagnética 3P 63A",q:2,u:"un"},
+      {n:"Llave diferencial 4P 40A 30mA",q:3,u:"un"},
+      {n:"Llave termomagnética 1P 32A",q:6,u:"un"},
+      {n:"Llave termomagnética 3P 25A",q:3,u:"un"},
+      {n:"Llave termomagnética 3P 40A",q:2,u:"un"},
+      {n:"Riel DIN 35mm x 1m",q:1.5,u:"ml"},
+    ]
+  },
+
+// ─── PROTECCIONES INDIVIDUALES (POR UNIDAD) ─────────────────────────
+  "Llave termomagnética 1P (16A/25A/32A)": {
+    u:"un", m:90000,
+    mats:[
+      {n:"Llave termomagnética 1P 25A",q:1,u:"un"},
+    ]
+  },
+  "Llave termomagnética 3P (25A/40A) trifásica": {
+    u:"un", m:340000,
+    mats:[
+      {n:"Llave termomagnética 3P 40A",q:1,u:"un"},
+    ]
+  },
+  "Llave diferencial 2P 25A 30mA (salvavidas)": {
+    u:"un", m:330000,
+    // Obligatorio en circuitos residenciales nuevos
+    mats:[
+      {n:"Llave diferencial 2P 25A 30mA",q:1,u:"un"},
+    ]
+  },
+  "Llave diferencial 4P 40A 30mA trifásica": {
+    u:"un", m:660000,
+    mats:[
+      {n:"Llave diferencial 4P 40A 30mA",q:1,u:"un"},
+    ]
+  },
+
+// ─── TOMAS Y PUESTA A TIERRA ────────────────────────────────────────
+  "Toma trifásico industrial 25A IP44": {
+    u:"un", m:195000,
+    // Para máquinas industriales, soldadoras, etc.
+    mats:[
+      {n:"Toma trifásico industrial 25A IP44",q:1,u:"un"},
+    ]
+  },
+  "Toma trifásico industrial 32A IP44": {
+    u:"un", m:255000,
+    mats:[
+      {n:"Toma trifásico industrial 32A IP44",q:1,u:"un"},
+    ]
+  },
+  "Puesta a tierra completa (jabalina + cable)": {
+    u:"un", m:425000,
+    // Sistema de protección obligatorio según ANDE
+    mats:[
+      {n:"Jabalina cobre 1.5m + tomatierra",q:1,u:"un"},
+      {n:"Cable cobre desnudo 35mm² (tierra)",q:8,u:"ml"},
+      {n:"Borne unión bimetálico tierra",q:1,u:"un"},
+    ]
+  },
 },
 
 // ════════════════════════════════════════════════════════════════════════
@@ -1611,6 +1962,157 @@ const DB_RAW = {
       {n:"Cemento tipo 1",q:2.50,u:"kg"},
       {n:"Cal triturada",q:7,u:"kg"},
       {n:"Arena lavada",q:0.02,u:"m3"},
+    ]
+  },
+
+// ─── DURLOCK / PLACAS DE YESO ACARTONADO ──────────────────────────────
+  "Cielo raso durlock estándar 9.5mm": {
+    u:"m2", m:115000,
+    // Sistema completo: placa + estructura + masilla + cinta
+    // Ref: Clasipar PY 2026 ~120k/m2 instalado
+    mats:[
+      {n:"Placa durlock estándar 9.5mm",q:0.36,u:"un"}, // 1 placa cubre ~2.80m²
+      {n:"Perfil F530 cielo raso x 4m",q:0.4,u:"un"},
+      {n:"Perfil CR2 perimetral",q:0.7,u:"ml"},
+      {n:"Cuelgue/tensor cielo raso",q:1.5,u:"un"},
+      {n:"Tornillo T2 punta mecha (cien)",q:0.15,u:"un"},
+      {n:"Cinta papel junta durlock 75m",q:0.04,u:"un"},
+      {n:"Masilla durlock balde 28kg",q:0.05,u:"un"},
+    ]
+  },
+  "Cielo raso durlock RH 12.5mm (baño/cocina)": {
+    u:"m2", m:165000,
+    // Placa verde resistente a humedad — esencial en zonas húmedas
+    mats:[
+      {n:"Placa durlock RH 12.5mm verde",q:0.36,u:"un"},
+      {n:"Perfil F530 cielo raso x 4m",q:0.4,u:"un"},
+      {n:"Perfil CR2 perimetral",q:0.7,u:"ml"},
+      {n:"Cuelgue/tensor cielo raso",q:1.5,u:"un"},
+      {n:"Tornillo T2 punta mecha (cien)",q:0.15,u:"un"},
+      {n:"Cinta papel junta durlock 75m",q:0.04,u:"un"},
+      {n:"Masilla durlock balde 28kg",q:0.05,u:"un"},
+    ]
+  },
+  "Cielo raso durlock RF 12.5mm (anti-fuego)": {
+    u:"m2", m:185000,
+    // Placa roja resistente al fuego — p/ cocheras, salas de máquinas
+    mats:[
+      {n:"Placa durlock RF 12.5mm roja",q:0.36,u:"un"},
+      {n:"Perfil F530 cielo raso x 4m",q:0.4,u:"un"},
+      {n:"Perfil CR2 perimetral",q:0.7,u:"ml"},
+      {n:"Cuelgue/tensor cielo raso",q:1.5,u:"un"},
+      {n:"Tornillo T2 punta mecha (cien)",q:0.15,u:"un"},
+      {n:"Cinta papel junta durlock 75m",q:0.04,u:"un"},
+      {n:"Masilla durlock balde 28kg",q:0.05,u:"un"},
+    ]
+  },
+  "Cielo raso durlock c/ aislante térmico": {
+    u:"m2", m:185000,
+    // Con lana de vidrio entre estructura — confort térmico/acústico
+    mats:[
+      {n:"Placa durlock estándar 9.5mm",q:0.36,u:"un"},
+      {n:"Perfil F530 cielo raso x 4m",q:0.4,u:"un"},
+      {n:"Perfil CR2 perimetral",q:0.7,u:"ml"},
+      {n:"Cuelgue/tensor cielo raso",q:1.5,u:"un"},
+      {n:"Tornillo T2 punta mecha (cien)",q:0.15,u:"un"},
+      {n:"Cinta papel junta durlock 75m",q:0.04,u:"un"},
+      {n:"Masilla durlock balde 28kg",q:0.05,u:"un"},
+      {n:"Lana de vidrio 50mm Isover",q:1.05,u:"m2"},
+    ]
+  },
+  "Cielo raso durlock con luz indirecta (gargantas)": {
+    u:"m2", m:235000,
+    // Diseño con buñas/gargantas para iluminación LED indirecta
+    mats:[
+      {n:"Placa durlock estándar 9.5mm",q:0.5,u:"un"}, // más placa por geometría
+      {n:"Perfil F530 cielo raso x 4m",q:0.6,u:"un"},
+      {n:"Perfil CR2 perimetral",q:1.2,u:"ml"},
+      {n:"Cuelgue/tensor cielo raso",q:2,u:"un"},
+      {n:"Tornillo T2 punta mecha (cien)",q:0.25,u:"un"},
+      {n:"Cinta papel junta durlock 75m",q:0.06,u:"un"},
+      {n:"Masilla durlock balde 28kg",q:0.08,u:"un"},
+    ]
+  },
+
+// ─── PVC (CIELORRASO LIVIANO ECONÓMICO) ──────────────────────────────
+  "Cielo raso PVC blanco 6mm instalado": {
+    u:"m2", m:50000,
+    // El más económico — quincho, lavadero, garaje
+    // Ref: Clasipar PY 2026: 50.000/m2 instalado
+    mats:[
+      {n:"Cieloraso PVC blanco 6mm",q:1.05,u:"m2"},
+      {n:"Perfil solera 35mm x 2.60m",q:0.8,u:"un"},
+      {n:"Perfil terminación U PVC 6m",q:0.2,u:"un"},
+      {n:"Tornillo T1 punta fina (cien)",q:0.1,u:"un"},
+    ]
+  },
+  "Cielo raso PVC blanco 8mm instalado": {
+    u:"m2", m:60000,
+    // Mejor rigidez, más usado en interiores
+    // Ref: Clasipar PY 2026: 60.000/m2 instalado
+    mats:[
+      {n:"Cieloraso PVC blanco 8mm",q:1.05,u:"m2"},
+      {n:"Perfil solera 35mm x 2.60m",q:0.8,u:"un"},
+      {n:"Perfil terminación U PVC 6m",q:0.2,u:"un"},
+      {n:"Tornillo T1 punta fina (cien)",q:0.1,u:"un"},
+    ]
+  },
+  "Cielo raso PVC color pino 8mm instalado": {
+    u:"m2", m:85000,
+    // Imitación madera — muy popular en quinchos PY
+    // Ref: Clasipar PY 2026: 85.000/m2 instalado
+    mats:[
+      {n:"Cieloraso PVC color pino 8mm",q:1.05,u:"m2"},
+      {n:"Perfil solera 35mm x 2.60m",q:0.8,u:"un"},
+      {n:"Perfil terminación U PVC 6m",q:0.2,u:"un"},
+      {n:"Tornillo T1 punta fina (cien)",q:0.1,u:"un"},
+    ]
+  },
+
+// ─── YESO TRADICIONAL / YESITO ────────────────────────────────────────
+  "Cielo raso yeso modular 60x60": {
+    u:"m2", m:75000,
+    // Sistema desmontable T (oficinas, locales comerciales)
+    // Ref: Clasipar PY 2026: 56.000-75.000/m2
+    mats:[
+      {n:"Placa yeso 60x60cm",q:2.85,u:"un"}, // 2.78 placas/m² + perdida
+      {n:"Perfil solera 35mm x 2.60m",q:0.4,u:"un"},
+      {n:"Cuelgue/tensor cielo raso",q:1.5,u:"un"},
+    ]
+  },
+  "Cielo raso yeso aplicado (yesito) 1cm": {
+    u:"m2", m:65000,
+    // Capa de yeso fino sobre revoque, terminación lisa
+    mats:[
+      {n:"Yeso París bolsa 25kg",q:0.8,u:"un"}, // ~12kg/m² para 1cm
+    ]
+  },
+
+// ─── MOLDURAS Y TERMINACIONES (POR ML) ────────────────────────────────
+  "Moldura yeso decorativa 8cm": {
+    u:"ml", m:25000,
+    // Perimetral clásica
+    mats:[
+      {n:"Moldura yeso 8cm",q:1.05,u:"ml"},
+    ]
+  },
+  "Moldura yeso decorativa 12cm": {
+    u:"ml", m:32000,
+    mats:[
+      {n:"Moldura yeso 12cm",q:1.05,u:"ml"},
+    ]
+  },
+  "Moldura yeso decorativa 14cm": {
+    u:"ml", m:42000,
+    mats:[
+      {n:"Moldura yeso 14cm",q:1.05,u:"ml"},
+    ]
+  },
+  "Junta dilatación cielo raso (por ml)": {
+    u:"ml", m:24000,
+    // Necesaria cada 8m lineales en cielos largos
+    mats:[
+      {n:"Junta dilatación cielo raso",q:1,u:"ml"},
     ]
   },
 },
