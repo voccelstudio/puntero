@@ -193,6 +193,28 @@ table.tbl{width:100%;border-collapse:collapse;font-size:1rem;}
 .tbl tr:last-child td{border-bottom:none;}
 .tbl tr:hover td{background:var(--sur2);}
 .tbl-cat td{background:var(--sur2)!important;font-family:var(--font-display);font-weight:700;font-size:.95rem;text-transform:uppercase;letter-spacing:.08em;color:var(--acc);padding:4px 7px;}
+
+/* Banda destacada de subtotal por categoría */
+.tbl-subtotal td{
+  background: linear-gradient(90deg, transparent 0%, rgba(245,158,11,0.08) 30%, rgba(245,158,11,0.18) 100%) !important;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: .9rem;
+  letter-spacing: .04em;
+  color: var(--acc);
+  padding: 8px 12px !important;
+  border-top: 2px solid var(--acc) !important;
+  border-bottom: 2px solid var(--acc) !important;
+}
+.tbl-subtotal td:first-child{
+  text-transform: uppercase;
+  color: var(--tx2);
+}
+.tbl-subtotal td:nth-child(2){
+  font-size: 1rem;
+  color: var(--acc);
+  font-weight: 800;
+}
 .qty-in{width:78px;padding:5px 8px;font-size:.9rem;text-align:center;}
 .qty-in.disc{width:50px;}
 .delbtn{width:20px;height:20px;border-radius:50%;background:transparent;border:1px solid var(--bor);color:var(--tx3);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.95rem;transition:all .12s;}
@@ -290,6 +312,13 @@ table.tbl{width:100%;border-collapse:collapse;font-size:1rem;}
 .bk-tbl th:first-child{text-align:left;}
 .bk-tbl td{padding:6px 8px;border-bottom:1px solid var(--bor);text-align:right;color:var(--tx2);}
 .bk-tbl td:first-child{text-align:left;font-weight:600;color:var(--tx);font-size:.875rem;}
+.bk-tbl .bk-subtotal{
+  background: linear-gradient(90deg, transparent 0%, rgba(245,158,11,0.12) 100%);
+  color: var(--acc);
+  font-weight: 800;
+  font-size: 1rem;
+  border-right: 3px solid var(--acc);
+}
 .bk-footer{background:var(--sur2);border:1px solid var(--bor);border-radius:var(--rad);padding:13px;margin-top:10px;}
 .mat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;margin-top:10px;}
 .mat-card{background:var(--sur2);border:1px solid var(--bor);border-radius:var(--rad);padding:10px 12px;}
@@ -576,6 +605,41 @@ table.tbl{width:100%;border-collapse:collapse;font-size:1rem;}
   }
   .tbl.budget-tbl tr.cat-row td { display: block; padding: 0; }
   .tbl.budget-tbl tr.cat-row td::before { display: none; }
+
+  /* Subtotal de categoría en mobile */
+  .tbl.budget-tbl tr.subtotal-row {
+    background: rgba(245,158,11,0.15);
+    border-top: 2px solid var(--acc);
+    border-bottom: 2px solid var(--acc);
+    padding: 10px 12px;
+    margin-top: 4px;
+    margin-bottom: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .tbl.budget-tbl tr.subtotal-row td {
+    display: block;
+    padding: 0;
+    border: none;
+    text-align: left;
+    font-size: 0.9rem;
+  }
+  .tbl.budget-tbl tr.subtotal-row td::before { display: none; }
+  .tbl.budget-tbl tr.subtotal-row td:first-child {
+    color: var(--tx2);
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    flex: 1;
+  }
+  .tbl.budget-tbl tr.subtotal-row td:nth-child(2) {
+    text-align: right;
+    color: var(--acc);
+    font-weight: 800;
+    font-size: 1rem;
+  }
+  .tbl.budget-tbl tr.subtotal-row td:last-child { display: none; }
 
   /* ── MODALES: bottom-sheet en mobile ── */
   .overlay {

@@ -1423,13 +1423,16 @@ function renderTable() {
     <button class="btn sm" onclick="showModal('breakdown')">📊 Desglose</button>
   </div>
   <table class="tbl budget-tbl"><thead><tr><th>Descripción</th><th>U.</th><th>Cant.</th><th>Desc.%</th><th>P. Unit.</th>${adenda.ivaEnabled ? "<th style='color:var(--iva)'>IVA</th>" : ""}<th>Total</th><th></th></tr></thead><tbody>`;
+  const colSpanFull = adenda.ivaEnabled ? 8 : 7;
   for (const [cat, ci] of Object.entries(grouped)) {
-    h += `<tr class="tbl-cat cat-row"><td colspan="${adenda.ivaEnabled ? 8 : 7}">${cat}</td></tr>`;
+    h += `<tr class="tbl-cat cat-row"><td colspan="${colSpanFull}">${cat}</td></tr>`;
+    let catSubtotal = 0;
     for (const item of ci) {
       const mf = item.unitPrice > 0 ? item.matCost / item.unitPrice : 0.5;
       const ep = item.unitPrice * (1 - (item.disc || 0) / 100);
       const iva = adenda.ivaEnabled ? calcIVA(item.matCost, item.laborCost, item.qty).ivaTotal : 0;
       const totalItem = (ep * item.qty) + iva;
+      catSubtotal += totalItem;
       h += `<tr>
         <td data-label="Item">
           <input value="${item.name.replace(/"/g, '&quot;')}" style="font-weight:600;color:var(--tx);font-size:.875rem;border:none;background:transparent;width:100%;padding:0;outline:none;" oninput="const i=getActiveAdenda().items.find(x=>x.id==${item.id});if(i){i.name=this.value;save();}">
@@ -1449,6 +1452,8 @@ function renderTable() {
         <td data-label=""><button class="delbtn" onclick="removeItem(${item.id})">✕</button></td>
       </tr>`;
     }
+    // Banda destacada de subtotal al cierre de la categoría
+    h += `<tr class="tbl-subtotal subtotal-row"><td colspan="${colSpanFull - 2}" style="text-align:right">Subtotal ${cat}</td><td style="text-align:right">₲${fmt(catSubtotal)}</td><td></td></tr>`;
   }
   h += `</tbody></table>`;
   el.innerHTML = h; renderTotals();
@@ -1821,6 +1826,12 @@ function generarPDF() {
     slate: { hdrBg: [30, 41, 59], hdrTx: [248, 250, 252], accentBg: [71, 85, 105], accentTx: [255, 255, 255], catBg: [241, 245, 249], catTx: [51, 65, 85], bodyTx: [15, 23, 42], mutedTx: [100, 116, 139], borderC: [203, 213, 225], altRow: [248, 250, 252], totalBg: [30, 41, 59], totalTx: [248, 250, 252] },
   };
   const C = PALETTES[state.pdfTheme] || PALETTES.corporate;
+  // Derivar hdrTx2 = versión más tenue del color del header (70% opacidad simulada al mezclar con hdrBg)
+  C.hdrTx2 = C.hdrTx2 || [
+    Math.round(C.hdrTx[0] * 0.75 + C.hdrBg[0] * 0.25),
+    Math.round(C.hdrTx[1] * 0.75 + C.hdrBg[1] * 0.25),
+    Math.round(C.hdrTx[2] * 0.75 + C.hdrBg[2] * 0.25),
+  ];
   let y = 0;
   // Header
   doc.setFillColor(...C.hdrBg); doc.rect(0, 0, W, 36, "F");
@@ -1833,9 +1844,11 @@ function generarPDF() {
     drawPunteroLogo(doc, M + 10, 18, 9);
   }
   const tX = M + 24;
+  doc.setTextColor(...C.hdrTx);
   doc.setFontSize(13); doc.setFont("helvetica", "bold");
   doc.text(pdfTxt(p.company || p.professional || "Puntero"), tX, 13);
   doc.setFontSize(7.5); doc.setFont("helvetica", "normal");
+  doc.setTextColor(...C.hdrTx2);
   const lines = [];
   if (p.professional) lines.push(pdfTxt(p.professional + (p.matricula ? " - " + p.matricula : "")));
   if (p.ruc) lines.push("RUC: " + pdfTxt(p.ruc));
@@ -1844,9 +1857,14 @@ function generarPDF() {
   const social = [p.instagram, p.whatsapp, p.website].filter(Boolean).join("   -   ");
   if (social) lines.push(pdfTxt(social));
   lines.forEach((l, i) => doc.text(l, tX, 19 + i * 4.5));
+  doc.setTextColor(...C.hdrTx);
   doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.text("PRESUPUESTO", W - M, 11, { align: "right" });
   doc.setFontSize(18); doc.text("N\u00BA " + String(budgetNum).padStart(4, "0"), W - M, 21, { align: "right" });
-  doc.setFontSize(7.5); doc.setFont("helvetica", "normal"); doc.text(today, W - M, 27, { align: "right" });
+  doc.setFontSize(7.5); doc.setFont("helvetica", "normal");
+  doc.setTextColor(...C.hdrTx2);
+  doc.text(today, W - M, 27, { align: "right" });
+  // Reset al body
+  doc.setTextColor(...C.bodyTx);
   y = 42;
   // Client & Project boxes
   const colW = (W - M * 2 - 5) / 2;
@@ -1877,9 +1895,11 @@ function generarPDF() {
   const rows = []; let rowNum = 1;
   for (const [cat, ci] of Object.entries(grouped)) {
     rows.push([{ content: pdfTxt(cat), colSpan: 6, styles: { fillColor: C.catBg, textColor: C.catTx, fontStyle: "bold", fontSize: 7.5, cellPadding: { top: 3, bottom: 3, left: 4, right: 4 } } }]);
+    let catSubtotal = 0;
     for (const item of ci) {
       const { ivaTotal: ivaItem } = calcIVA(item.matCost, item.laborCost, item.qty);
       const totalItem = item.unitPrice * item.qty + (ivaEnabled ? ivaItem : 0);
+      catSubtotal += totalItem;
       rows.push([
         { content: String(rowNum++), styles: { halign: "center", fontSize: 7.5, textColor: C.mutedTx } },
         { content: pdfTxt(item.name), styles: { fontSize: 8 } },
@@ -1889,6 +1909,11 @@ function generarPDF() {
         { content: "Gs. " + fmt(totalItem), styles: { halign: "right", fontStyle: "bold", fontSize: 7.5 } },
       ]);
     }
+    // Banda destacada de subtotal por categoría
+    rows.push([
+      { content: "Subtotal " + pdfTxt(cat), colSpan: 5, styles: { halign: "right", fontStyle: "bold", fontSize: 8, fillColor: C.accentBg, textColor: C.accentTx, cellPadding: { top: 4, bottom: 4, left: 4, right: 4 } } },
+      { content: "Gs. " + fmt(catSubtotal), styles: { halign: "right", fontStyle: "bold", fontSize: 9, fillColor: C.accentBg, textColor: C.accentTx, cellPadding: { top: 4, bottom: 4, left: 4, right: 4 } } },
+    ]);
   }
   doc.autoTable({
     startY: y,
@@ -1900,7 +1925,12 @@ function generarPDF() {
     columnStyles: { 0: { cellWidth: 7, halign: "center" }, 1: { cellWidth: "auto" }, 2: { cellWidth: 12, halign: "center" }, 3: { cellWidth: 17, halign: "center" }, 4: { cellWidth: 33, halign: "right" }, 5: { cellWidth: 40, halign: "right" } },
     margin: { left: M, right: M },
     tableWidth: "wrap",
-    didParseCell: data => { if (data.row.raw?.[0]?.colSpan === 6) { data.cell.styles.fillColor = C.catBg; data.cell.styles.textColor = C.catTx; data.cell.styles.fontStyle = "bold"; } },
+    didParseCell: data => {
+      // Categoría
+      if (data.row.raw?.[0]?.colSpan === 6) { data.cell.styles.fillColor = C.catBg; data.cell.styles.textColor = C.catTx; data.cell.styles.fontStyle = "bold"; }
+      // Subtotal (colSpan = 5 en la primera celda)
+      if (data.row.raw?.[0]?.colSpan === 5) { data.cell.styles.fillColor = C.accentBg; data.cell.styles.textColor = C.accentTx; data.cell.styles.fontStyle = "bold"; }
+    },
   });
   y = doc.lastAutoTable.finalY + 8;
   // Totals box
@@ -2112,7 +2142,7 @@ function showModal(type, arg) {
     const bkIva = bkAdenda && bkAdenda.ivaEnabled;
     const bkProfit = bkAdenda ? (bkAdenda.profitPct || 0) : 0;
     const bk = getBreakdown(); const { totalMats, totalLabor, subtotal, ivaMat, ivaLab, ivaTotal, profitAmt, total } = getTotals();
-    const rows = bk.map(r => `<tr><td>${r.cat}</td><td style="color:var(--mat);font-weight:600">₲ ${fmt(r.matCost)}</td><td style="color:var(--lab);font-weight:600">₲ ${fmt(r.laborCost)}</td><td style="color:var(--acc);font-weight:700">₲ ${fmt(r.total)}</td></tr>`).join("");
+    const rows = bk.map(r => `<tr class="bk-row"><td>${r.cat}</td><td style="color:var(--mat);font-weight:600">₲ ${fmt(r.matCost)}</td><td style="color:var(--lab);font-weight:600">₲ ${fmt(r.laborCost)}</td><td class="bk-subtotal">₲ ${fmt(r.total)}</td></tr>`).join("");
     el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
       <div class="modal-title">📊 Desglose Mat / MO<button class="delbtn" onclick="closeModal()">✕</button></div>
       <table class="bk-tbl"><thead><tr><th>Categoría</th><th>Materiales</th><th>Mano de Obra</th><th>Subtotal</th></tr></thead><tbody>${rows}</tbody></table>
