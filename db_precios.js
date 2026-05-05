@@ -11,8 +11,8 @@
  * Actualizado: Marzo 2026
  */
 
-const DB_VERSION = "2026-05-techos-electrica";
-const DB_FECHA   = "Mayo 2026 (techos termoacústicos + tableros trifásicos + pluviales)";
+const DB_VERSION = "2026-05-techos-electrica-tabiques";
+const DB_FECHA   = "Mayo 2026 (techos termoacústicos + tableros trifásicos + pluviales + tabiques durlock)";
 
 // ── PRECIOS UNITARIOS DE MATERIALES (referencia interna) ──────────────────
 // Rango A-B documentado en comentarios para transparencia interna
@@ -134,7 +134,7 @@ const MAT_PRECIOS = {
   "Balaustre sencillo h=42cm":{ p: 4840,   u: "un"  },
   "Clavo":                    { p: 18000,  u: "kg"  },
   "Clavo 1 a 7 pulgadas":     { p: 18000,  u: "kg"  },
-  "Tirafondo galvanizado 3/8x5": { p: 1500, u: "un" },
+  "Tirafondo galvanizado 3/8x5": { p: 1500, u: "un"  },
 
   // ─── VIDRIOS Y CARPINTERÍA DE VIDRIO ───────────────────────────────
   // Precios mercado PY 2026 (Vidriería Templar, VidrioMAS, Clasipar, Construex)
@@ -277,7 +277,7 @@ const MAT_PRECIOS = {
   "DVR/NVR 8 canales":             { p: 1450000,u: "un" }, // sin disco
   "Disco rígido vigilancia 2TB":   { p: 480000, u: "un" },
   "Portero eléctrico simple":      { p: 380000, u: "un" }, // audio
-  "Videoportero a color":          { p: 1850000,u: "un" }, // pantalla 7\"
+  "Videoportero a color":          { p: 1850000,u: "un" }, // pantalla 7"
   "Motor portón corredizo 600kg":  { p: 2200000,u: "un" }, // con control remoto
   "Motor portón basculante":       { p: 2800000,u: "un" },
   "Control remoto adicional":      { p: 95000,  u: "un" },
@@ -454,6 +454,13 @@ const MAT_PRECIOS = {
   // Otros
   "Parrilla enlozada con carbonera":  { p: 1850000,u: "un" }, // parrilla quincho completa
   "Yeso para construcción":           { p: 38000,  u: "un" }, // bolsa 25kg (legacy de yesito)
+
+  // ─── NUEVOS MATERIALES PARA TABIQUES DURLOCK ─────────────────────────
+  "Perfil solera 70mm x 2.60m":    { p: 45000,  u: "un" },  // base para tabique ancho
+  "Perfil montante 70mm x 2.60m":  { p: 52000,  u: "un" },  // vertical para tabique ancho
+  "Perfil angular (cantonera) 35mm x 2.60m": { p: 28000, u: "un" }, // protección esquinas
+  "Marco puerta trampa durlock 40x40cm": { p: 95000, u: "un" }, // marco metálico + tapa
+  "Bisagra pequeña durlock (par)": { p: 12000,  u: "par" },
 };
 
 // ── PORCENTAJES MO POR CATEGORÍA ─────────────────────────────────────────
@@ -519,6 +526,8 @@ const LABOR_PCT = {
   "ESCALERAS Y BARANDAS":    28,
   // Obra húmeda complementaria: trabajos finales → ~50%
   "OBRA HÚMEDA COMPLEMENTARIA": 50,
+  // Tabiques durlock: estructura, placas, masilla, terminación → ~35%
+  "TABIQUES DURLOCK":        35,
 };
 
 // ── IVA POR TIPO ──────────────────────────────────────────────────────────
@@ -2113,6 +2122,155 @@ const DB_RAW = {
     // Necesaria cada 8m lineales en cielos largos
     mats:[
       {n:"Junta dilatación cielo raso",q:1,u:"ml"},
+    ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"TABIQUES DURLOCK": {
+// ════════════════════════════════════════════════════════════════════════
+// Cerramientos interiores con placas de yeso cartón (durlock)
+// Precios verificados PY 2026: Tecnofor, Clasipar, Generador CYPE
+// MO 35%: estructura, fijación de placas, masillado, lijado, terminación
+// ──────────────────────────────────────────────────────────────────────
+
+// ─── 1. TABIQUE SIMPLE (9.5mm estándar) ─────────────────────────────
+  "Tabique durlock 9.5mm estándar (sin aislante)": {
+    u:"m2", m: 105000,
+    // Estructura con perfiles 35mm, placas a cada lado (2 capas total? No, es simple: 1 placa por lado)
+    // Rinde: 1 placa 1.20x2.40m cubre ~2.80m² efectivos
+    mats: [
+      {n:"Placa durlock estándar 9.5mm", q:0.36, u:"un"},   // por m² (0.36 placa)
+      {n:"Perfil solera 35mm x 2.60m", q:0.4, u:"un"},      // marco superior e inferior
+      {n:"Perfil montante 35mm x 2.60m", q:0.8, u:"un"},    // verticales cada 0.60m
+      {n:"Tornillo T1 punta fina (cien)", q:0.2, u:"un"},   // fijación placas
+      {n:"Cinta papel junta durlock 75m", q:0.05, u:"un"},
+      {n:"Masilla durlock balde 28kg", q:0.08, u:"un"},
+    ]
+  },
+  "Tabique durlock 12.5mm estándar (mayor rigidez)": {
+    u:"m2", m: 125000,
+    // Para paredes que requieren más resistencia (ej. montaje de muebles)
+    mats: [
+      {n:"Placa durlock estándar 12.5mm", q:0.36, u:"un"},
+      {n:"Perfil solera 35mm x 2.60m", q:0.4, u:"un"},
+      {n:"Perfil montante 35mm x 2.60m", q:0.8, u:"un"},
+      {n:"Tornillo T2 punta mecha (cien)", q:0.2, u:"un"},
+      {n:"Cinta papel junta durlock 75m", q:0.05, u:"un"},
+      {n:"Masilla durlock balde 28kg", q:0.08, u:"un"},
+    ]
+  },
+
+// ─── 2. TABIQUE RESISTENTE A HUMEDAD (PLACA VERDE) ──────────────────
+  "Tabique durlock RH 12.5mm (baño/cocina)": {
+    u:"m2", m: 175000,
+    // Placa verde con tratamiento antihongos, para zonas húmedas
+    mats: [
+      {n:"Placa durlock RH 12.5mm verde", q:0.36, u:"un"},
+      {n:"Perfil solera 35mm x 2.60m", q:0.4, u:"un"},
+      {n:"Perfil montante 35mm x 2.60m", q:0.8, u:"un"},
+      {n:"Tornillo T2 punta mecha (cien)", q:0.2, u:"un"},
+      {n:"Cinta papel junta durlock 75m", q:0.05, u:"un"},
+      {n:"Masilla durlock balde 28kg", q:0.08, u:"un"},
+    ]
+  },
+
+// ─── 3. TABIQUE RESISTENTE AL FUEGO (PLACA ROJA) ────────────────────
+  "Tabique durlock RF 12.5mm (garaje/cocheras)": {
+    u:"m2", m: 205000,
+    // Placa roja con núcleo ignífugo, retardo de propagación
+    mats: [
+      {n:"Placa durlock RF 12.5mm roja", q:0.36, u:"un"},
+      {n:"Perfil solera 35mm x 2.60m", q:0.4, u:"un"},
+      {n:"Perfil montante 35mm x 2.60m", q:0.8, u:"un"},
+      {n:"Tornillo T2 punta mecha (cien)", q:0.2, u:"un"},
+      {n:"Cinta papel junta durlock 75m", q:0.05, u:"un"},
+      {n:"Masilla durlock balde 28kg", q:0.08, u:"un"},
+    ]
+  },
+
+// ─── 4. TABIQUE CON AISLANTE TÉRMICO/ACÚSTICO ───────────────────────
+  "Tabique durlock 12.5mm + lana vidrio 50mm": {
+    u:"m2", m: 185000,
+    // Ideal para habitaciones, oficinas, salas de cine
+    mats: [
+      {n:"Placa durlock estándar 12.5mm", q:0.36, u:"un"},
+      {n:"Perfil solera 35mm x 2.60m", q:0.4, u:"un"},
+      {n:"Perfil montante 35mm x 2.60m", q:0.8, u:"un"},
+      {n:"Lana de vidrio 50mm Isover", q:1.05, u:"m2"},
+      {n:"Tornillo T2 punta mecha (cien)", q:0.2, u:"un"},
+      {n:"Cinta papel junta durlock 75m", q:0.05, u:"un"},
+      {n:"Masilla durlock balde 28kg", q:0.08, u:"un"},
+    ]
+  },
+
+// ─── 5. TABIQUE ESTRUCTURAL REFORZADO (DOBLE PLACA) ─────────────────
+  "Tabique durlock doble placa 12.5mm c/u (hospital/datos)": {
+    u:"m2", m: 220000,
+    // Dos capas de placa por lado para alta resistencia balística o acústica extrema
+    mats: [
+      {n:"Placa durlock estándar 12.5mm", q:0.72, u:"un"}, // doble
+      {n:"Perfil solera 70mm x 2.60m", q:0.4, u:"un"},
+      {n:"Perfil montante 70mm x 2.60m", q:0.8, u:"un"},
+      {n:"Tornillo T2 punta mecha (cien)", q:0.4, u:"un"},
+      {n:"Cinta papel junta durlock 75m", q:0.1, u:"un"},
+      {n:"Masilla durlock balde 28kg", q:0.15, u:"un"},
+    ]
+  },
+
+// ─── 6. PUERTA TRAMPA PARA REGISTRO (CIELO RASO O PARED) ────────────
+  "Puerta trampa durlock 40x40cm con marco": {
+    u:"un", m: 185000,
+    // Acceso a llaves de paso, registros eléctricos, etc. Incluye marco metálico + tapa
+    mats: [
+      {n:"Marco puerta trampa durlock 40x40cm", q:1, u:"un"},
+      {n:"Placa durlock estándar 9.5mm", q:0.16, u:"un"}, // tapa
+      {n:"Bisagra pequeña durlock (par)", q:1, u:"par"},
+      {n:"Tornillo T1 punta fina (cien)", q:0.05, u:"un"},
+      {n:"Masilla durlock balde 28kg", q:0.02, u:"un"},
+    ]
+  },
+  "Puerta trampa durlock 60x60cm con marco": {
+    u:"un", m: 250000,
+    // Para acceso a equipos más grandes
+    mats: [
+      {n:"Marco puerta trampa durlock 40x40cm", q:1.5, u:"un"}, // aproximación: marco personalizado
+      {n:"Placa durlock estándar 9.5mm", q:0.36, u:"un"},
+      {n:"Bisagra pequeña durlock (par)", q:1, u:"par"},
+      {n:"Tornillo T1 punta fina (cien)", q:0.08, u:"un"},
+      {n:"Masilla durlock balde 28kg", q:0.03, u:"un"},
+    ]
+  },
+
+// ─── 7. REPARACIÓN DE PLACA DURLOCK (PARCHE) ────────────────────────
+  "Reparación placa durlock (agujero <30cm)": {
+    u:"un", m: 75000,
+    // Incluye corte, parche, masilla, lijado, imprimación
+    mats: [
+      {n:"Placa durlock estándar 9.5mm", q:0.1, u:"un"},
+      {n:"Tornillo T1 punta fina (cien)", q:0.05, u:"un"},
+      {n:"Cinta papel junta durlock 75m", q:0.02, u:"un"},
+      {n:"Masilla durlock balde 28kg", q:0.03, u:"un"},
+      {n:"Lija", q:0.5, u:"un"},
+    ]
+  },
+  "Reparación placa durlock (grieta >30cm)": {
+    u:"ml", m: 45000,
+    // Por metro lineal de junta fisurada o golpe lineal
+    mats: [
+      {n:"Cinta papel junta durlock 75m", q:0.03, u:"un"},
+      {n:"Masilla durlock balde 28kg", q:0.05, u:"un"},
+      {n:"Lija", q:0.5, u:"un"},
+    ]
+  },
+
+// ─── 8. ESQUINEROS Y TERMINACIONES (CANTONERAS) ─────────────────────
+  "Cantonera durlock (esquina externa) colocada": {
+    u:"ml", m: 28000,
+    // Perfil angular de PVC o metálico para proteger esquinas vivas
+    mats: [
+      {n:"Perfil angular (cantonera) 35mm x 2.60m", q:0.4, u:"un"},
+      {n:"Masilla durlock balde 28kg", q:0.02, u:"un"},
     ]
   },
 },
