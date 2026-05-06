@@ -491,6 +491,16 @@ const MAT_PRECIOS = {
   "Adoquín hormigón 20x10x6cm gris":  { p: 3800,  u: "un" }, // ~50 un/m²
   "Adoquín hormigón 20x10x8cm color": { p: 5200,  u: "un" }, // más grueso, vehícular
   "Adoquín premoldeado 10x10x8cm":    { p: 3200,  u: "un" }, // tipo colonial
+  // ─── PAVERS INTERTRABADOS ──────────────────────────────────────────
+  "Paver tipo I (uni-stone) 6cm gris":  { p: 4200,  u: "un" }, // ~50 un/m², Cassol/Moriblock PY
+  "Paver tipo I (uni-stone) 6cm color": { p: 5500,  u: "un" }, // rojo, amarillo, negro
+  "Paver tipo I (uni-stone) 8cm gris":  { p: 5800,  u: "un" }, // vehicular pesado
+  "Paver tipo I (uni-stone) 8cm color": { p: 7200,  u: "un" },
+  "Paver doble T 8cm gris":            { p: 6500,  u: "un" }, // máxima carga, ~50 un/m²
+  "Paver doble T 8cm color":           { p: 8000,  u: "un" },
+  "Paver drenante/ecológico 6cm":      { p: 5500,  u: "un" }, // permite filtración de agua
+  "Paver drenante/ecológico 8cm":      { p: 7500,  u: "un" },
+  "Paver táctil guía 20x20cm":         { p: 8500,  u: "un" }, // accesibilidad, ~25 un/m²
   "Empedrado de piedra bola":          { p: 45000, u: "m2" }, // material
   "Cordón de vereda premoldeado":      { p: 35000, u: "ml" }, // 20x14cm, 50cm largo
   "Malla electrosoldada Q-131":        { p: 52000, u: "m2" }, // p/ veredas vehiculares
@@ -1253,6 +1263,92 @@ const DB_RAW = {
       {n:"Cemento tipo 1",q:6,u:"kg"},
       {n:"Cal triturada",q:4,u:"kg"},
       {n:"Arena lavada",q:0.03,u:"m3"},
+    ]
+  },
+
+// ─── PAVERS INTERTRABADOS (Cassol, Moriblock, Pavers Block PY) ──────
+  "Paver tipo I 6cm gris (peatonal)": {
+    u:"m2", m:195000,
+    // Paver uni-stone intertrabado s/ cama de arena — patios, veredas
+    // ~50 pavers por m² + arena de asiento + arena de junta
+    // Ref: PaversBlock PY, Cassol PY 2026
+    mats:[
+      {n:"Paver tipo I (uni-stone) 6cm gris",q:52,u:"un"},
+      {n:"Arena lavada",q:0.06,u:"m3"}, // cama de arena 3-5cm
+    ]
+  },
+  "Paver tipo I 6cm color (peatonal)": {
+    u:"m2", m:265000,
+    // Paver color (rojo, amarillo, negro) — accesos residenciales
+    mats:[
+      {n:"Paver tipo I (uni-stone) 6cm color",q:52,u:"un"},
+      {n:"Arena lavada",q:0.06,u:"m3"},
+    ]
+  },
+  "Paver tipo I 8cm gris (vehicular)": {
+    u:"m2", m:275000,
+    // Paver reforzado para tránsito vehicular liviano
+    // Ref: estacionamientos comerciales, accesos cochera
+    mats:[
+      {n:"Paver tipo I (uni-stone) 8cm gris",q:52,u:"un"},
+      {n:"Arena lavada",q:0.06,u:"m3"},
+      {n:"Ripio para subbase",q:0.10,u:"m3"}, // subbase compactada
+    ]
+  },
+  "Paver tipo I 8cm color (vehicular)": {
+    u:"m2", m:345000,
+    // Paver color vehicular — estaciones de servicio, plazas comerciales
+    mats:[
+      {n:"Paver tipo I (uni-stone) 8cm color",q:52,u:"un"},
+      {n:"Arena lavada",q:0.06,u:"m3"},
+      {n:"Ripio para subbase",q:0.10,u:"m3"},
+    ]
+  },
+  "Paver doble T 8cm gris (tránsito pesado)": {
+    u:"m2", m:315000,
+    // Doble T — máxima resistencia, diseño holandés intertrabado
+    // Ideal: playas de maniobras, depósitos, calles internas
+    mats:[
+      {n:"Paver doble T 8cm gris",q:52,u:"un"},
+      {n:"Arena lavada",q:0.06,u:"m3"},
+      {n:"Ripio para subbase",q:0.12,u:"m3"},
+    ]
+  },
+  "Paver doble T 8cm color (tránsito pesado)": {
+    u:"m2", m:395000,
+    // Doble T color — estético + alta carga
+    mats:[
+      {n:"Paver doble T 8cm color",q:52,u:"un"},
+      {n:"Arena lavada",q:0.06,u:"m3"},
+      {n:"Ripio para subbase",q:0.12,u:"m3"},
+    ]
+  },
+  "Paver drenante/ecológico 6cm": {
+    u:"m2", m:265000,
+    // Permite filtración de agua al suelo — exigencia municipal en muchas zonas
+    // Reduce escorrentía pluvial
+    mats:[
+      {n:"Paver drenante/ecológico 6cm",q:52,u:"un"},
+      {n:"Arena lavada",q:0.08,u:"m3"}, // más arena para drenaje
+    ]
+  },
+  "Paver drenante/ecológico 8cm (vehicular)": {
+    u:"m2", m:365000,
+    // Drenante vehicular — estacionamientos sustentables
+    mats:[
+      {n:"Paver drenante/ecológico 8cm",q:52,u:"un"},
+      {n:"Arena lavada",q:0.08,u:"m3"},
+      {n:"Ripio para subbase",q:0.12,u:"m3"},
+    ]
+  },
+  "Paver táctil guía (accesibilidad)": {
+    u:"m2", m:295000,
+    // Guía podotáctil para personas con discapacidad visual
+    // Exigencia en edificios públicos y comerciales
+    // ~25 pavers de 20x20cm por m²
+    mats:[
+      {n:"Paver táctil guía 20x20cm",q:26,u:"un"},
+      {n:"Arena lavada",q:0.05,u:"m3"},
     ]
   },
 },
