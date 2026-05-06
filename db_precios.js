@@ -11,8 +11,8 @@
  * Actualizado: Marzo 2026
  */
 
-const DB_VERSION = "2026-05-techos-electrica-tabiques";
-const DB_FECHA   = "Mayo 2026 (techos termoacústicos + tableros trifásicos + pluviales + tabiques durlock)";
+const DB_VERSION = "2026-05-ampliacion-cercos-veredas-herreria-pinturas-durlock";
+const DB_FECHA   = "Mayo 2026 (+ tabiques 70mm/curvo/Superboard + cercos + veredas + pinturas industriales + herrería ornamental)";
 
 // ── PRECIOS UNITARIOS DE MATERIALES (referencia interna) ──────────────────
 // Rango A-B documentado en comentarios para transparencia interna
@@ -461,6 +461,65 @@ const MAT_PRECIOS = {
   "Perfil angular (cantonera) 35mm x 2.60m": { p: 28000, u: "un" }, // protección esquinas
   "Marco puerta trampa durlock 40x40cm": { p: 95000, u: "un" }, // marco metálico + tapa
   "Bisagra pequeña durlock (par)": { p: 12000,  u: "par" },
+
+  // ─── NUEVOS MATERIALES DURLOCK AMPLIADOS (Mayo 2026) ───────────────
+  "Placa durlock extra-curva 6.4mm":  { p: 145000, u: "un" }, // 1.20x2.40m, doblable r≥1m
+  "Placa Superboard cementicia 6mm":  { p: 185000, u: "un" }, // 1.20x2.40m, p/ exterior
+  "Placa Superboard cementicia 8mm":  { p: 225000, u: "un" }, // 1.20x2.40m, más resistente
+  "Placa Superboard cementicia 10mm": { p: 285000, u: "un" }, // 1.20x2.40m, alta carga
+  "Siding cementicio cedro 20cmx3.6m":{ p: 65000, u: "un" }, // p/ fachada simil madera
+  "Masilla elástica junta invisible":  { p: 85000, u: "un" }, // cartucho p/ Superboard
+  "Cinta tramada fibra vidrio 75m":    { p: 48000, u: "un" }, // p/ juntas Superboard
+  "Perfil PGC galvanizado exterior 70mm x 2.60m": { p: 68000, u: "un" }, // montante exterior
+  "Perfil PGU galvanizado exterior 70mm x 2.60m": { p: 58000, u: "un" }, // solera exterior
+  "Perfil PGC galvanizado exterior 100mm x 2.60m":{ p: 85000, u: "un" }, // p/ doble estructura
+  "Perfil PGU galvanizado exterior 100mm x 2.60m":{ p: 72000, u: "un" }, // solera exterior ancha
+
+  // ─── MATERIALES CERCOS PERIMETRALES ────────────────────────────────
+  "Bloque hormigón 20x20x40cm":       { p: 5500,  u: "un" }, // block estándar PY
+  "Bloque hormigón 15x20x40cm":       { p: 4500,  u: "un" }, // block menor espesor
+  "Placa premoldeada muro 2.00x0.50m": { p: 95000, u: "un" }, // panel H° premoldeado
+  "Columna premoldeada muro h=2.20m":  { p: 145000,u: "un" }, // poste H° premoldeado
+  "Columna premoldeada muro h=3.00m":  { p: 195000,u: "un" },
+  "Alambre tejido romboidal 150cm":    { p: 95000, u: "ml" }, // rollo, h=1.50m
+  "Alambre de púas (rollo 200m)":      { p: 125000,u: "un" },
+  "Poste madera tratada h=2.20m":      { p: 65000, u: "un" }, // quebracho/eucalipto
+  "Poste H° premoldeado h=2.20m":      { p: 95000, u: "un" },
+  "Cerco eléctrico (ml material)":     { p: 22000, u: "ml" }, // alambre + aisladores
+
+  // ─── MATERIALES VEREDAS Y ACCESOS ──────────────────────────────────
+  "Adoquín hormigón 20x10x6cm gris":  { p: 3800,  u: "un" }, // ~50 un/m²
+  "Adoquín hormigón 20x10x8cm color": { p: 5200,  u: "un" }, // más grueso, vehícular
+  "Adoquín premoldeado 10x10x8cm":    { p: 3200,  u: "un" }, // tipo colonial
+  "Empedrado de piedra bola":          { p: 45000, u: "m2" }, // material
+  "Cordón de vereda premoldeado":      { p: 35000, u: "ml" }, // 20x14cm, 50cm largo
+  "Malla electrosoldada Q-131":        { p: 52000, u: "m2" }, // p/ veredas vehiculares
+
+  // ─── MATERIALES PINTURAS INDUSTRIALES ──────────────────────────────
+  "Pintura epóxica pisos (kit 4lt)":   { p: 380000,u: "un" }, // Inatec/Sinteplast, base+catalizador
+  "Pintura epóxica pisos (kit 20lt)":  { p: 1650000,u:"un" }, // balde industrial
+  "Primer epóxico":                    { p: 95000, u: "lt" }, // imprimación para pisos
+  "Pintura poliuretánica brill. (lt)": { p: 75000, u: "lt" }, // acabado final UV-resist.
+  "Esmalte sintético industrial (lt)": { p: 38000, u: "lt" }, // para herrería/metales
+  "Anticorrosivo rojo/gris (lt)":      { p: 32000, u: "lt" }, // fondo antióxido
+  "Diluyente epóxico (lt)":            { p: 28000, u: "lt" },
+  "Convertidor de óxido (lt)":        { p: 55000, u: "lt" }, // tratamiento herrería vieja
+
+  // ─── MATERIALES HERRERÍA ORNAMENTAL ────────────────────────────────
+  "Caño estructural cuadrado 40x40x1.6mm": { p: 28000, u: "ml" },
+  "Caño estructural cuadrado 50x50x2mm":   { p: 38000, u: "ml" },
+  "Caño redondo 1\" hierro":               { p: 15000, u: "ml" },
+  "Caño redondo 1.5\" hierro":             { p: 18000, u: "ml" },
+  "Varilla maciza lisa Ø12mm":             { p: 9500,  u: "ml" },
+  "Varilla maciza lisa Ø16mm":             { p: 14000, u: "ml" },
+  "Plancha hierro 1.5mm (1.22x2.44m)":    { p: 285000,u: "un" },
+  "Plancha hierro 2mm (1.22x2.44m)":      { p: 380000,u: "un" },
+  "Bisagra industrial 4\" (par)":          { p: 18000, u: "par" },
+  "Cerradura doble paleta portón":         { p: 185000,u: "un" },
+  "Riel corredizo portón 3m":             { p: 145000,u: "un" },
+  "Rueda portón corredizo (par)":          { p: 95000, u: "par" },
+  "Electrodo 6013 2.5mm (kg)":            { p: 18000, u: "kg" },
+  "Galvanizado en frío spray":             { p: 55000, u: "un" }, // aerosol 400ml
 };
 
 // ── PORCENTAJES MO POR CATEGORÍA ─────────────────────────────────────────
@@ -528,6 +587,14 @@ const LABOR_PCT = {
   "OBRA HÚMEDA COMPLEMENTARIA": 50,
   // Tabiques durlock: estructura, placas, masilla, terminación → ~35%
   "TABIQUES DURLOCK":        35,
+  // Cercos perimetrales: excavación, armado, colocación → ~32%
+  "CERCOS PERIMETRALES":     32,
+  // Veredas y accesos: preparación suelo, compactación, colocación → ~35%
+  "VEREDAS Y ACCESOS":       35,
+  // Pinturas industriales: preparación superficie, múltiples manos → ~45%
+  "PINTURAS INDUSTRIALES":   45,
+  // Herrería ornamental: fabricación, soldadura, pintura, montaje → ~40%
+  "HERRERÍA ORNAMENTAL":     40,
 };
 
 // ── IVA POR TIPO ──────────────────────────────────────────────────────────
@@ -2273,6 +2340,150 @@ const DB_RAW = {
       {n:"Masilla durlock balde 28kg", q:0.02, u:"un"},
     ]
   },
+
+// ─── 9. TABIQUE PERFIL 70mm (MAYOR ESPESOR / AISLACIÓN) ────────────
+  "Tabique durlock 12.5mm perfil 70mm (sin aislante)": {
+    u:"m2", m: 140000,
+    // Tabique más ancho, permite más aislante o pasaje de cañerías
+    mats: [
+      {n:"Placa durlock estándar 12.5mm", q:0.36, u:"un"},
+      {n:"Perfil PGU galvanizado exterior 70mm x 2.60m", q:0.4, u:"un"},
+      {n:"Perfil PGC galvanizado exterior 70mm x 2.60m", q:0.8, u:"un"},
+      {n:"Tornillo T2 punta mecha (cien)", q:0.2, u:"un"},
+      {n:"Cinta papel junta durlock 75m", q:0.05, u:"un"},
+      {n:"Masilla durlock balde 28kg", q:0.08, u:"un"},
+    ]
+  },
+  "Tabique durlock 12.5mm perfil 70mm + lana vidrio 50mm": {
+    u:"m2", m: 200000,
+    // Mayor aislación térmica y acústica que el de 35mm
+    mats: [
+      {n:"Placa durlock estándar 12.5mm", q:0.36, u:"un"},
+      {n:"Perfil PGU galvanizado exterior 70mm x 2.60m", q:0.4, u:"un"},
+      {n:"Perfil PGC galvanizado exterior 70mm x 2.60m", q:0.8, u:"un"},
+      {n:"Lana de vidrio 50mm Isover", q:1.05, u:"m2"},
+      {n:"Tornillo T2 punta mecha (cien)", q:0.2, u:"un"},
+      {n:"Cinta papel junta durlock 75m", q:0.05, u:"un"},
+      {n:"Masilla durlock balde 28kg", q:0.08, u:"un"},
+    ]
+  },
+  "Tabique durlock RH perfil 70mm (baño/cocina)": {
+    u:"m2", m: 195000,
+    // Placa verde + perfil ancho, ideal para pasar cañerías sanitarias
+    mats: [
+      {n:"Placa durlock RH 12.5mm verde", q:0.36, u:"un"},
+      {n:"Perfil PGU galvanizado exterior 70mm x 2.60m", q:0.4, u:"un"},
+      {n:"Perfil PGC galvanizado exterior 70mm x 2.60m", q:0.8, u:"un"},
+      {n:"Tornillo T2 punta mecha (cien)", q:0.2, u:"un"},
+      {n:"Cinta papel junta durlock 75m", q:0.05, u:"un"},
+      {n:"Masilla durlock balde 28kg", q:0.08, u:"un"},
+    ]
+  },
+
+// ─── 10. TABIQUE CON DOBLE MONTANTE (REFORZADO P/ TV/MUEBLES) ──────
+  "Tabique durlock 12.5mm doble montante (refuerzo carga)": {
+    u:"m2", m: 165000,
+    // Doble montante en zona de carga para TV, estantes pesados, calefones
+    // Montantes apareados cada 40cm en vez de 60cm
+    mats: [
+      {n:"Placa durlock estándar 12.5mm", q:0.36, u:"un"},
+      {n:"Perfil solera 35mm x 2.60m", q:0.4, u:"un"},
+      {n:"Perfil montante 35mm x 2.60m", q:1.6, u:"un"}, // doble montante
+      {n:"Tornillo T2 punta mecha (cien)", q:0.3, u:"un"},
+      {n:"Cinta papel junta durlock 75m", q:0.05, u:"un"},
+      {n:"Masilla durlock balde 28kg", q:0.08, u:"un"},
+    ]
+  },
+  "Tabique durlock 12.5mm doble montante perfil 70mm": {
+    u:"m2", m: 195000,
+    // Máxima rigidez: doble montante 70mm — soporta muebles cocina, calefón, etc.
+    mats: [
+      {n:"Placa durlock estándar 12.5mm", q:0.36, u:"un"},
+      {n:"Perfil PGU galvanizado exterior 70mm x 2.60m", q:0.4, u:"un"},
+      {n:"Perfil PGC galvanizado exterior 70mm x 2.60m", q:1.6, u:"un"},
+      {n:"Tornillo T2 punta mecha (cien)", q:0.3, u:"un"},
+      {n:"Cinta papel junta durlock 75m", q:0.05, u:"un"},
+      {n:"Masilla durlock balde 28kg", q:0.08, u:"un"},
+    ]
+  },
+
+// ─── 11. TABIQUE CURVO DURLOCK ──────────────────────────────────────
+  "Tabique durlock curvo 6.4mm (radio ≥1m)": {
+    u:"m2", m: 285000,
+    // Placa extra-curva de 6.4mm que permite radios de 1m mínimo
+    // MO más alta que recto: requiere curvado de perfiles y doble placa
+    mats: [
+      {n:"Placa durlock extra-curva 6.4mm", q:0.72, u:"un"}, // 2 placas por lado por flexibilidad
+      {n:"Perfil solera 35mm x 2.60m", q:0.5, u:"un"}, // cortada en abanico
+      {n:"Perfil montante 35mm x 2.60m", q:1, u:"un"},
+      {n:"Tornillo T1 punta fina (cien)", q:0.35, u:"un"},
+      {n:"Cinta papel junta durlock 75m", q:0.08, u:"un"},
+      {n:"Masilla durlock balde 28kg", q:0.12, u:"un"},
+    ]
+  },
+  "Tabique durlock curvo 6.4mm + 12.5mm (doble capa)": {
+    u:"m2", m: 345000,
+    // Curva + refuerzo: 1 capa curva + 1 capa estándar, alta rigidez
+    mats: [
+      {n:"Placa durlock extra-curva 6.4mm", q:0.36, u:"un"},
+      {n:"Placa durlock estándar 12.5mm", q:0.36, u:"un"},
+      {n:"Perfil solera 70mm x 2.60m", q:0.5, u:"un"},
+      {n:"Perfil montante 70mm x 2.60m", q:1, u:"un"},
+      {n:"Tornillo T2 punta mecha (cien)", q:0.35, u:"un"},
+      {n:"Cinta papel junta durlock 75m", q:0.08, u:"un"},
+      {n:"Masilla durlock balde 28kg", q:0.12, u:"un"},
+    ]
+  },
+
+// ─── 12. TABIQUE EXTERIOR CEMENTICIO (SUPERBOARD/AQUAPANEL) ─────────
+  "Tabique exterior Superboard 6mm (fachada liviana)": {
+    u:"m2", m: 245000,
+    // Placa cementicia exterior sobre estructura galvanizada
+    // Ref: Tecnofor PY 2026, Clasipar — material ~245k/m² + MO
+    mats: [
+      {n:"Placa Superboard cementicia 6mm", q:0.36, u:"un"},
+      {n:"Perfil PGU galvanizado exterior 70mm x 2.60m", q:0.4, u:"un"},
+      {n:"Perfil PGC galvanizado exterior 70mm x 2.60m", q:0.8, u:"un"},
+      {n:"Tornillo T2 punta mecha (cien)", q:0.2, u:"un"},
+      {n:"Cinta tramada fibra vidrio 75m", q:0.05, u:"un"},
+      {n:"Masilla elástica junta invisible", q:0.15, u:"un"},
+    ]
+  },
+  "Tabique exterior Superboard 8mm (más resistencia)": {
+    u:"m2", m: 285000,
+    // Mayor rigidez, soporta revestimiento cerámico exterior
+    mats: [
+      {n:"Placa Superboard cementicia 8mm", q:0.36, u:"un"},
+      {n:"Perfil PGU galvanizado exterior 70mm x 2.60m", q:0.4, u:"un"},
+      {n:"Perfil PGC galvanizado exterior 70mm x 2.60m", q:0.8, u:"un"},
+      {n:"Tornillo T2 punta mecha (cien)", q:0.2, u:"un"},
+      {n:"Cinta tramada fibra vidrio 75m", q:0.05, u:"un"},
+      {n:"Masilla elástica junta invisible", q:0.15, u:"un"},
+    ]
+  },
+  "Tabique exterior Superboard 10mm + lana vidrio 50mm": {
+    u:"m2", m: 365000,
+    // Sistema completo exterior aislado — el más robusto
+    mats: [
+      {n:"Placa Superboard cementicia 10mm", q:0.36, u:"un"},
+      {n:"Perfil PGU galvanizado exterior 100mm x 2.60m", q:0.4, u:"un"},
+      {n:"Perfil PGC galvanizado exterior 100mm x 2.60m", q:0.8, u:"un"},
+      {n:"Lana de vidrio 50mm Isover", q:1.05, u:"m2"},
+      {n:"Tornillo T2 punta mecha (cien)", q:0.25, u:"un"},
+      {n:"Cinta tramada fibra vidrio 75m", q:0.05, u:"un"},
+      {n:"Masilla elástica junta invisible", q:0.2, u:"un"},
+    ]
+  },
+  "Fachada siding cementicio simil madera": {
+    u:"m2", m: 195000,
+    // Revestimiento exterior tipo Cedral/Siding — estética moderna
+    // Se coloca sobre estructura existente o perfil galvanizado
+    mats: [
+      {n:"Siding cementicio cedro 20cmx3.6m", q:6, u:"un"}, // ~5.5 tiras/m² + desperdicio
+      {n:"Perfil omega 35mm x 2.60m", q:0.8, u:"un"},
+      {n:"Tornillo T2 punta mecha (cien)", q:0.15, u:"un"},
+    ]
+  },
 },
 
 // ════════════════════════════════════════════════════════════════════════
@@ -3396,6 +3607,413 @@ const DB_RAW = {
     mats:[
       {n:"Anillos pozo absorbente 1m",q:4,u:"un"},
       {n:"Piedra triturada IV",q:1.5,u:"tn"},
+    ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"CERCOS PERIMETRALES": {
+// ════════════════════════════════════════════════════════════════════════
+// Muros, cercos, medianeras y cerramientos perimetrales
+// MO 32%: excavación, montaje, alineación, terminación
+// Fuentes: Clasipar PY 2026, CYPE Paraguay, Del Sol Constructora
+// ──────────────────────────────────────────────────────────────────────
+
+  "Muro premoldeado H° h=2.00m instalado": {
+    u:"ml", m:420000,
+    // Sistema más rápido y económico para cerrar terreno
+    // Ref: Clasipar PY 2026: ~195.000/m² instalado → ~390.000/ml (h=2m)
+    mats:[
+      {n:"Placa premoldeada muro 2.00x0.50m",q:4,u:"un"},
+      {n:"Columna premoldeada muro h=2.20m",q:0.5,u:"un"}, // 1 cada 2m
+    ]
+  },
+  "Muro premoldeado H° h=3.00m instalado": {
+    u:"ml", m:680000,
+    // Para mayor seguridad perimetral
+    mats:[
+      {n:"Placa premoldeada muro 2.00x0.50m",q:6,u:"un"},
+      {n:"Columna premoldeada muro h=3.00m",q:0.5,u:"un"},
+    ]
+  },
+  "Muro bloque hormigón 20cm h=2.00m": {
+    u:"ml", m:380000,
+    // Muro block 20x20x40 revocado una cara, con columnas c/3m
+    // Ref: CYPE PY ~198.000/m² material + MO
+    mats:[
+      {n:"Bloque hormigón 20x20x40cm",q:50,u:"un"},
+      {n:"Cemento tipo 1",q:40,u:"kg"},
+      {n:"Arena lavada",q:0.15,u:"m3"},
+      {n:"Varilla conformada Ø8mm",q:8,u:"kg"},
+    ]
+  },
+  "Muro bloque hormigón 15cm h=2.00m": {
+    u:"ml", m:320000,
+    // Block más delgado, para medianeras livianas
+    mats:[
+      {n:"Bloque hormigón 15x20x40cm",q:50,u:"un"},
+      {n:"Cemento tipo 1",q:35,u:"kg"},
+      {n:"Arena lavada",q:0.12,u:"m3"},
+      {n:"Varilla conformada Ø8mm",q:6,u:"kg"},
+    ]
+  },
+  "Muro ladrillo común 0.15m h=2.00m revocado": {
+    u:"ml", m:410000,
+    // Muro tradicional paraguayo, ladrillo + revoque ambas caras
+    mats:[
+      {n:"Ladrillo común",q:130,u:"un"},
+      {n:"Cemento tipo 1",q:35,u:"kg"},
+      {n:"Cal triturada",q:25,u:"kg"},
+      {n:"Arena lavada",q:0.20,u:"m3"},
+    ]
+  },
+  "Cerco tejido romboidal h=1.50m con postes H°": {
+    u:"ml", m:145000,
+    // Económico, p/ fondos y laterales
+    mats:[
+      {n:"Alambre tejido romboidal 150cm",q:1.05,u:"ml"},
+      {n:"Poste H° premoldeado h=2.20m",q:0.33,u:"un"}, // 1 cada 3m
+    ]
+  },
+  "Cerco tejido romboidal h=1.50m con postes madera": {
+    u:"ml", m:115000,
+    // Alternativa más económica
+    mats:[
+      {n:"Alambre tejido romboidal 150cm",q:1.05,u:"ml"},
+      {n:"Poste madera tratada h=2.20m",q:0.33,u:"un"},
+    ]
+  },
+  "Cerco eléctrico 6 hilos sobre muro existente": {
+    u:"ml", m:48000,
+    // Sistema disuasorio sobre muro — incluye alambre + aisladores
+    mats:[
+      {n:"Cerco eléctrico (ml material)",q:6,u:"ml"}, // 6 hilos
+    ]
+  },
+  "Cerco vivo San Antonio (Duranta) plantado": {
+    u:"ml", m:85000,
+    // Cerco verde tradicional PY
+    mats:[
+      {n:"Cerco vivo San Antonio (ml)",q:1,u:"ml"},
+    ]
+  },
+  "Columna intermedia H°A° 20x20cm para cerco": {
+    u:"un", m:185000,
+    // Columna de refuerzo cada 3m en muros largos
+    mats:[
+      {n:"Cemento tipo 1",q:15,u:"kg"},
+      {n:"Arena lavada",q:0.03,u:"m3"},
+      {n:"Piedra triturada IV",q:0.05,u:"tn"},
+      {n:"Varilla conformada Ø8mm",q:6,u:"kg"},
+    ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"VEREDAS Y ACCESOS": {
+// ════════════════════════════════════════════════════════════════════════
+// Veredas, accesos vehiculares, patios, estacionamientos
+// MO 35%: preparación terreno, compactación, vertido/colocación, juntas
+// Fuentes: Clasipar PY 2026, CYPE Paraguay, costos constructivos PY
+// ──────────────────────────────────────────────────────────────────────
+
+  "Vereda hormigón alisado 7cm s/ malla": {
+    u:"m2", m:145000,
+    // Vereda peatonal estándar PY — la más común
+    // H° dosaje 1:2:4 + alisado + juntas de dilatación
+    mats:[
+      {n:"Cemento tipo 1",q:25,u:"kg"},
+      {n:"Arena lavada",q:0.05,u:"m3"},
+      {n:"Piedra triturada V",q:0.10,u:"tn"},
+    ]
+  },
+  "Vereda hormigón alisado 10cm c/ malla Q-92": {
+    u:"m2", m:195000,
+    // Vereda reforzada — acceso liviano, bicicletas
+    mats:[
+      {n:"Cemento tipo 1",q:35,u:"kg"},
+      {n:"Arena lavada",q:0.07,u:"m3"},
+      {n:"Piedra triturada V",q:0.13,u:"tn"},
+      {n:"Malla electrosoldada Q-92",q:1.05,u:"m2"},
+    ]
+  },
+  "Acceso vehicular H°A° 12cm c/ malla Q-131": {
+    u:"m2", m:265000,
+    // Para cocheras y accesos de vehículos livianos
+    mats:[
+      {n:"Cemento tipo 1",q:42,u:"kg"},
+      {n:"Arena lavada",q:0.08,u:"m3"},
+      {n:"Piedra triturada IV",q:0.16,u:"tn"},
+      {n:"Malla electrosoldada Q-131",q:1.05,u:"m2"},
+    ]
+  },
+  "Piso hormigón helicopteado 10cm (industrial)": {
+    u:"m2", m:195000,
+    // Piso industrial alisado con helicóptero — galpones, talleres
+    // Ref: Clasipar PY: 55.000/m² solo MO + ~140k material
+    mats:[
+      {n:"Cemento tipo 1",q:35,u:"kg"},
+      {n:"Arena lavada",q:0.07,u:"m3"},
+      {n:"Piedra triturada IV",q:0.13,u:"tn"},
+      {n:"Malla electrosoldada Q-92",q:1.05,u:"m2"},
+    ]
+  },
+  "Piso adoquín hormigón 6cm (peatonal)": {
+    u:"m2", m:245000,
+    // Adoquín gris sobre cama de arena — vereda/patio
+    // ~50 adoquines por m²
+    mats:[
+      {n:"Adoquín hormigón 20x10x6cm gris",q:52,u:"un"},
+      {n:"Arena lavada",q:0.05,u:"m3"},
+      {n:"Cordón de vereda premoldeado",q:0.2,u:"ml"}, // borde contenedor
+    ]
+  },
+  "Piso adoquín hormigón 8cm color (vehicular)": {
+    u:"m2", m:330000,
+    // Adoquín color más grueso — soporta vehículos
+    mats:[
+      {n:"Adoquín hormigón 20x10x8cm color",q:52,u:"un"},
+      {n:"Arena lavada",q:0.06,u:"m3"},
+      {n:"Ripio para subbase",q:0.10,u:"m3"},
+      {n:"Cordón de vereda premoldeado",q:0.2,u:"ml"},
+    ]
+  },
+  "Empedrado rústico piedra bola c/ junta cemento": {
+    u:"m2", m:125000,
+    // Estilo colonial — garages, quincho, caminero
+    mats:[
+      {n:"Empedrado de piedra bola",q:1.05,u:"m2"},
+      {n:"Cemento tipo 1",q:8,u:"kg"},
+      {n:"Arena lavada",q:0.03,u:"m3"},
+    ]
+  },
+  "Cordón de vereda premoldeado colocado": {
+    u:"ml", m:55000,
+    // Incluye base de H° y colocación
+    mats:[
+      {n:"Cordón de vereda premoldeado",q:1.05,u:"ml"},
+      {n:"Cemento tipo 1",q:5,u:"kg"},
+      {n:"Arena lavada",q:0.01,u:"m3"},
+    ]
+  },
+  "Rampa vehicular H°A° 12cm (hasta 3m ancho)": {
+    u:"m2", m:285000,
+    // Con armadura, pendiente y bordes laterales
+    mats:[
+      {n:"Cemento tipo 1",q:42,u:"kg"},
+      {n:"Arena lavada",q:0.08,u:"m3"},
+      {n:"Piedra triturada IV",q:0.16,u:"tn"},
+      {n:"Varilla conformada Ø8mm",q:5,u:"kg"},
+      {n:"Malla electrosoldada Q-131",q:1.05,u:"m2"},
+    ]
+  },
+  "Caminero piedra losa irregular": {
+    u:"m2", m:95000,
+    // Sendero jardín con piedra losa rompecabeza
+    mats:[
+      {n:"Piedra losa blanca",q:1.05,u:"m2"},
+      {n:"Arena lavada",q:0.03,u:"m3"},
+    ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"PINTURAS INDUSTRIALES": {
+// ════════════════════════════════════════════════════════════════════════
+// Pintura epóxica, poliuretánica, anticorrosivo — pisos y metales
+// MO 45%: preparación superficie, imprimación, múltiples manos, curado
+// Fuentes: Clasipar PY 2026, Inatec, Sinteplast, Impactus PY
+// ──────────────────────────────────────────────────────────────────────
+
+  "Pintura epóxica piso hormigón (2 manos)": {
+    u:"m2", m:155000,
+    // Sistema completo: primer + 2 manos epoxi — garajes, talleres
+    // Ref: Clasipar PY: 150.000/m² instalado (material+MO)
+    // CYPE PY: 267.000/m² (con preparación completa industrial)
+    mats:[
+      {n:"Primer epóxico",q:0.15,u:"lt"},
+      {n:"Pintura epóxica pisos (kit 4lt)",q:0.08,u:"un"}, // rinde ~6m²/lt → 0.33lt/m²
+    ]
+  },
+  "Pintura epóxica piso c/ pulido previo": {
+    u:"m2", m:220000,
+    // Con pulido mecánico del hormigón antes de pintar
+    // Ref: Clasipar PY: pulido 65.000 + epoxi 150.000
+    mats:[
+      {n:"Primer epóxico",q:0.15,u:"lt"},
+      {n:"Pintura epóxica pisos (kit 4lt)",q:0.08,u:"un"},
+      {n:"Lija",q:0.5,u:"un"},
+    ]
+  },
+  "Pintura poliuretánica piso (acabado UV)": {
+    u:"m2", m:95000,
+    // Capa final sobre epoxi — para exterior o alta exposición solar
+    mats:[
+      {n:"Pintura poliuretánica brill. (lt)",q:0.20,u:"lt"},
+    ]
+  },
+  "Anticorrosivo + esmalte sintético s/ herrería": {
+    u:"m2", m:65000,
+    // Sistema básico para rejas, portones, barandas
+    // 1 mano anticorrosivo + 2 manos esmalte
+    mats:[
+      {n:"Anticorrosivo rojo/gris (lt)",q:0.12,u:"lt"},
+      {n:"Esmalte sintético industrial (lt)",q:0.25,u:"lt"},
+      {n:"Lija",q:0.25,u:"un"},
+    ]
+  },
+  "Convertidor óxido + esmalte s/ herrería vieja": {
+    u:"m2", m:85000,
+    // Para herrería con óxido existente — sin necesidad de arenado
+    mats:[
+      {n:"Convertidor de óxido (lt)",q:0.12,u:"lt"},
+      {n:"Esmalte sintético industrial (lt)",q:0.25,u:"lt"},
+      {n:"Lija",q:0.50,u:"un"},
+    ]
+  },
+  "Galvanizado en frío spray (retoque)": {
+    u:"m2", m:45000,
+    // Retoque rápido de soldaduras y cortes en galvanizado
+    mats:[
+      {n:"Galvanizado en frío spray",q:0.15,u:"un"},
+    ]
+  },
+  "Pintura demarcación vial (línea)": {
+    u:"ml", m:12000,
+    // Líneas de estacionamiento, señalización de piso
+    mats:[
+      {n:"Esmalte sintético industrial (lt)",q:0.05,u:"lt"},
+    ]
+  },
+},
+
+// ════════════════════════════════════════════════════════════════════════
+"HERRERÍA ORNAMENTAL": {
+// ════════════════════════════════════════════════════════════════════════
+// Rejas, protecciones, portones, barandas, pérgolas metálicas
+// MO 40%: fabricación en taller, soldadura, transporte, montaje, pintura
+// Fuentes: Clasipar PY 2026, herrerías de mercado, CYPE Paraguay
+// ──────────────────────────────────────────────────────────────────────
+
+  "Reja tubular simple p/ ventana (caño 1\")": {
+    u:"m2", m:350000,
+    // Reja recta básica con caños redondos verticales, la más económica
+    mats:[
+      {n:"Caño redondo 1\" hierro",q:8,u:"ml"},
+      {n:"Caño estructural cuadrado 40x40x1.6mm",q:2,u:"ml"},
+      {n:"Electrodo 6013 2.5mm (kg)",q:0.3,u:"kg"},
+      {n:"Anticorrosivo rojo/gris (lt)",q:0.12,u:"lt"},
+      {n:"Esmalte sintético industrial (lt)",q:0.15,u:"lt"},
+    ]
+  },
+  "Reja artística forjada p/ ventana": {
+    u:"m2", m:580000,
+    // Con detalles decorativos, volutas, diseño personalizado
+    // Ya existía como material en tu DB — esto formaliza el rubro
+    mats:[
+      {n:"Reja artística",q:1,u:"m2"},
+      {n:"Cemento tipo 1",q:2,u:"kg"},
+    ]
+  },
+  "Protección balcón caño cuadrado 50mm": {
+    u:"ml", m:285000,
+    // Protección frontal balcón/terraza, h=1.10m, diseño moderno
+    mats:[
+      {n:"Caño estructural cuadrado 50x50x2mm",q:4,u:"ml"},
+      {n:"Varilla maciza lisa Ø12mm",q:6,u:"ml"},
+      {n:"Electrodo 6013 2.5mm (kg)",q:0.5,u:"kg"},
+      {n:"Anticorrosivo rojo/gris (lt)",q:0.10,u:"lt"},
+      {n:"Esmalte sintético industrial (lt)",q:0.12,u:"lt"},
+    ]
+  },
+  "Portón corredizo chapa lisa 3.00x2.00m": {
+    u:"un", m:3850000,
+    // Portón cochera estándar, chapa + estructura + ruedas + cerradura
+    mats:[
+      {n:"Plancha hierro 1.5mm (1.22x2.44m)",q:2,u:"un"},
+      {n:"Caño estructural cuadrado 50x50x2mm",q:12,u:"ml"},
+      {n:"Caño estructural cuadrado 40x40x1.6mm",q:8,u:"ml"},
+      {n:"Riel corredizo portón 3m",q:1.5,u:"un"},
+      {n:"Rueda portón corredizo (par)",q:1,u:"par"},
+      {n:"Cerradura doble paleta portón",q:1,u:"un"},
+      {n:"Electrodo 6013 2.5mm (kg)",q:3,u:"kg"},
+      {n:"Anticorrosivo rojo/gris (lt)",q:1,u:"lt"},
+      {n:"Esmalte sintético industrial (lt)",q:1.5,u:"lt"},
+    ]
+  },
+  "Portón corredizo chapa lisa 4.00x2.00m": {
+    u:"un", m:4850000,
+    // Portón más ancho para camionetas/SUV
+    mats:[
+      {n:"Plancha hierro 1.5mm (1.22x2.44m)",q:3,u:"un"},
+      {n:"Caño estructural cuadrado 50x50x2mm",q:16,u:"ml"},
+      {n:"Caño estructural cuadrado 40x40x1.6mm",q:10,u:"ml"},
+      {n:"Riel corredizo portón 3m",q:2,u:"un"},
+      {n:"Rueda portón corredizo (par)",q:1,u:"par"},
+      {n:"Cerradura doble paleta portón",q:1,u:"un"},
+      {n:"Electrodo 6013 2.5mm (kg)",q:4,u:"kg"},
+      {n:"Anticorrosivo rojo/gris (lt)",q:1.5,u:"lt"},
+      {n:"Esmalte sintético industrial (lt)",q:2,u:"lt"},
+    ]
+  },
+  "Portón abatible 2 hojas 3.00x2.00m": {
+    u:"un", m:3450000,
+    // Portón de abrir tradicional, 2 hojas con bisagras
+    mats:[
+      {n:"Plancha hierro 1.5mm (1.22x2.44m)",q:2,u:"un"},
+      {n:"Caño estructural cuadrado 50x50x2mm",q:10,u:"ml"},
+      {n:"Caño estructural cuadrado 40x40x1.6mm",q:6,u:"ml"},
+      {n:"Bisagra industrial 4\" (par)",q:3,u:"par"},
+      {n:"Cerradura doble paleta portón",q:1,u:"un"},
+      {n:"Electrodo 6013 2.5mm (kg)",q:2.5,u:"kg"},
+      {n:"Anticorrosivo rojo/gris (lt)",q:1,u:"lt"},
+      {n:"Esmalte sintético industrial (lt)",q:1.5,u:"lt"},
+    ]
+  },
+  "Puerta peatonal metálica 0.90x2.10m": {
+    u:"un", m:1250000,
+    // Puerta chapa con marco, cerradura y pintura
+    mats:[
+      {n:"Plancha hierro 1.5mm (1.22x2.44m)",q:0.8,u:"un"},
+      {n:"Caño estructural cuadrado 40x40x1.6mm",q:6,u:"ml"},
+      {n:"Bisagra industrial 4\" (par)",q:1.5,u:"par"},
+      {n:"Cerradura doble paleta portón",q:1,u:"un"},
+      {n:"Electrodo 6013 2.5mm (kg)",q:1,u:"kg"},
+      {n:"Anticorrosivo rojo/gris (lt)",q:0.5,u:"lt"},
+      {n:"Esmalte sintético industrial (lt)",q:0.8,u:"lt"},
+    ]
+  },
+  "Pérgola metálica simple (por m²)": {
+    u:"m2", m:285000,
+    // Estructura de caños para quincho/jardín, sin techo
+    mats:[
+      {n:"Caño estructural cuadrado 50x50x2mm",q:3,u:"ml"},
+      {n:"Caño estructural cuadrado 40x40x1.6mm",q:2,u:"ml"},
+      {n:"Electrodo 6013 2.5mm (kg)",q:0.5,u:"kg"},
+      {n:"Anticorrosivo rojo/gris (lt)",q:0.12,u:"lt"},
+      {n:"Esmalte sintético industrial (lt)",q:0.15,u:"lt"},
+    ]
+  },
+  "Pérgola metálica c/ techo policarbonato": {
+    u:"m2", m:420000,
+    // Estructura + techo policarbonato alveolar — quincho moderno
+    mats:[
+      {n:"Caño estructural cuadrado 50x50x2mm",q:3,u:"ml"},
+      {n:"Caño estructural cuadrado 40x40x1.6mm",q:2,u:"ml"},
+      {n:"Policarbonato alveolar 6mm",q:1.05,u:"m2"},
+      {n:"Electrodo 6013 2.5mm (kg)",q:0.5,u:"kg"},
+      {n:"Anticorrosivo rojo/gris (lt)",q:0.12,u:"lt"},
+      {n:"Esmalte sintético industrial (lt)",q:0.15,u:"lt"},
+    ]
+  },
+  "Cerramiento perimetral caño + chapa (por ml, h=2m)": {
+    u:"ml", m:485000,
+    // Cerca industrial: postes caño 50mm cada 3m + chapa lisa
+    mats:[
+      {n:"Plancha hierro 1.5mm (1.22x2.44m)",q:0.85,u:"un"},
+      {n:"Caño estructural cuadrado 50x50x2mm",q:2.5,u:"ml"},
+      {n:"Electrodo 6013 2.5mm (kg)",q:0.8,u:"kg"},
+      {n:"Anticorrosivo rojo/gris (lt)",q:0.3,u:"lt"},
     ]
   },
 },
