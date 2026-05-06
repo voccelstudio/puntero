@@ -188,7 +188,7 @@ let state = {
   projectName: "Nuevo Proyecto", clientName: "", clientPhone: "", clientAddress: "",
   profitPct: 0, validDays: 30, budgetNum: 1, notes: "", pdfShowBreakdown: false,
   priceEditMode: "total", editPriceKey: null, editField: "total", activeBudgetId: null,
-  theme: "slate",
+  theme: "dark",
   ivaEnabled: false, ivaEnPDF: false,
   adjustPct: 0,
   profile: { company: "", professional: "", matricula: "", ruc: "", phone: "", email: "", address: "", instagram: "", whatsapp: "", website: "" },
@@ -1592,8 +1592,8 @@ function applyGlobalAdjust() {
 
 // ── THEMES SECTION ────────────────────────────────────────────────────
 const THEMES = [
-  { id: "dark", name: "Constructor Dark", desc: "Oscuro ámbar", prev: { bg: "#0f1117", sur: "#181c26", acc: "#f59e0b", row: "#1e2330" } },
-  { id: "light", name: "Obra de Día", desc: "Claro terracota", prev: { bg: "#f4f1eb", sur: "#ffffff", acc: "#c2410c", row: "#f9f7f3" } },
+  { id: "dark", name: "Precision Construct", desc: "Navy oscuro + verde", prev: { bg: "#051426", sur: "#122033", acc: "#4ae176", row: "#1c2b3e" } },
+  { id: "light", name: "Precision Light", desc: "Claro profesional", prev: { bg: "#f0f4f8", sur: "#ffffff", acc: "#00b954", row: "#f8fafc" } },
   { id: "blueprint", name: "Plano Técnico", desc: "Azul blueprint", prev: { bg: "#071525", sur: "#0c1f35", acc: "#38bdf8", row: "#102846" } },
   { id: "elegant", name: "Estudio Elegante", desc: "Beige y dorado", prev: { bg: "#faf8f5", sur: "#ffffff", acc: "#8b6914", row: "#f5f2ed" } },
   { id: "neon", name: "Noche Neón", desc: "Dark ultravioleta", prev: { bg: "#050508", sur: "#0d0d14", acc: "#a855f7", row: "#12121c" } },
