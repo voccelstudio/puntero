@@ -2082,14 +2082,14 @@ function showModal(type, arg) {
   }
 
   if (type === "export") {
-    el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:480px">
+    el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:520px">
       <div class="modal-title">Exportar Presupuesto<button class="delbtn" onclick="closeModal()">✕</button></div>
       <div class="export-options">
-        <div class="export-card" onclick="exportXLS()"><div class="export-icon">📊</div><div class="export-name">Excel / CSV</div><div class="export-desc">Abre con doble clic en Excel o LibreOffice</div></div>
-        <div class="export-card" onclick="exportXLS()"><div class="export-icon">📋</div><div class="export-name">Google Sheets</div><div class="export-desc">Archivo → Importar → CSV en Google Sheets</div></div>
+        <div class="export-card" onclick="exportXLS()"><div class="export-icon"><span class="material-symbols-outlined" style="font-size:2rem;color:var(--ok)">table_chart</span></div><div class="export-name">Excel / CSV</div><div class="export-desc">Descarga CSV para Excel o LibreOffice</div></div>
+        <div class="export-card" onclick="exportBudgetGSheets()"><div class="export-icon"><span class="material-symbols-outlined" style="font-size:2rem;color:#34a853">cloud_upload</span></div><div class="export-name">Google Sheets</div><div class="export-desc">Descarga CSV + abre Sheets nueva para importar</div></div>
       </div>
-      <p style="font-size:.95rem;color:var(--tx3);text-align:center;font-style:italic">Incluye ítems, desglose mat/MO, cómputo de materiales y notas.</p>
-      <div class="modal-acts"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn success" onclick="exportXLS()">Descargar</button></div>
+      <p style="font-size:.85rem;color:var(--tx3);text-align:center;font-style:italic;margin-top:8px">Incluye ítems, desglose mat/MO, subtotales por categoría, cómputo de materiales y notas.</p>
+      <div class="modal-acts"><button class="btn" onclick="closeModal()">Cancelar</button></div>
     </div></div>`;
   }
 
@@ -2766,3 +2766,169 @@ window.onload = () => {
   updateBadge();
   checkBackupReminder();
 };
+
+// ═════════════════════════════════════════════════════════════════════════
+// GOOGLE SHEETS EXPORT — Presupuesto y Cronograma
+// ═════════════════════════════════════════════════════════════════════════
+// Genera CSV descargable + abre Google Sheets con instrucciones de 1 clic.
+// No requiere API key ni OAuth — usa la función nativa de importar CSV.
+
+/**
+ * Genera el CSV del presupuesto y lo sube a Google Sheets via importación.
+ * Flujo: descarga CSV → abre sheet nueva → usuario importa con 1 clic.
+ */
+function exportBudgetGSheets() {
+  const p = getActiveProject();
+  const adenda = getActiveAdenda();
+  if (!p || !adenda) return toast("No hay proyecto activo");
+  
+  const { totalMats, totalLabor, subtotal, ivaMat, ivaLab, ivaTotal, profitAmt, total } = getTotals();
+  const grouped = getGrouped();
+  const nl = "\r\n", q = v => `"${String(v).replace(/"/g, '""')}"`;
+  
+  // ── Construir CSV con formato optimizado para Sheets ──
+  let csv = "\uFEFF"; // BOM para UTF-8
+  csv += q("PRESUPUESTO — " + (adenda.name || "Principal")) + nl;
+  csv += q("Proyecto") + "," + q(p.name) + nl;
+  csv += q("Cliente") + "," + q(p.client || "-") + nl;
+  csv += q("Dirección") + "," + q(p.address || "-") + nl;
+  csv += q("Fecha") + "," + q(formatDatePY(new Date())) + nl;
+  csv += q("Moneda") + "," + q(state.currency === "USD" ? "USD (1 USD = ₲" + state.exchangeRate + ")" : "Guaraníes (₲)") + nl;
+  csv += nl;
+  
+  // Headers
+  const ivaH = adenda.ivaEnabled ? "," + q("IVA (₲)") : "";
+  csv += q("CATEGORÍA") + "," + q("DESCRIPCIÓN") + "," + q("UND") + "," + q("CANT") + "," + q("DESC.%") + "," + q("MAT (₲)") + "," + q("MO (₲)") + "," + q("P.UNIT (₲)") + ivaH + "," + q("TOTAL (₲)") + "," + q("NOTA") + nl;
+  
+  // Ítems por categoría con subtotales
+  for (const [cat, ci] of Object.entries(grouped)) {
+    csv += q("▸ " + cat) + nl;
+    let catTotal = 0;
+    for (const item of ci) {
+      const ep = effPrice(item);
+      const { ivaTotal: ivIt } = calcIVA(item.matCost, item.laborCost, item.qty);
+      const totalItem = ep * item.qty + ivIt;
+      catTotal += totalItem;
+      const ivaCol = adenda.ivaEnabled ? "," + q(Math.round(ivIt)) : "";
+      csv += q("") + "," + q(item.name) + "," + q(item.unit) + "," + q(item.qty) + "," + q(item.disc || 0) + "," + q(Math.round(item.matCost)) + "," + q(Math.round(item.laborCost)) + "," + q(Math.round(ep)) + ivaCol + "," + q(Math.round(totalItem)) + "," + q(item.note || "") + nl;
+    }
+    const ivaBlank = adenda.ivaEnabled ? "," : "";
+    csv += q("") + "," + q("SUBTOTAL " + cat) + ",,,,,," + ivaBlank + "," + q(Math.round(catTotal)) + nl;
+  }
+  
+  // Resumen
+  csv += nl;
+  csv += q("RESUMEN GENERAL") + nl;
+  csv += q("Materiales") + "," + q(Math.round(totalMats)) + nl;
+  csv += q("Mano de Obra") + "," + q(Math.round(totalLabor)) + nl;
+  csv += q("Costo Directo") + "," + q(Math.round(subtotal)) + nl;
+  if (adenda.ivaEnabled) {
+    csv += q("IVA Materiales (10%)") + "," + q(Math.round(ivaMat)) + nl;
+    csv += q("IVA Mano de Obra (5%)") + "," + q(Math.round(ivaLab)) + nl;
+    csv += q("Total IVA") + "," + q(Math.round(ivaTotal)) + nl;
+  }
+  if ((adenda.profitPct || 0) > 0) csv += q("Honorarios (" + adenda.profitPct + "%)") + "," + q(Math.round(profitAmt)) + nl;
+  csv += q("TOTAL FINAL") + "," + q(Math.round(total)) + nl;
+  
+  // Cómputo de materiales
+  const mats = calcMaterials();
+  if (mats.length > 0) {
+    csv += nl + q("CÓMPUTO DE MATERIALES") + nl;
+    csv += q("MATERIAL") + "," + q("CANTIDAD") + "," + q("UNIDAD") + "," + q("BOLSAS") + nl;
+    for (const m of mats) {
+      const isCem = m.name.toLowerCase().includes("cemento");
+      csv += q(m.name) + "," + q(fmtD(m.qty, 3)) + "," + q(m.unit) + "," + q(isCem ? Math.ceil(m.qty / 50) : "") + nl;
+    }
+  }
+  
+  // Descargar CSV
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const safeName = (p.client || p.name || "Proyecto").replace(/\s+/g, "_");
+  const fileName = `Presupuesto_${safeName}_${formatDatePY(new Date()).replace(/\//g, "-")}.csv`;
+  a.href = url; a.download = fileName;
+  a.click(); URL.revokeObjectURL(url);
+  
+  // Abrir Google Sheets nueva con instrucciones
+  setTimeout(() => {
+    window.open("https://sheets.new", "_blank");
+    toast("CSV descargado ✓ — En Google Sheets: Archivo → Importar → Subir → seleccioná el CSV");
+  }, 500);
+  closeModal();
+}
+
+/**
+ * Exporta el cronograma a Google Sheets.
+ */
+function exportScheduleGSheets() {
+  const p = getActiveProject();
+  const adenda = getActiveAdenda();
+  if (!p || !adenda) return toast("No hay proyecto activo");
+  
+  const schedules = p.execution?.schedules || {};
+  const nl = "\r\n", q = v => `"${String(v).replace(/"/g, '""')}"`;
+  
+  let csv = "\uFEFF";
+  csv += q("CRONOGRAMA DE EJECUCIÓN") + nl;
+  csv += q("Proyecto") + "," + q(p.name) + nl;
+  if (p.execution?.projectStartDate) csv += q("Inicio de Obra") + "," + q(formatDatePY(p.execution.projectStartDate)) + nl;
+  csv += q("Exportado") + "," + q(formatDatePY(new Date())) + nl;
+  csv += nl;
+  
+  // Progreso global
+  if (typeof calcOverallProgress === "function") {
+    const { totalProgress } = calcOverallProgress();
+    csv += q("Progreso Global") + "," + q(totalProgress + "%") + nl;
+    csv += nl;
+  }
+  
+  // Headers
+  csv += q("RUBRO") + "," + q("CATEGORÍA") + "," + q("CANTIDAD") + "," + q("UNIDAD") + "," + q("ESTADO") + "," + q("INICIO") + "," + q("FIN") + "," + q("CONTRATISTA") + "," + q("DÍAS") + nl;
+  
+  for (const item of adenda.items) {
+    const sch = schedules[item.id] || {};
+    const cat = item.cat || "";
+    const statusMap = { done: "Completado", progress: "En curso", blocked: "Bloqueado", pending: "Pendiente" };
+    const status = statusMap[sch.status] || "Pendiente";
+    const con = sch.contractorId ? (state.contractors || []).find(c => c.id === sch.contractorId) : null;
+    
+    // Calcular duración en días
+    let dias = "";
+    if (sch.start && sch.end) {
+      const d1 = new Date(sch.start), d2 = new Date(sch.end);
+      dias = Math.ceil((d2 - d1) / (1000 * 60 * 60 * 24));
+      if (dias < 0) dias = 0;
+    }
+    
+    csv += q(item.name) + "," + q(cat) + "," + q(item.qty) + "," + q(item.unit) + "," + q(status) + "," + q(sch.start ? formatDatePY(sch.start) : "-") + "," + q(sch.end ? formatDatePY(sch.end) : "-") + "," + q(con ? con.name : "-") + "," + q(dias) + nl;
+  }
+  
+  // Resumen por estado
+  csv += nl + q("RESUMEN POR ESTADO") + nl;
+  const estados = {};
+  for (const item of adenda.items) {
+    const sch = schedules[item.id] || {};
+    const st = sch.status || "pending";
+    estados[st] = (estados[st] || 0) + 1;
+  }
+  const statusNames = { done: "Completados", progress: "En curso", blocked: "Bloqueados", pending: "Pendientes" };
+  for (const [st, count] of Object.entries(estados)) {
+    csv += q(statusNames[st] || st) + "," + q(count) + nl;
+  }
+  csv += q("Total Rubros") + "," + q(adenda.items.length) + nl;
+  
+  // Descargar
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const safeName = (p.name || "Cronograma").replace(/\s+/g, "_");
+  const fileName = `Cronograma_${safeName}_${formatDatePY(new Date()).replace(/\//g, "-")}.csv`;
+  a.href = url; a.download = fileName;
+  a.click(); URL.revokeObjectURL(url);
+  
+  setTimeout(() => {
+    window.open("https://sheets.new", "_blank");
+    toast("CSV descargado ✓ — En Google Sheets: Archivo → Importar → Subir");
+  }, 500);
+}

@@ -97,9 +97,10 @@ function renderSchedule() {
     });
 
     h += `</div>
-        <div style="display:flex; gap:10px; margin-top:12px">
-            <button class="btn sm" onclick="exportSchedulePDF()">📄 Exportar Cronograma</button>
-            <button class="btn sm" onclick="syncScheduleWithBudget()">🔄 Sincronizar Items</button>
+        <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap">
+            <button class="btn sm" onclick="exportSchedulePDF()"><span class="material-symbols-outlined" style="font-size:16px">picture_as_pdf</span> PDF Cronograma</button>
+            <button class="btn sm" onclick="exportScheduleGSheets()"><span class="material-symbols-outlined" style="font-size:16px;color:#34a853">cloud_upload</span> Google Sheets</button>
+            <button class="btn sm" onclick="syncScheduleWithBudget()"><span class="material-symbols-outlined" style="font-size:16px">sync</span> Sincronizar Items</button>
         </div>
     </div>`;
 
