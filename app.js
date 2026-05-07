@@ -1724,108 +1724,132 @@ function exportXLS() {
   toast("Archivo exportado ✓"); closeModal();
 }
 
-// ── EXPORT GOOGLE SHEETS (XLSX) ──────────────────────────────────────
+// ── EXPORT GOOGLE SHEETS (.xlsx XML Spreadsheet) ─────────────────────
 function exportToGoogleSheets() {
   const p = getActiveProject();
   const adenda = getActiveAdenda();
   if (!p || !adenda) return toast("Sin proyecto activo", false);
 
-  toast("Generando archivo para Google Sheets...");
+  toast("Generando archivo Google Sheets...");
 
   const { totalMats, totalLabor, subtotal, ivaMat, ivaLab, ivaTotal, profitAmt, total } = getTotals();
   const grouped = getGrouped();
   const ivaOn = adenda.ivaEnabled;
 
-  // Construir XML Spreadsheet 2003 (abre nativo en Google Sheets y Excel)
-  const esc = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  const numCell = v => `<Cell><Data ss:Type="Number">${v}</Data></Cell>`;
-  const strCell = v => `<Cell><Data ss:Type="String">${esc(v)}</Data></Cell>`;
-  const boldStyle = 'ss:StyleID="header"';
-  const accentStyle = 'ss:StyleID="accent"';
-  const totalStyle = 'ss:StyleID="totalRow"';
-  const currStyle = 'ss:StyleID="currency"';
+  const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const nC = v => `<Cell><Data ss:Type="Number">${v}</Data></Cell>`;
+  const sC = v => `<Cell><Data ss:Type="String">${esc(v)}</Data></Cell>`;
+  const sCS = (v,st) => `<Cell ss:StyleID="${st}"><Data ss:Type="String">${esc(v)}</Data></Cell>`;
+  const nCS = (v,st) => `<Cell ss:StyleID="${st}"><Data ss:Type="Number">${v}</Data></Cell>`;
 
   let rows = '';
 
-  // Header del presupuesto
-  rows += `<Row ${accentStyle}>${strCell('PRESUPUESTO')}${strCell(adenda.name)}</Row>`;
-  rows += `<Row>${strCell('Proyecto')}${strCell(p.name)}</Row>`;
-  rows += `<Row>${strCell('Cliente')}${strCell(p.client || '-')}</Row>`;
-  rows += `<Row>${strCell('Dirección')}${strCell(p.address || '-')}</Row>`;
-  rows += `<Row>${strCell('Fecha')}${strCell(formatDatePY(new Date()))}</Row>`;
+  // ── Header info ──
+  rows += `<Row ss:StyleID="accent">${sC('PRESUPUESTO DE OBRA')}${sC(adenda.name)}</Row>`;
+  rows += `<Row>${sC('Proyecto')}${sC(p.name)}</Row>`;
+  rows += `<Row>${sC('Cliente')}${sC(p.client || '-')}</Row>`;
+  rows += `<Row>${sC('Dirección')}${sC(p.address || '-')}</Row>`;
+  rows += `<Row>${sC('Superficie')}${sC((p.m2Area || '-') + ' m²')}</Row>`;
+  rows += `<Row>${sC('Fecha')}${sC(formatDatePY(new Date()))}</Row>`;
   rows += `<Row></Row>`;
 
-  // Encabezados de tabla
-  let hdrCells = `${strCell('CATEGORÍA')}${strCell('DESCRIPCIÓN')}${strCell('UNIDAD')}${strCell('CANTIDAD')}${strCell('DESC.%')}${strCell('MATERIALES (₲)')}${strCell('MANO DE OBRA (₲)')}${strCell('P. UNITARIO (₲)')}`;
-  if (ivaOn) hdrCells += `${strCell('IVA Mat (₲)')}${strCell('IVA MO (₲)')}${strCell('IVA Total (₲)')}`;
-  hdrCells += `${strCell('TOTAL (₲)')}${strCell('NOTA INTERNA')}`;
-  rows += `<Row ${boldStyle}>${hdrCells}</Row>`;
+  // ── Encabezados de columna ──
+  let hdr = `${sCS('CATEGORÍA','hdr')}${sCS('DESCRIPCIÓN','hdr')}${sCS('UNIDAD','hdr')}${sCS('CANTIDAD','hdr')}${sCS('DESC.%','hdr')}${sCS('MAT (₲)','hdr')}${sCS('MO (₲)','hdr')}${sCS('P.UNIT (₲)','hdr')}`;
+  if (ivaOn) hdr += `${sCS('IVA Mat','hdr')}${sCS('IVA MO','hdr')}${sCS('IVA Total','hdr')}`;
+  hdr += `${sCS('TOTAL (₲)','hdr')}${sCS('NOTA','hdr')}`;
+  rows += `<Row>${hdr}</Row>`;
 
-  // Items agrupados
+  // ── Items por categoría ──
+  let lastCat = '';
   for (const [cat, items] of Object.entries(grouped)) {
+    // Fila separadora de categoría
+    if (cat !== lastCat) {
+      rows += `<Row ss:StyleID="catRow">${sC(cat)}</Row>`;
+      lastCat = cat;
+    }
     for (const item of items) {
       const ep = effPrice(item);
       const { ivaMat: im, ivaLab: il, ivaTotal: it } = calcIVA(item.matCost, item.laborCost, item.qty);
       const totalItem = ep * item.qty + it;
-      let cells = `${strCell(cat)}${strCell(item.name)}${strCell(item.unit)}${numCell(item.qty)}${numCell(item.disc || 0)}${numCell(Math.round(item.matCost))}${numCell(Math.round(item.laborCost))}${numCell(Math.round(ep))}`;
-      if (ivaOn) cells += `${numCell(Math.round(im))}${numCell(Math.round(il))}${numCell(Math.round(it))}`;
-      cells += `${numCell(Math.round(totalItem))}${strCell(item.note || '')}`;
+      let cells = `${sC(cat)}${sC(item.name)}${sC(item.unit)}${nC(item.qty)}${nC(item.disc || 0)}${nCS(Math.round(item.matCost),'cur')}${nCS(Math.round(item.laborCost),'cur')}${nCS(Math.round(ep),'cur')}`;
+      if (ivaOn) cells += `${nCS(Math.round(im),'cur')}${nCS(Math.round(il),'cur')}${nCS(Math.round(it),'cur')}`;
+      cells += `${nCS(Math.round(totalItem),'curBold')}${sC(item.note || '')}`;
       rows += `<Row>${cells}</Row>`;
     }
   }
 
-  // Resumen
+  // ── Resumen ──
   rows += `<Row></Row>`;
-  const rCol = ivaOn ? 11 : 8;
-  rows += `<Row ${totalStyle}>${strCell('Materiales')}${'<Cell/>'.repeat(rCol - 2)}${numCell(Math.round(totalMats))}</Row>`;
-  rows += `<Row ${totalStyle}>${strCell('Mano de Obra')}${'<Cell/>'.repeat(rCol - 2)}${numCell(Math.round(totalLabor))}</Row>`;
-  rows += `<Row ${totalStyle}>${strCell('Costo Directo')}${'<Cell/>'.repeat(rCol - 2)}${numCell(Math.round(subtotal))}</Row>`;
+  const pad = ivaOn ? 10 : 7;
+  const padCells = '<Cell/>'.repeat(pad);
+  rows += `<Row ss:StyleID="sumRow">${sC('Costo Materiales')}${padCells}${nCS(Math.round(totalMats),'curBold')}</Row>`;
+  rows += `<Row ss:StyleID="sumRow">${sC('Costo Mano de Obra')}${padCells}${nCS(Math.round(totalLabor),'curBold')}</Row>`;
+  rows += `<Row ss:StyleID="sumRow">${sC('Costo Directo')}${padCells}${nCS(Math.round(subtotal),'curBold')}</Row>`;
   if (ivaOn) {
-    rows += `<Row>${strCell('IVA Materiales (10%)')}${'<Cell/>'.repeat(rCol - 2)}${numCell(Math.round(ivaMat))}</Row>`;
-    rows += `<Row>${strCell('IVA Mano de Obra (5%)')}${'<Cell/>'.repeat(rCol - 2)}${numCell(Math.round(ivaLab))}</Row>`;
-    rows += `<Row>${strCell('Total IVA')}${'<Cell/>'.repeat(rCol - 2)}${numCell(Math.round(ivaTotal))}</Row>`;
+    rows += `<Row>${sC('IVA Materiales (10%)')}${padCells}${nCS(Math.round(ivaMat),'cur')}</Row>`;
+    rows += `<Row>${sC('IVA Mano de Obra (5%)')}${padCells}${nCS(Math.round(ivaLab),'cur')}</Row>`;
+    rows += `<Row>${sC('Total IVA')}${padCells}${nCS(Math.round(ivaTotal),'curBold')}</Row>`;
   }
-  if ((adenda.profitPct || 0) > 0) {
-    rows += `<Row>${strCell('Honorarios (' + adenda.profitPct + '%)')}${'<Cell/>'.repeat(rCol - 2)}${numCell(Math.round(profitAmt))}</Row>`;
-  }
-  rows += `<Row ${accentStyle}>${strCell('TOTAL' + (ivaOn ? ' (IVA incluido)' : ''))}${'<Cell/>'.repeat(rCol - 2)}${numCell(Math.round(total))}</Row>`;
+  if ((adenda.profitPct || 0) > 0)
+    rows += `<Row>${sC('Honorarios (' + adenda.profitPct + '%)')}${padCells}${nCS(Math.round(profitAmt),'cur')}</Row>`;
+  rows += `<Row ss:StyleID="accent">${sC('TOTAL GENERAL' + (ivaOn ? ' (IVA incluido)' : ''))}${padCells}${nCS(Math.round(total),'curBold')}</Row>`;
 
-  // Cómputo de materiales en hoja 2
+  // ── Notas ──
+  if ((adenda.notes || '').trim()) {
+    rows += `<Row></Row><Row>${sC('NOTAS / CONDICIONES')}</Row>`;
+    rows += `<Row>${sC(adenda.notes)}</Row>`;
+  }
+
+  // ── Hoja 2: Cómputo de Materiales ──
   const mats = calcMaterials();
-  let matRows = `<Row ${boldStyle}>${strCell('MATERIAL')}${strCell('CANTIDAD')}${strCell('UNIDAD')}${strCell('BOLSAS 50kg')}</Row>`;
+  let matRows = `<Row ss:StyleID="hdr">${sCS('MATERIAL','hdr')}${sCS('CANTIDAD','hdr')}${sCS('UNIDAD','hdr')}${sCS('BOLSAS 50kg','hdr')}</Row>`;
   for (const m of mats) {
     const isCem = m.name.toLowerCase().includes("cemento");
-    matRows += `<Row>${strCell(m.name)}${numCell(parseFloat(fmtD(m.qty, 3)))}${strCell(m.unit)}${isCem ? numCell(Math.ceil(m.qty / 50)) : '<Cell/>'}</Row>`;
+    matRows += `<Row>${sC(m.name)}${nC(parseFloat(fmtD(m.qty, 3)))}${sC(m.unit)}${isCem ? nC(Math.ceil(m.qty / 50)) : '<Cell/>'}</Row>`;
+  }
+
+  // ── Hoja 3: Costo por m² ──
+  let m2Rows = '';
+  if (p.m2Area && p.m2Area > 0) {
+    m2Rows = `<Row ss:StyleID="hdr">${sCS('CONCEPTO','hdr')}${sCS('VALOR','hdr')}</Row>`;
+    m2Rows += `<Row>${sC('Superficie (m²)')}${nC(p.m2Area)}</Row>`;
+    m2Rows += `<Row>${sC('Costo Total (₲)')}${nCS(Math.round(total),'curBold')}</Row>`;
+    m2Rows += `<Row ss:StyleID="accent">${sC('Costo por m² (₲)')}${nCS(Math.round(total / p.m2Area),'curBold')}</Row>`;
   }
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <?mso-application progid="Excel.Sheet"?>
 <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
  xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
- <Styles>
-  <Style ss:ID="Default"><Font ss:FontName="Arial" ss:Size="10"/></Style>
-  <Style ss:ID="header"><Font ss:FontName="Arial" ss:Size="10" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#1E293B" ss:Pattern="Solid"/></Style>
-  <Style ss:ID="accent"><Font ss:FontName="Arial" ss:Size="11" ss:Bold="1"/><Interior ss:Color="#F59E0B" ss:Pattern="Solid"/></Style>
-  <Style ss:ID="totalRow"><Font ss:FontName="Arial" ss:Size="10" ss:Bold="1"/><Interior ss:Color="#F1F5F9" ss:Pattern="Solid"/></Style>
-  <Style ss:ID="currency"><NumberFormat ss:Format="#,##0"/></Style>
- </Styles>
- <Worksheet ss:Name="Presupuesto">
-  <Table>${rows}</Table>
- </Worksheet>
- <Worksheet ss:Name="Computo Materiales">
-  <Table>${matRows}</Table>
- </Worksheet>
+<Styles>
+ <Style ss:ID="Default"><Font ss:FontName="Calibri" ss:Size="10"/></Style>
+ <Style ss:ID="hdr"><Font ss:FontName="Calibri" ss:Size="10" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#1E293B" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center"/></Style>
+ <Style ss:ID="accent"><Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1" ss:Color="#000000"/><Interior ss:Color="#F59E0B" ss:Pattern="Solid"/></Style>
+ <Style ss:ID="catRow"><Font ss:FontName="Calibri" ss:Size="10" ss:Bold="1"/><Interior ss:Color="#E2E8F0" ss:Pattern="Solid"/></Style>
+ <Style ss:ID="sumRow"><Font ss:FontName="Calibri" ss:Size="10" ss:Bold="1"/><Interior ss:Color="#F1F5F9" ss:Pattern="Solid"/></Style>
+ <Style ss:ID="cur"><NumberFormat ss:Format="#,##0"/></Style>
+ <Style ss:ID="curBold"><Font ss:FontName="Calibri" ss:Size="10" ss:Bold="1"/><NumberFormat ss:Format="#,##0"/></Style>
+</Styles>
+<Worksheet ss:Name="Presupuesto">
+ <Table>${rows}</Table>
+</Worksheet>
+<Worksheet ss:Name="Computo Materiales">
+ <Table>${matRows}</Table>
+</Worksheet>
+${p.m2Area > 0 ? `<Worksheet ss:Name="Costo x m2">
+ <Table>${m2Rows}</Table>
+</Worksheet>` : ''}
 </Workbook>`;
 
   const blob = new Blob([xml], { type: 'application/vnd.ms-excel' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  const safeClient = (p.client || p.name || 'Proyecto').replace(/\s+/g, '_');
+  const safe = (p.client || p.name || 'Proyecto').replace(/\s+/g, '_');
   a.href = url;
-  a.download = `Presupuesto_${String(state.budgetNum || 1).padStart(4, '0')}_${safeClient}.xlsx`;
+  a.download = `Presupuesto_${safe}_${formatDatePY(new Date()).replace(/\//g,'-')}.xlsx`;
   a.click();
   URL.revokeObjectURL(url);
-  toast("XLSX para Google Sheets exportado ✓");
+  toast("✓ Archivo .xlsx generado — Abrilo en Google Sheets o Excel");
   closeModal();
 }
 
@@ -1837,24 +1861,13 @@ function exportScheduleMSProject() {
 
   const schedules = p.execution.schedules || {};
   const projectStart = p.execution.projectStartDate || todayISO();
-  const esc = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const mspDate = d => { if (!d) return ''; return new Date(d).toISOString().replace(/\.\d{3}Z$/, ''); };
 
-  // Formatear fecha ISO a formato MS Project: YYYY-MM-DDTHH:MM:SS
-  const mspDate = d => {
-    if (!d) return '';
-    const dt = new Date(d);
-    return dt.toISOString().replace(/\.\d{3}Z$/, '');
-  };
-
-  // Calcular duración en horas (8h/día laboral)
   const calcDuration = (start, end) => {
     if (!start || !end) return 'PT8H0M0S';
-    const s = new Date(start), e = new Date(end);
-    let days = Math.max(1, Math.round((e - s) / 86400000) + 1);
-    // Descontar fines de semana (estimado)
-    const weeks = Math.floor(days / 7);
-    const weekendDays = weeks * 2;
-    days = days - weekendDays;
+    let days = Math.max(1, Math.round((new Date(end) - new Date(start)) / 86400000) + 1);
+    days = days - Math.floor(days / 7) * 2; // descontar fines de semana
     if (days < 1) days = 1;
     return `PT${days * 8}H0M0S`;
   };
@@ -1862,150 +1875,92 @@ function exportScheduleMSProject() {
   let tasks = '';
   let uid = 1;
 
-  // Tarea resumen del proyecto
-  tasks += `
-   <Task>
-    <UID>0</UID>
-    <ID>0</ID>
-    <Name>${esc(p.name)}</Name>
-    <Type>1</Type>
-    <IsNull>0</IsNull>
-    <OutlineLevel>0</OutlineLevel>
-    <Priority>500</Priority>
-    <Start>${mspDate(projectStart)}</Start>
-    <Duration>PT0H0M0S</Duration>
-    <Summary>1</Summary>
-   </Task>`;
+  // Tarea resumen (UID 0)
+  tasks += `<Task><UID>0</UID><ID>0</ID><Name>${esc(p.name)}</Name><Type>1</Type><OutlineLevel>0</OutlineLevel><Priority>500</Priority><Start>${mspDate(projectStart)}</Start><Summary>1</Summary></Task>`;
 
-  // Agrupar por categoría para estructura WBS
+  // Agrupar por categoría → WBS
   const cats = {};
-  adenda.items.forEach(item => {
-    if (!cats[item.cat]) cats[item.cat] = [];
-    cats[item.cat].push(item);
-  });
+  adenda.items.forEach(item => { if (!cats[item.cat]) cats[item.cat] = []; cats[item.cat].push(item); });
+
+  const taskUidMap = {}; // item.id → uid para asignaciones
 
   for (const [cat, items] of Object.entries(cats)) {
-    // Tarea padre = categoría (WBS summary)
-    tasks += `
-   <Task>
-    <UID>${uid}</UID>
-    <ID>${uid}</ID>
-    <Name>${esc(cat)}</Name>
-    <OutlineLevel>1</OutlineLevel>
-    <Summary>1</Summary>
-    <Type>1</Type>
-    <Priority>500</Priority>
-   </Task>`;
+    // Categoría = tarea resumen (OutlineLevel 1)
+    tasks += `<Task><UID>${uid}</UID><ID>${uid}</ID><Name>${esc(cat)}</Name><OutlineLevel>1</OutlineLevel><Summary>1</Summary><Type>1</Type><Priority>500</Priority></Task>`;
     uid++;
 
     for (const item of items) {
       const sch = schedules[item.id] || {};
       const start = sch.start || projectStart;
       const end = sch.end || start;
-      const pctComplete = sch.status === 'done' ? 100 : sch.status === 'progress' ? 50 : 0;
+      const pct = sch.status === 'done' ? 100 : sch.status === 'progress' ? 50 : 0;
       const con = sch.contractorId ? (state.contractors || []).find(c => c.id === sch.contractorId) : null;
 
-      tasks += `
-   <Task>
-    <UID>${uid}</UID>
-    <ID>${uid}</ID>
-    <Name>${esc(item.name)}</Name>
-    <OutlineLevel>2</OutlineLevel>
-    <Type>0</Type>
-    <IsNull>0</IsNull>
-    <Priority>500</Priority>
-    <Start>${mspDate(start)}</Start>
-    <Finish>${mspDate(end)}</Finish>
-    <Duration>${calcDuration(start, end)}</Duration>
-    <PercentComplete>${pctComplete}</PercentComplete>
-    <Notes>${esc(item.qty + ' ' + item.unit + (con ? ' — Contratista: ' + con.name : ''))}</Notes>
-    <Summary>0</Summary>
-    <FixedCost>${Math.round(effPrice(item) * item.qty)}</FixedCost>
-   </Task>`;
+      taskUidMap[item.id] = uid;
+      tasks += `<Task>
+ <UID>${uid}</UID><ID>${uid}</ID>
+ <Name>${esc(item.name)}</Name>
+ <OutlineLevel>2</OutlineLevel><Type>0</Type><Priority>500</Priority>
+ <Start>${mspDate(start)}</Start><Finish>${mspDate(end)}</Finish>
+ <Duration>${calcDuration(start, end)}</Duration>
+ <PercentComplete>${pct}</PercentComplete>
+ <FixedCost>${Math.round(effPrice(item) * item.qty)}</FixedCost>
+ <Notes>${esc(item.qty + ' ' + item.unit + (con ? ' | Contratista: ' + con.name : ''))}</Notes>
+ <Summary>0</Summary>
+</Task>`;
       uid++;
     }
   }
 
-  // Generar recursos (contratistas)
-  let resources = '';
-  let resUid = 1;
-  const contractorMap = {};
-  (state.contractors || []).forEach(c => {
-    if (!c.isBlacklisted) {
-      contractorMap[c.id] = resUid;
-      resources += `
-   <Resource>
-    <UID>${resUid}</UID>
-    <ID>${resUid}</ID>
-    <Name>${esc(c.name)}</Name>
-    <Type>1</Type>
-    <Initials>${esc(c.name.substring(0, 2).toUpperCase())}</Initials>
-    <Group>${esc(c.specialty || '')}</Group>
-   </Resource>`;
-      resUid++;
+  // Recursos = contratistas
+  let resources = '', resUid = 1;
+  const cMap = {};
+  (state.contractors || []).filter(c => !c.isBlacklisted).forEach(c => {
+    cMap[c.id] = resUid;
+    resources += `<Resource><UID>${resUid}</UID><ID>${resUid}</ID><Name>${esc(c.name)}</Name><Type>1</Type><Initials>${esc(c.name.substring(0,2).toUpperCase())}</Initials><Group>${esc(c.specialty || '')}</Group></Resource>`;
+    resUid++;
+  });
+
+  // Asignaciones tarea ↔ recurso
+  let assignments = '', assUid = 1;
+  adenda.items.forEach(item => {
+    const sch = schedules[item.id] || {};
+    if (sch.contractorId && cMap[sch.contractorId] && taskUidMap[item.id]) {
+      assignments += `<Assignment><UID>${assUid}</UID><TaskUID>${taskUidMap[item.id]}</TaskUID><ResourceUID>${cMap[sch.contractorId]}</ResourceUID><Units>1</Units></Assignment>`;
+      assUid++;
     }
   });
 
-  // Asignaciones
-  let assignments = '';
-  let assUid = 1;
-  uid = 2; // Reset para matching con tasks
-  for (const [cat, items] of Object.entries(cats)) {
-    uid++; // skip summary task
-    for (const item of items) {
-      const sch = schedules[item.id] || {};
-      if (sch.contractorId && contractorMap[sch.contractorId]) {
-        assignments += `
-   <Assignment>
-    <UID>${assUid}</UID>
-    <TaskUID>${uid - 1}</TaskUID>
-    <ResourceUID>${contractorMap[sch.contractorId]}</ResourceUID>
-    <Units>1</Units>
-   </Assignment>`;
-        assUid++;
-      }
-      uid++;
-    }
-  }
+  // Calendario laboral Paraguay (Lun-Sáb 07:00-16:00)
+  const wdXml = n => `<WeekDay><DayType>${n}</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>07:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime><WorkingTime><FromTime>13:00:00</FromTime><ToTime>16:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay>`;
 
   const xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Project xmlns="http://schemas.microsoft.com/project">
- <Name>${esc(p.name)}</Name>
- <Title>${esc(p.name)} — Cronograma de Ejecución</Title>
- <Company>${esc(state.profile?.company || 'Puntero')}</Company>
- <Author>${esc(state.profile?.name || '')}</Author>
- <CreationDate>${mspDate(new Date().toISOString())}</CreationDate>
- <StartDate>${mspDate(projectStart)}</StartDate>
- <CurrencySymbol>₲</CurrencySymbol>
- <CurrencyCode>PYG</CurrencyCode>
- <CalendarUID>1</CalendarUID>
- <DefaultStartTime>07:00:00</DefaultStartTime>
- <DefaultFinishTime>16:00:00</DefaultFinishTime>
- <MinutesPerDay>480</MinutesPerDay>
- <MinutesPerWeek>2400</MinutesPerWeek>
- <DaysPerMonth>22</DaysPerMonth>
- <Calendars>
-  <Calendar>
-   <UID>1</UID>
-   <Name>Estándar Paraguay</Name>
-   <IsBaseCalendar>1</IsBaseCalendar>
-   <WeekDays>
-    <WeekDay><DayType>1</DayType><DayWorking>0</DayWorking></WeekDay>
-    <WeekDay><DayType>2</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>07:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime><WorkingTime><FromTime>13:00:00</FromTime><ToTime>16:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay>
-    <WeekDay><DayType>3</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>07:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime><WorkingTime><FromTime>13:00:00</FromTime><ToTime>16:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay>
-    <WeekDay><DayType>4</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>07:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime><WorkingTime><FromTime>13:00:00</FromTime><ToTime>16:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay>
-    <WeekDay><DayType>5</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>07:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime><WorkingTime><FromTime>13:00:00</FromTime><ToTime>16:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay>
-    <WeekDay><DayType>6</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>07:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime><WorkingTime><FromTime>13:00:00</FromTime><ToTime>16:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay>
-    <WeekDay><DayType>7</DayType><DayWorking>0</DayWorking></WeekDay>
-   </WeekDays>
-  </Calendar>
- </Calendars>
- <Tasks>${tasks}
- </Tasks>
- <Resources>${resources}
- </Resources>
- <Assignments>${assignments}
- </Assignments>
+<Name>${esc(p.name)}</Name>
+<Title>${esc(p.name)} - Cronograma</Title>
+<Company>${esc((state.profile && state.profile.company) || 'Puntero')}</Company>
+<Author>${esc((state.profile && state.profile.name) || '')}</Author>
+<CreationDate>${mspDate(new Date().toISOString())}</CreationDate>
+<StartDate>${mspDate(projectStart)}</StartDate>
+<CurrencySymbol>Gs.</CurrencySymbol>
+<CurrencyCode>PYG</CurrencyCode>
+<CalendarUID>1</CalendarUID>
+<DefaultStartTime>07:00:00</DefaultStartTime>
+<DefaultFinishTime>16:00:00</DefaultFinishTime>
+<MinutesPerDay>480</MinutesPerDay>
+<MinutesPerWeek>2400</MinutesPerWeek>
+<DaysPerMonth>22</DaysPerMonth>
+<Calendars><Calendar>
+ <UID>1</UID><Name>Paraguay Construccion</Name><IsBaseCalendar>1</IsBaseCalendar>
+ <WeekDays>
+  <WeekDay><DayType>1</DayType><DayWorking>0</DayWorking></WeekDay>
+  ${wdXml(2)}${wdXml(3)}${wdXml(4)}${wdXml(5)}${wdXml(6)}
+  <WeekDay><DayType>7</DayType><DayWorking>0</DayWorking></WeekDay>
+ </WeekDays>
+</Calendar></Calendars>
+<Tasks>${tasks}</Tasks>
+<Resources>${resources}</Resources>
+<Assignments>${assignments}</Assignments>
 </Project>`;
 
   const blob = new Blob([xml], { type: 'application/xml' });
@@ -2015,7 +1970,7 @@ function exportScheduleMSProject() {
   a.download = `Cronograma_${(p.name || 'proyecto').replace(/\s+/g, '_')}.xml`;
   a.click();
   URL.revokeObjectURL(url);
-  toast("Cronograma MS Project exportado ✓");
+  toast("✓ Cronograma MS Project exportado");
   closeModal();
 }
 
@@ -2377,14 +2332,26 @@ function showModal(type, arg) {
   }
 
   if (type === "export") {
-    el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:520px">
+    el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:560px">
       <div class="modal-title">Exportar Presupuesto<button class="delbtn" onclick="closeModal()">✕</button></div>
       <div class="export-options" style="grid-template-columns:1fr 1fr 1fr">
-        <div class="export-card" onclick="exportXLS()"><div class="export-icon">📊</div><div class="export-name">Excel / CSV</div><div class="export-desc">Abre en Excel o LibreOffice</div></div>
-        <div class="export-card" onclick="exportToGoogleSheets()"><div class="export-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="3" y="2" width="18" height="20" rx="2" fill="#0F9D58"/><rect x="6" y="6" width="12" height="12" rx="1" fill="white"/><line x1="6" y1="10" x2="18" y2="10" stroke="#0F9D58" stroke-width="1"/><line x1="6" y1="14" x2="18" y2="14" stroke="#0F9D58" stroke-width="1"/><line x1="12" y1="6" x2="12" y2="18" stroke="#0F9D58" stroke-width="1"/></svg></div><div class="export-name">Google Sheets</div><div class="export-desc">Genera .xlsx listo para subir a Google Drive</div></div>
-        <div class="export-card" onclick="exportScheduleMSProject()"><div class="export-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="18" rx="2" fill="#217346"/><text x="12" y="15" text-anchor="middle" fill="white" font-size="8" font-weight="bold">MPP</text></svg></div><div class="export-name">MS Project</div><div class="export-desc">Cronograma en formato XML de Microsoft Project</div></div>
+        <div class="export-card" onclick="exportXLS()">
+          <div class="export-icon">📊</div>
+          <div class="export-name">Excel / CSV</div>
+          <div class="export-desc">Abre en Excel o LibreOffice</div>
+        </div>
+        <div class="export-card" onclick="exportToGoogleSheets()">
+          <div class="export-icon" style="line-height:1"><svg width="28" height="28" viewBox="0 0 24 24" fill="none"><rect x="3" y="2" width="18" height="20" rx="2" fill="#0F9D58"/><rect x="6" y="6" width="12" height="12" rx="1" fill="white"/><line x1="6" y1="10" x2="18" y2="10" stroke="#0F9D58" stroke-width="1.2"/><line x1="6" y1="14" x2="18" y2="14" stroke="#0F9D58" stroke-width="1.2"/><line x1="12" y1="6" x2="12" y2="18" stroke="#0F9D58" stroke-width="1.2"/></svg></div>
+          <div class="export-name">Google Sheets</div>
+          <div class="export-desc">Archivo .xlsx con 2 hojas formateadas</div>
+        </div>
+        <div class="export-card" onclick="exportScheduleMSProject()">
+          <div class="export-icon" style="line-height:1"><svg width="28" height="28" viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="18" rx="2" fill="#217346"/><text x="12" y="15.5" text-anchor="middle" fill="white" font-size="7" font-weight="bold" font-family="Arial">MPP</text></svg></div>
+          <div class="export-name">MS Project</div>
+          <div class="export-desc">Cronograma en XML de Microsoft Project</div>
+        </div>
       </div>
-      <p style="font-size:.85rem;color:var(--tx3);text-align:center;font-style:italic;margin-top:8px">CSV/XLSX incluyen presupuesto completo. MS Project exporta solo el cronograma.</p>
+      <p style="font-size:.82rem;color:var(--tx3);text-align:center;font-style:italic;margin-top:6px">CSV/XLSX = presupuesto completo · MS Project = solo cronograma con WBS y recursos</p>
       <div class="modal-acts"><button class="btn" onclick="closeModal()">Cerrar</button></div>
     </div></div>`;
   }

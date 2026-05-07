@@ -99,7 +99,7 @@ function renderSchedule() {
     h += `</div>
         <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap">
             <button class="btn sm" onclick="exportSchedulePDF()">📄 Exportar PDF</button>
-            <button class="btn sm" onclick="exportScheduleMSProject()">📋 Exportar MS Project</button>
+            <button class="btn sm" onclick="exportScheduleMSProject()" style="background:rgba(33,115,70,.12);border-color:rgba(33,115,70,.35);color:#217346">📋 Exportar MS Project</button>
             <button class="btn sm" onclick="syncScheduleWithBudget()">🔄 Sincronizar Items</button>
         </div>
     </div>`;
