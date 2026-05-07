@@ -188,7 +188,7 @@ let state = {
   projectName: "Nuevo Proyecto", clientName: "", clientPhone: "", clientAddress: "",
   profitPct: 0, validDays: 30, budgetNum: 1, notes: "", pdfShowBreakdown: false,
   priceEditMode: "total", editPriceKey: null, editField: "total", activeBudgetId: null,
-  theme: "dark",
+  theme: "slate",
   ivaEnabled: false, ivaEnPDF: false,
   adjustPct: 0,
   profile: { company: "", professional: "", matricula: "", ruc: "", phone: "", email: "", address: "", instagram: "", whatsapp: "", website: "" },
@@ -1592,8 +1592,8 @@ function applyGlobalAdjust() {
 
 // ── THEMES SECTION ────────────────────────────────────────────────────
 const THEMES = [
-  { id: "dark", name: "Precision Construct", desc: "Navy oscuro + verde", prev: { bg: "#051426", sur: "#122033", acc: "#4ae176", row: "#1c2b3e" } },
-  { id: "light", name: "Precision Light", desc: "Claro profesional", prev: { bg: "#f0f4f8", sur: "#ffffff", acc: "#00b954", row: "#f8fafc" } },
+  { id: "dark", name: "Constructor Dark", desc: "Oscuro ámbar", prev: { bg: "#0f1117", sur: "#181c26", acc: "#f59e0b", row: "#1e2330" } },
+  { id: "light", name: "Obra de Día", desc: "Claro terracota", prev: { bg: "#f4f1eb", sur: "#ffffff", acc: "#c2410c", row: "#f9f7f3" } },
   { id: "blueprint", name: "Plano Técnico", desc: "Azul blueprint", prev: { bg: "#071525", sur: "#0c1f35", acc: "#38bdf8", row: "#102846" } },
   { id: "elegant", name: "Estudio Elegante", desc: "Beige y dorado", prev: { bg: "#faf8f5", sur: "#ffffff", acc: "#8b6914", row: "#f5f2ed" } },
   { id: "neon", name: "Noche Neón", desc: "Dark ultravioleta", prev: { bg: "#050508", sur: "#0d0d14", acc: "#a855f7", row: "#12121c" } },
@@ -1722,6 +1722,301 @@ function exportXLS() {
   a.href = url; a.download = `Presupuesto_${String(state.budgetNum || 1).padStart(4, "0")}_${safeClient}.csv`;
   a.click(); URL.revokeObjectURL(url);
   toast("Archivo exportado ✓"); closeModal();
+}
+
+// ── EXPORT GOOGLE SHEETS (XLSX) ──────────────────────────────────────
+function exportToGoogleSheets() {
+  const p = getActiveProject();
+  const adenda = getActiveAdenda();
+  if (!p || !adenda) return toast("Sin proyecto activo", false);
+
+  toast("Generando archivo para Google Sheets...");
+
+  const { totalMats, totalLabor, subtotal, ivaMat, ivaLab, ivaTotal, profitAmt, total } = getTotals();
+  const grouped = getGrouped();
+  const ivaOn = adenda.ivaEnabled;
+
+  // Construir XML Spreadsheet 2003 (abre nativo en Google Sheets y Excel)
+  const esc = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const numCell = v => `<Cell><Data ss:Type="Number">${v}</Data></Cell>`;
+  const strCell = v => `<Cell><Data ss:Type="String">${esc(v)}</Data></Cell>`;
+  const boldStyle = 'ss:StyleID="header"';
+  const accentStyle = 'ss:StyleID="accent"';
+  const totalStyle = 'ss:StyleID="totalRow"';
+  const currStyle = 'ss:StyleID="currency"';
+
+  let rows = '';
+
+  // Header del presupuesto
+  rows += `<Row ${accentStyle}>${strCell('PRESUPUESTO')}${strCell(adenda.name)}</Row>`;
+  rows += `<Row>${strCell('Proyecto')}${strCell(p.name)}</Row>`;
+  rows += `<Row>${strCell('Cliente')}${strCell(p.client || '-')}</Row>`;
+  rows += `<Row>${strCell('Dirección')}${strCell(p.address || '-')}</Row>`;
+  rows += `<Row>${strCell('Fecha')}${strCell(formatDatePY(new Date()))}</Row>`;
+  rows += `<Row></Row>`;
+
+  // Encabezados de tabla
+  let hdrCells = `${strCell('CATEGORÍA')}${strCell('DESCRIPCIÓN')}${strCell('UNIDAD')}${strCell('CANTIDAD')}${strCell('DESC.%')}${strCell('MATERIALES (₲)')}${strCell('MANO DE OBRA (₲)')}${strCell('P. UNITARIO (₲)')}`;
+  if (ivaOn) hdrCells += `${strCell('IVA Mat (₲)')}${strCell('IVA MO (₲)')}${strCell('IVA Total (₲)')}`;
+  hdrCells += `${strCell('TOTAL (₲)')}${strCell('NOTA INTERNA')}`;
+  rows += `<Row ${boldStyle}>${hdrCells}</Row>`;
+
+  // Items agrupados
+  for (const [cat, items] of Object.entries(grouped)) {
+    for (const item of items) {
+      const ep = effPrice(item);
+      const { ivaMat: im, ivaLab: il, ivaTotal: it } = calcIVA(item.matCost, item.laborCost, item.qty);
+      const totalItem = ep * item.qty + it;
+      let cells = `${strCell(cat)}${strCell(item.name)}${strCell(item.unit)}${numCell(item.qty)}${numCell(item.disc || 0)}${numCell(Math.round(item.matCost))}${numCell(Math.round(item.laborCost))}${numCell(Math.round(ep))}`;
+      if (ivaOn) cells += `${numCell(Math.round(im))}${numCell(Math.round(il))}${numCell(Math.round(it))}`;
+      cells += `${numCell(Math.round(totalItem))}${strCell(item.note || '')}`;
+      rows += `<Row>${cells}</Row>`;
+    }
+  }
+
+  // Resumen
+  rows += `<Row></Row>`;
+  const rCol = ivaOn ? 11 : 8;
+  rows += `<Row ${totalStyle}>${strCell('Materiales')}${'<Cell/>'.repeat(rCol - 2)}${numCell(Math.round(totalMats))}</Row>`;
+  rows += `<Row ${totalStyle}>${strCell('Mano de Obra')}${'<Cell/>'.repeat(rCol - 2)}${numCell(Math.round(totalLabor))}</Row>`;
+  rows += `<Row ${totalStyle}>${strCell('Costo Directo')}${'<Cell/>'.repeat(rCol - 2)}${numCell(Math.round(subtotal))}</Row>`;
+  if (ivaOn) {
+    rows += `<Row>${strCell('IVA Materiales (10%)')}${'<Cell/>'.repeat(rCol - 2)}${numCell(Math.round(ivaMat))}</Row>`;
+    rows += `<Row>${strCell('IVA Mano de Obra (5%)')}${'<Cell/>'.repeat(rCol - 2)}${numCell(Math.round(ivaLab))}</Row>`;
+    rows += `<Row>${strCell('Total IVA')}${'<Cell/>'.repeat(rCol - 2)}${numCell(Math.round(ivaTotal))}</Row>`;
+  }
+  if ((adenda.profitPct || 0) > 0) {
+    rows += `<Row>${strCell('Honorarios (' + adenda.profitPct + '%)')}${'<Cell/>'.repeat(rCol - 2)}${numCell(Math.round(profitAmt))}</Row>`;
+  }
+  rows += `<Row ${accentStyle}>${strCell('TOTAL' + (ivaOn ? ' (IVA incluido)' : ''))}${'<Cell/>'.repeat(rCol - 2)}${numCell(Math.round(total))}</Row>`;
+
+  // Cómputo de materiales en hoja 2
+  const mats = calcMaterials();
+  let matRows = `<Row ${boldStyle}>${strCell('MATERIAL')}${strCell('CANTIDAD')}${strCell('UNIDAD')}${strCell('BOLSAS 50kg')}</Row>`;
+  for (const m of mats) {
+    const isCem = m.name.toLowerCase().includes("cemento");
+    matRows += `<Row>${strCell(m.name)}${numCell(parseFloat(fmtD(m.qty, 3)))}${strCell(m.unit)}${isCem ? numCell(Math.ceil(m.qty / 50)) : '<Cell/>'}</Row>`;
+  }
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+ <Styles>
+  <Style ss:ID="Default"><Font ss:FontName="Arial" ss:Size="10"/></Style>
+  <Style ss:ID="header"><Font ss:FontName="Arial" ss:Size="10" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#1E293B" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="accent"><Font ss:FontName="Arial" ss:Size="11" ss:Bold="1"/><Interior ss:Color="#F59E0B" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="totalRow"><Font ss:FontName="Arial" ss:Size="10" ss:Bold="1"/><Interior ss:Color="#F1F5F9" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="currency"><NumberFormat ss:Format="#,##0"/></Style>
+ </Styles>
+ <Worksheet ss:Name="Presupuesto">
+  <Table>${rows}</Table>
+ </Worksheet>
+ <Worksheet ss:Name="Computo Materiales">
+  <Table>${matRows}</Table>
+ </Worksheet>
+</Workbook>`;
+
+  const blob = new Blob([xml], { type: 'application/vnd.ms-excel' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const safeClient = (p.client || p.name || 'Proyecto').replace(/\s+/g, '_');
+  a.href = url;
+  a.download = `Presupuesto_${String(state.budgetNum || 1).padStart(4, '0')}_${safeClient}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast("XLSX para Google Sheets exportado ✓");
+  closeModal();
+}
+
+// ── EXPORT MS PROJECT (XML) ─────────────────────────────────────────
+function exportScheduleMSProject() {
+  const p = getActiveProject();
+  const adenda = getActiveAdenda();
+  if (!p || !adenda) return toast("Sin proyecto activo", false);
+
+  const schedules = p.execution.schedules || {};
+  const projectStart = p.execution.projectStartDate || todayISO();
+  const esc = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  // Formatear fecha ISO a formato MS Project: YYYY-MM-DDTHH:MM:SS
+  const mspDate = d => {
+    if (!d) return '';
+    const dt = new Date(d);
+    return dt.toISOString().replace(/\.\d{3}Z$/, '');
+  };
+
+  // Calcular duración en horas (8h/día laboral)
+  const calcDuration = (start, end) => {
+    if (!start || !end) return 'PT8H0M0S';
+    const s = new Date(start), e = new Date(end);
+    let days = Math.max(1, Math.round((e - s) / 86400000) + 1);
+    // Descontar fines de semana (estimado)
+    const weeks = Math.floor(days / 7);
+    const weekendDays = weeks * 2;
+    days = days - weekendDays;
+    if (days < 1) days = 1;
+    return `PT${days * 8}H0M0S`;
+  };
+
+  let tasks = '';
+  let uid = 1;
+
+  // Tarea resumen del proyecto
+  tasks += `
+   <Task>
+    <UID>0</UID>
+    <ID>0</ID>
+    <Name>${esc(p.name)}</Name>
+    <Type>1</Type>
+    <IsNull>0</IsNull>
+    <OutlineLevel>0</OutlineLevel>
+    <Priority>500</Priority>
+    <Start>${mspDate(projectStart)}</Start>
+    <Duration>PT0H0M0S</Duration>
+    <Summary>1</Summary>
+   </Task>`;
+
+  // Agrupar por categoría para estructura WBS
+  const cats = {};
+  adenda.items.forEach(item => {
+    if (!cats[item.cat]) cats[item.cat] = [];
+    cats[item.cat].push(item);
+  });
+
+  for (const [cat, items] of Object.entries(cats)) {
+    // Tarea padre = categoría (WBS summary)
+    tasks += `
+   <Task>
+    <UID>${uid}</UID>
+    <ID>${uid}</ID>
+    <Name>${esc(cat)}</Name>
+    <OutlineLevel>1</OutlineLevel>
+    <Summary>1</Summary>
+    <Type>1</Type>
+    <Priority>500</Priority>
+   </Task>`;
+    uid++;
+
+    for (const item of items) {
+      const sch = schedules[item.id] || {};
+      const start = sch.start || projectStart;
+      const end = sch.end || start;
+      const pctComplete = sch.status === 'done' ? 100 : sch.status === 'progress' ? 50 : 0;
+      const con = sch.contractorId ? (state.contractors || []).find(c => c.id === sch.contractorId) : null;
+
+      tasks += `
+   <Task>
+    <UID>${uid}</UID>
+    <ID>${uid}</ID>
+    <Name>${esc(item.name)}</Name>
+    <OutlineLevel>2</OutlineLevel>
+    <Type>0</Type>
+    <IsNull>0</IsNull>
+    <Priority>500</Priority>
+    <Start>${mspDate(start)}</Start>
+    <Finish>${mspDate(end)}</Finish>
+    <Duration>${calcDuration(start, end)}</Duration>
+    <PercentComplete>${pctComplete}</PercentComplete>
+    <Notes>${esc(item.qty + ' ' + item.unit + (con ? ' — Contratista: ' + con.name : ''))}</Notes>
+    <Summary>0</Summary>
+    <FixedCost>${Math.round(effPrice(item) * item.qty)}</FixedCost>
+   </Task>`;
+      uid++;
+    }
+  }
+
+  // Generar recursos (contratistas)
+  let resources = '';
+  let resUid = 1;
+  const contractorMap = {};
+  (state.contractors || []).forEach(c => {
+    if (!c.isBlacklisted) {
+      contractorMap[c.id] = resUid;
+      resources += `
+   <Resource>
+    <UID>${resUid}</UID>
+    <ID>${resUid}</ID>
+    <Name>${esc(c.name)}</Name>
+    <Type>1</Type>
+    <Initials>${esc(c.name.substring(0, 2).toUpperCase())}</Initials>
+    <Group>${esc(c.specialty || '')}</Group>
+   </Resource>`;
+      resUid++;
+    }
+  });
+
+  // Asignaciones
+  let assignments = '';
+  let assUid = 1;
+  uid = 2; // Reset para matching con tasks
+  for (const [cat, items] of Object.entries(cats)) {
+    uid++; // skip summary task
+    for (const item of items) {
+      const sch = schedules[item.id] || {};
+      if (sch.contractorId && contractorMap[sch.contractorId]) {
+        assignments += `
+   <Assignment>
+    <UID>${assUid}</UID>
+    <TaskUID>${uid - 1}</TaskUID>
+    <ResourceUID>${contractorMap[sch.contractorId]}</ResourceUID>
+    <Units>1</Units>
+   </Assignment>`;
+        assUid++;
+      }
+      uid++;
+    }
+  }
+
+  const xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Project xmlns="http://schemas.microsoft.com/project">
+ <Name>${esc(p.name)}</Name>
+ <Title>${esc(p.name)} — Cronograma de Ejecución</Title>
+ <Company>${esc(state.profile?.company || 'Puntero')}</Company>
+ <Author>${esc(state.profile?.name || '')}</Author>
+ <CreationDate>${mspDate(new Date().toISOString())}</CreationDate>
+ <StartDate>${mspDate(projectStart)}</StartDate>
+ <CurrencySymbol>₲</CurrencySymbol>
+ <CurrencyCode>PYG</CurrencyCode>
+ <CalendarUID>1</CalendarUID>
+ <DefaultStartTime>07:00:00</DefaultStartTime>
+ <DefaultFinishTime>16:00:00</DefaultFinishTime>
+ <MinutesPerDay>480</MinutesPerDay>
+ <MinutesPerWeek>2400</MinutesPerWeek>
+ <DaysPerMonth>22</DaysPerMonth>
+ <Calendars>
+  <Calendar>
+   <UID>1</UID>
+   <Name>Estándar Paraguay</Name>
+   <IsBaseCalendar>1</IsBaseCalendar>
+   <WeekDays>
+    <WeekDay><DayType>1</DayType><DayWorking>0</DayWorking></WeekDay>
+    <WeekDay><DayType>2</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>07:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime><WorkingTime><FromTime>13:00:00</FromTime><ToTime>16:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay>
+    <WeekDay><DayType>3</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>07:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime><WorkingTime><FromTime>13:00:00</FromTime><ToTime>16:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay>
+    <WeekDay><DayType>4</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>07:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime><WorkingTime><FromTime>13:00:00</FromTime><ToTime>16:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay>
+    <WeekDay><DayType>5</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>07:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime><WorkingTime><FromTime>13:00:00</FromTime><ToTime>16:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay>
+    <WeekDay><DayType>6</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>07:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime><WorkingTime><FromTime>13:00:00</FromTime><ToTime>16:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay>
+    <WeekDay><DayType>7</DayType><DayWorking>0</DayWorking></WeekDay>
+   </WeekDays>
+  </Calendar>
+ </Calendars>
+ <Tasks>${tasks}
+ </Tasks>
+ <Resources>${resources}
+ </Resources>
+ <Assignments>${assignments}
+ </Assignments>
+</Project>`;
+
+  const blob = new Blob([xml], { type: 'application/xml' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Cronograma_${(p.name || 'proyecto').replace(/\s+/g, '_')}.xml`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast("Cronograma MS Project exportado ✓");
+  closeModal();
 }
 
 // ── PDF ────────────────────────────────────────────────────────────────
@@ -2084,12 +2379,13 @@ function showModal(type, arg) {
   if (type === "export") {
     el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:520px">
       <div class="modal-title">Exportar Presupuesto<button class="delbtn" onclick="closeModal()">✕</button></div>
-      <div class="export-options">
-        <div class="export-card" onclick="exportXLS()"><div class="export-icon"><span class="material-symbols-outlined" style="font-size:2rem;color:var(--ok)">table_chart</span></div><div class="export-name">Excel / CSV</div><div class="export-desc">Descarga CSV para Excel o LibreOffice</div></div>
-        <div class="export-card" onclick="exportBudgetGSheets()"><div class="export-icon"><span class="material-symbols-outlined" style="font-size:2rem;color:#34a853">cloud_upload</span></div><div class="export-name">Google Sheets</div><div class="export-desc">Descarga CSV + abre Sheets nueva para importar</div></div>
+      <div class="export-options" style="grid-template-columns:1fr 1fr 1fr">
+        <div class="export-card" onclick="exportXLS()"><div class="export-icon">📊</div><div class="export-name">Excel / CSV</div><div class="export-desc">Abre en Excel o LibreOffice</div></div>
+        <div class="export-card" onclick="exportToGoogleSheets()"><div class="export-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="3" y="2" width="18" height="20" rx="2" fill="#0F9D58"/><rect x="6" y="6" width="12" height="12" rx="1" fill="white"/><line x1="6" y1="10" x2="18" y2="10" stroke="#0F9D58" stroke-width="1"/><line x1="6" y1="14" x2="18" y2="14" stroke="#0F9D58" stroke-width="1"/><line x1="12" y1="6" x2="12" y2="18" stroke="#0F9D58" stroke-width="1"/></svg></div><div class="export-name">Google Sheets</div><div class="export-desc">Genera .xlsx listo para subir a Google Drive</div></div>
+        <div class="export-card" onclick="exportScheduleMSProject()"><div class="export-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="18" rx="2" fill="#217346"/><text x="12" y="15" text-anchor="middle" fill="white" font-size="8" font-weight="bold">MPP</text></svg></div><div class="export-name">MS Project</div><div class="export-desc">Cronograma en formato XML de Microsoft Project</div></div>
       </div>
-      <p style="font-size:.85rem;color:var(--tx3);text-align:center;font-style:italic;margin-top:8px">Incluye ítems, desglose mat/MO, subtotales por categoría, cómputo de materiales y notas.</p>
-      <div class="modal-acts"><button class="btn" onclick="closeModal()">Cancelar</button></div>
+      <p style="font-size:.85rem;color:var(--tx3);text-align:center;font-style:italic;margin-top:8px">CSV/XLSX incluyen presupuesto completo. MS Project exporta solo el cronograma.</p>
+      <div class="modal-acts"><button class="btn" onclick="closeModal()">Cerrar</button></div>
     </div></div>`;
   }
 
@@ -2766,169 +3062,3 @@ window.onload = () => {
   updateBadge();
   checkBackupReminder();
 };
-
-// ═════════════════════════════════════════════════════════════════════════
-// GOOGLE SHEETS EXPORT — Presupuesto y Cronograma
-// ═════════════════════════════════════════════════════════════════════════
-// Genera CSV descargable + abre Google Sheets con instrucciones de 1 clic.
-// No requiere API key ni OAuth — usa la función nativa de importar CSV.
-
-/**
- * Genera el CSV del presupuesto y lo sube a Google Sheets via importación.
- * Flujo: descarga CSV → abre sheet nueva → usuario importa con 1 clic.
- */
-function exportBudgetGSheets() {
-  const p = getActiveProject();
-  const adenda = getActiveAdenda();
-  if (!p || !adenda) return toast("No hay proyecto activo");
-  
-  const { totalMats, totalLabor, subtotal, ivaMat, ivaLab, ivaTotal, profitAmt, total } = getTotals();
-  const grouped = getGrouped();
-  const nl = "\r\n", q = v => `"${String(v).replace(/"/g, '""')}"`;
-  
-  // ── Construir CSV con formato optimizado para Sheets ──
-  let csv = "\uFEFF"; // BOM para UTF-8
-  csv += q("PRESUPUESTO — " + (adenda.name || "Principal")) + nl;
-  csv += q("Proyecto") + "," + q(p.name) + nl;
-  csv += q("Cliente") + "," + q(p.client || "-") + nl;
-  csv += q("Dirección") + "," + q(p.address || "-") + nl;
-  csv += q("Fecha") + "," + q(formatDatePY(new Date())) + nl;
-  csv += q("Moneda") + "," + q(state.currency === "USD" ? "USD (1 USD = ₲" + state.exchangeRate + ")" : "Guaraníes (₲)") + nl;
-  csv += nl;
-  
-  // Headers
-  const ivaH = adenda.ivaEnabled ? "," + q("IVA (₲)") : "";
-  csv += q("CATEGORÍA") + "," + q("DESCRIPCIÓN") + "," + q("UND") + "," + q("CANT") + "," + q("DESC.%") + "," + q("MAT (₲)") + "," + q("MO (₲)") + "," + q("P.UNIT (₲)") + ivaH + "," + q("TOTAL (₲)") + "," + q("NOTA") + nl;
-  
-  // Ítems por categoría con subtotales
-  for (const [cat, ci] of Object.entries(grouped)) {
-    csv += q("▸ " + cat) + nl;
-    let catTotal = 0;
-    for (const item of ci) {
-      const ep = effPrice(item);
-      const { ivaTotal: ivIt } = calcIVA(item.matCost, item.laborCost, item.qty);
-      const totalItem = ep * item.qty + ivIt;
-      catTotal += totalItem;
-      const ivaCol = adenda.ivaEnabled ? "," + q(Math.round(ivIt)) : "";
-      csv += q("") + "," + q(item.name) + "," + q(item.unit) + "," + q(item.qty) + "," + q(item.disc || 0) + "," + q(Math.round(item.matCost)) + "," + q(Math.round(item.laborCost)) + "," + q(Math.round(ep)) + ivaCol + "," + q(Math.round(totalItem)) + "," + q(item.note || "") + nl;
-    }
-    const ivaBlank = adenda.ivaEnabled ? "," : "";
-    csv += q("") + "," + q("SUBTOTAL " + cat) + ",,,,,," + ivaBlank + "," + q(Math.round(catTotal)) + nl;
-  }
-  
-  // Resumen
-  csv += nl;
-  csv += q("RESUMEN GENERAL") + nl;
-  csv += q("Materiales") + "," + q(Math.round(totalMats)) + nl;
-  csv += q("Mano de Obra") + "," + q(Math.round(totalLabor)) + nl;
-  csv += q("Costo Directo") + "," + q(Math.round(subtotal)) + nl;
-  if (adenda.ivaEnabled) {
-    csv += q("IVA Materiales (10%)") + "," + q(Math.round(ivaMat)) + nl;
-    csv += q("IVA Mano de Obra (5%)") + "," + q(Math.round(ivaLab)) + nl;
-    csv += q("Total IVA") + "," + q(Math.round(ivaTotal)) + nl;
-  }
-  if ((adenda.profitPct || 0) > 0) csv += q("Honorarios (" + adenda.profitPct + "%)") + "," + q(Math.round(profitAmt)) + nl;
-  csv += q("TOTAL FINAL") + "," + q(Math.round(total)) + nl;
-  
-  // Cómputo de materiales
-  const mats = calcMaterials();
-  if (mats.length > 0) {
-    csv += nl + q("CÓMPUTO DE MATERIALES") + nl;
-    csv += q("MATERIAL") + "," + q("CANTIDAD") + "," + q("UNIDAD") + "," + q("BOLSAS") + nl;
-    for (const m of mats) {
-      const isCem = m.name.toLowerCase().includes("cemento");
-      csv += q(m.name) + "," + q(fmtD(m.qty, 3)) + "," + q(m.unit) + "," + q(isCem ? Math.ceil(m.qty / 50) : "") + nl;
-    }
-  }
-  
-  // Descargar CSV
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  const safeName = (p.client || p.name || "Proyecto").replace(/\s+/g, "_");
-  const fileName = `Presupuesto_${safeName}_${formatDatePY(new Date()).replace(/\//g, "-")}.csv`;
-  a.href = url; a.download = fileName;
-  a.click(); URL.revokeObjectURL(url);
-  
-  // Abrir Google Sheets nueva con instrucciones
-  setTimeout(() => {
-    window.open("https://sheets.new", "_blank");
-    toast("CSV descargado ✓ — En Google Sheets: Archivo → Importar → Subir → seleccioná el CSV");
-  }, 500);
-  closeModal();
-}
-
-/**
- * Exporta el cronograma a Google Sheets.
- */
-function exportScheduleGSheets() {
-  const p = getActiveProject();
-  const adenda = getActiveAdenda();
-  if (!p || !adenda) return toast("No hay proyecto activo");
-  
-  const schedules = p.execution?.schedules || {};
-  const nl = "\r\n", q = v => `"${String(v).replace(/"/g, '""')}"`;
-  
-  let csv = "\uFEFF";
-  csv += q("CRONOGRAMA DE EJECUCIÓN") + nl;
-  csv += q("Proyecto") + "," + q(p.name) + nl;
-  if (p.execution?.projectStartDate) csv += q("Inicio de Obra") + "," + q(formatDatePY(p.execution.projectStartDate)) + nl;
-  csv += q("Exportado") + "," + q(formatDatePY(new Date())) + nl;
-  csv += nl;
-  
-  // Progreso global
-  if (typeof calcOverallProgress === "function") {
-    const { totalProgress } = calcOverallProgress();
-    csv += q("Progreso Global") + "," + q(totalProgress + "%") + nl;
-    csv += nl;
-  }
-  
-  // Headers
-  csv += q("RUBRO") + "," + q("CATEGORÍA") + "," + q("CANTIDAD") + "," + q("UNIDAD") + "," + q("ESTADO") + "," + q("INICIO") + "," + q("FIN") + "," + q("CONTRATISTA") + "," + q("DÍAS") + nl;
-  
-  for (const item of adenda.items) {
-    const sch = schedules[item.id] || {};
-    const cat = item.cat || "";
-    const statusMap = { done: "Completado", progress: "En curso", blocked: "Bloqueado", pending: "Pendiente" };
-    const status = statusMap[sch.status] || "Pendiente";
-    const con = sch.contractorId ? (state.contractors || []).find(c => c.id === sch.contractorId) : null;
-    
-    // Calcular duración en días
-    let dias = "";
-    if (sch.start && sch.end) {
-      const d1 = new Date(sch.start), d2 = new Date(sch.end);
-      dias = Math.ceil((d2 - d1) / (1000 * 60 * 60 * 24));
-      if (dias < 0) dias = 0;
-    }
-    
-    csv += q(item.name) + "," + q(cat) + "," + q(item.qty) + "," + q(item.unit) + "," + q(status) + "," + q(sch.start ? formatDatePY(sch.start) : "-") + "," + q(sch.end ? formatDatePY(sch.end) : "-") + "," + q(con ? con.name : "-") + "," + q(dias) + nl;
-  }
-  
-  // Resumen por estado
-  csv += nl + q("RESUMEN POR ESTADO") + nl;
-  const estados = {};
-  for (const item of adenda.items) {
-    const sch = schedules[item.id] || {};
-    const st = sch.status || "pending";
-    estados[st] = (estados[st] || 0) + 1;
-  }
-  const statusNames = { done: "Completados", progress: "En curso", blocked: "Bloqueados", pending: "Pendientes" };
-  for (const [st, count] of Object.entries(estados)) {
-    csv += q(statusNames[st] || st) + "," + q(count) + nl;
-  }
-  csv += q("Total Rubros") + "," + q(adenda.items.length) + nl;
-  
-  // Descargar
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  const safeName = (p.name || "Cronograma").replace(/\s+/g, "_");
-  const fileName = `Cronograma_${safeName}_${formatDatePY(new Date()).replace(/\//g, "-")}.csv`;
-  a.href = url; a.download = fileName;
-  a.click(); URL.revokeObjectURL(url);
-  
-  setTimeout(() => {
-    window.open("https://sheets.new", "_blank");
-    toast("CSV descargado ✓ — En Google Sheets: Archivo → Importar → Subir");
-  }, 500);
-}
