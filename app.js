@@ -1729,6 +1729,7 @@ function exportToGoogleSheets() {
   const p = getActiveProject();
   const adenda = getActiveAdenda();
   if (!p || !adenda) return toast("Sin proyecto activo", false);
+  if (!adenda.items.length) return toast("El presupuesto está vacío", false);
 
   toast("Generando archivo Google Sheets...");
 
@@ -1744,7 +1745,7 @@ function exportToGoogleSheets() {
 
   let rows = '';
 
-  // ── Header info ──
+  // Header del presupuesto
   rows += `<Row ss:StyleID="accent">${sC('PRESUPUESTO DE OBRA')}${sC(adenda.name)}</Row>`;
   rows += `<Row>${sC('Proyecto')}${sC(p.name)}</Row>`;
   rows += `<Row>${sC('Cliente')}${sC(p.client || '-')}</Row>`;
@@ -1753,16 +1754,15 @@ function exportToGoogleSheets() {
   rows += `<Row>${sC('Fecha')}${sC(formatDatePY(new Date()))}</Row>`;
   rows += `<Row></Row>`;
 
-  // ── Encabezados de columna ──
-  let hdr = `${sCS('CATEGORÍA','hdr')}${sCS('DESCRIPCIÓN','hdr')}${sCS('UNIDAD','hdr')}${sCS('CANTIDAD','hdr')}${sCS('DESC.%','hdr')}${sCS('MAT (₲)','hdr')}${sCS('MO (₲)','hdr')}${sCS('P.UNIT (₲)','hdr')}`;
+  // Encabezados de columna
+  let hdr = `${sCS('CATEGORÍA','hdr')}${sCS('DESCRIPCIÓN','hdr')}${sCS('UNIDAD','hdr')}${sCS('CANTIDAD','hdr')}${sCS('DESC.%','hdr')}${sCS('MAT (Gs.)','hdr')}${sCS('MO (Gs.)','hdr')}${sCS('P.UNIT (Gs.)','hdr')}`;
   if (ivaOn) hdr += `${sCS('IVA Mat','hdr')}${sCS('IVA MO','hdr')}${sCS('IVA Total','hdr')}`;
-  hdr += `${sCS('TOTAL (₲)','hdr')}${sCS('NOTA','hdr')}`;
+  hdr += `${sCS('TOTAL (Gs.)','hdr')}${sCS('NOTA','hdr')}`;
   rows += `<Row>${hdr}</Row>`;
 
-  // ── Items por categoría ──
+  // Items agrupados por categoría
   let lastCat = '';
   for (const [cat, items] of Object.entries(grouped)) {
-    // Fila separadora de categoría
     if (cat !== lastCat) {
       rows += `<Row ss:StyleID="catRow">${sC(cat)}</Row>`;
       lastCat = cat;
@@ -1773,72 +1773,66 @@ function exportToGoogleSheets() {
       const totalItem = ep * item.qty + it;
       let cells = `${sC(cat)}${sC(item.name)}${sC(item.unit)}${nC(item.qty)}${nC(item.disc || 0)}${nCS(Math.round(item.matCost),'cur')}${nCS(Math.round(item.laborCost),'cur')}${nCS(Math.round(ep),'cur')}`;
       if (ivaOn) cells += `${nCS(Math.round(im),'cur')}${nCS(Math.round(il),'cur')}${nCS(Math.round(it),'cur')}`;
-      cells += `${nCS(Math.round(totalItem),'curBold')}${sC(item.note || '')}`;
+      cells += `${nCS(Math.round(totalItem),'curB')}${sC(item.note || '')}`;
       rows += `<Row>${cells}</Row>`;
     }
   }
 
-  // ── Resumen ──
+  // Resumen de totales
   rows += `<Row></Row>`;
   const pad = ivaOn ? 10 : 7;
-  const padCells = '<Cell/>'.repeat(pad);
-  rows += `<Row ss:StyleID="sumRow">${sC('Costo Materiales')}${padCells}${nCS(Math.round(totalMats),'curBold')}</Row>`;
-  rows += `<Row ss:StyleID="sumRow">${sC('Costo Mano de Obra')}${padCells}${nCS(Math.round(totalLabor),'curBold')}</Row>`;
-  rows += `<Row ss:StyleID="sumRow">${sC('Costo Directo')}${padCells}${nCS(Math.round(subtotal),'curBold')}</Row>`;
+  const pc = '<Cell/>'.repeat(pad);
+  rows += `<Row ss:StyleID="sum">${sC('Costo Materiales')}${pc}${nCS(Math.round(totalMats),'curB')}</Row>`;
+  rows += `<Row ss:StyleID="sum">${sC('Costo Mano de Obra')}${pc}${nCS(Math.round(totalLabor),'curB')}</Row>`;
+  rows += `<Row ss:StyleID="sum">${sC('Costo Directo')}${pc}${nCS(Math.round(subtotal),'curB')}</Row>`;
   if (ivaOn) {
-    rows += `<Row>${sC('IVA Materiales (10%)')}${padCells}${nCS(Math.round(ivaMat),'cur')}</Row>`;
-    rows += `<Row>${sC('IVA Mano de Obra (5%)')}${padCells}${nCS(Math.round(ivaLab),'cur')}</Row>`;
-    rows += `<Row>${sC('Total IVA')}${padCells}${nCS(Math.round(ivaTotal),'curBold')}</Row>`;
+    rows += `<Row>${sC('IVA Materiales (10%)')}${pc}${nCS(Math.round(ivaMat),'cur')}</Row>`;
+    rows += `<Row>${sC('IVA Mano de Obra (5%)')}${pc}${nCS(Math.round(ivaLab),'cur')}</Row>`;
+    rows += `<Row>${sC('Total IVA')}${pc}${nCS(Math.round(ivaTotal),'curB')}</Row>`;
   }
   if ((adenda.profitPct || 0) > 0)
-    rows += `<Row>${sC('Honorarios (' + adenda.profitPct + '%)')}${padCells}${nCS(Math.round(profitAmt),'cur')}</Row>`;
-  rows += `<Row ss:StyleID="accent">${sC('TOTAL GENERAL' + (ivaOn ? ' (IVA incluido)' : ''))}${padCells}${nCS(Math.round(total),'curBold')}</Row>`;
+    rows += `<Row>${sC('Honorarios (' + adenda.profitPct + '%)')}${pc}${nCS(Math.round(profitAmt),'cur')}</Row>`;
+  rows += `<Row ss:StyleID="accent">${sC('TOTAL GENERAL' + (ivaOn ? ' (IVA incluido)' : ''))}${pc}${nCS(Math.round(total),'curB')}</Row>`;
 
-  // ── Notas ──
   if ((adenda.notes || '').trim()) {
-    rows += `<Row></Row><Row>${sC('NOTAS / CONDICIONES')}</Row>`;
+    rows += `<Row></Row><Row ss:StyleID="catRow">${sC('NOTAS / CONDICIONES')}</Row>`;
     rows += `<Row>${sC(adenda.notes)}</Row>`;
   }
 
-  // ── Hoja 2: Cómputo de Materiales ──
+  // Hoja 2: Cómputo de Materiales
   const mats = calcMaterials();
-  let matRows = `<Row ss:StyleID="hdr">${sCS('MATERIAL','hdr')}${sCS('CANTIDAD','hdr')}${sCS('UNIDAD','hdr')}${sCS('BOLSAS 50kg','hdr')}</Row>`;
+  let matRows = `<Row>${sCS('MATERIAL','hdr')}${sCS('CANTIDAD','hdr')}${sCS('UNIDAD','hdr')}${sCS('BOLSAS 50kg','hdr')}</Row>`;
   for (const m of mats) {
     const isCem = m.name.toLowerCase().includes("cemento");
     matRows += `<Row>${sC(m.name)}${nC(parseFloat(fmtD(m.qty, 3)))}${sC(m.unit)}${isCem ? nC(Math.ceil(m.qty / 50)) : '<Cell/>'}</Row>`;
   }
 
-  // ── Hoja 3: Costo por m² ──
-  let m2Rows = '';
+  // Hoja 3: Costo por m² (si hay superficie)
+  let m2Sheet = '';
   if (p.m2Area && p.m2Area > 0) {
-    m2Rows = `<Row ss:StyleID="hdr">${sCS('CONCEPTO','hdr')}${sCS('VALOR','hdr')}</Row>`;
-    m2Rows += `<Row>${sC('Superficie (m²)')}${nC(p.m2Area)}</Row>`;
-    m2Rows += `<Row>${sC('Costo Total (₲)')}${nCS(Math.round(total),'curBold')}</Row>`;
-    m2Rows += `<Row ss:StyleID="accent">${sC('Costo por m² (₲)')}${nCS(Math.round(total / p.m2Area),'curBold')}</Row>`;
+    m2Sheet = `<Worksheet ss:Name="Costo x m2"><Table>
+<Row>${sCS('CONCEPTO','hdr')}${sCS('VALOR','hdr')}</Row>
+<Row>${sC('Superficie (m²)')}${nC(p.m2Area)}</Row>
+<Row>${sC('Costo Total (Gs.)')}${nCS(Math.round(total),'curB')}</Row>
+<Row ss:StyleID="accent">${sC('Costo por m² (Gs.)')}${nCS(Math.round(total / p.m2Area),'curB')}</Row>
+</Table></Worksheet>`;
   }
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <?mso-application progid="Excel.Sheet"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
 <Styles>
  <Style ss:ID="Default"><Font ss:FontName="Calibri" ss:Size="10"/></Style>
  <Style ss:ID="hdr"><Font ss:FontName="Calibri" ss:Size="10" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#1E293B" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center"/></Style>
- <Style ss:ID="accent"><Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1" ss:Color="#000000"/><Interior ss:Color="#F59E0B" ss:Pattern="Solid"/></Style>
+ <Style ss:ID="accent"><Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1"/><Interior ss:Color="#F59E0B" ss:Pattern="Solid"/></Style>
  <Style ss:ID="catRow"><Font ss:FontName="Calibri" ss:Size="10" ss:Bold="1"/><Interior ss:Color="#E2E8F0" ss:Pattern="Solid"/></Style>
- <Style ss:ID="sumRow"><Font ss:FontName="Calibri" ss:Size="10" ss:Bold="1"/><Interior ss:Color="#F1F5F9" ss:Pattern="Solid"/></Style>
+ <Style ss:ID="sum"><Font ss:FontName="Calibri" ss:Size="10" ss:Bold="1"/><Interior ss:Color="#F1F5F9" ss:Pattern="Solid"/></Style>
  <Style ss:ID="cur"><NumberFormat ss:Format="#,##0"/></Style>
- <Style ss:ID="curBold"><Font ss:FontName="Calibri" ss:Size="10" ss:Bold="1"/><NumberFormat ss:Format="#,##0"/></Style>
+ <Style ss:ID="curB"><Font ss:FontName="Calibri" ss:Size="10" ss:Bold="1"/><NumberFormat ss:Format="#,##0"/></Style>
 </Styles>
-<Worksheet ss:Name="Presupuesto">
- <Table>${rows}</Table>
-</Worksheet>
-<Worksheet ss:Name="Computo Materiales">
- <Table>${matRows}</Table>
-</Worksheet>
-${p.m2Area > 0 ? `<Worksheet ss:Name="Costo x m2">
- <Table>${m2Rows}</Table>
-</Worksheet>` : ''}
+<Worksheet ss:Name="Presupuesto"><Table>${rows}</Table></Worksheet>
+<Worksheet ss:Name="Computo Materiales"><Table>${matRows}</Table></Worksheet>
+${m2Sheet}
 </Workbook>`;
 
   const blob = new Blob([xml], { type: 'application/vnd.ms-excel' });
@@ -1849,8 +1843,7 @@ ${p.m2Area > 0 ? `<Worksheet ss:Name="Costo x m2">
   a.download = `Presupuesto_${safe}_${formatDatePY(new Date()).replace(/\//g,'-')}.xlsx`;
   a.click();
   URL.revokeObjectURL(url);
-  toast("✓ Archivo .xlsx generado — Abrilo en Google Sheets o Excel");
-  closeModal();
+  toast("Archivo .xlsx exportado — Subilo a Google Drive para abrir en Sheets ✓");
 }
 
 // ── EXPORT MS PROJECT (XML) ─────────────────────────────────────────
@@ -1858,120 +1851,75 @@ function exportScheduleMSProject() {
   const p = getActiveProject();
   const adenda = getActiveAdenda();
   if (!p || !adenda) return toast("Sin proyecto activo", false);
+  if (!adenda.items.length) return toast("Agregá items al presupuesto primero", false);
 
   const schedules = p.execution.schedules || {};
   const projectStart = p.execution.projectStartDate || todayISO();
   const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const mspDate = d => { if (!d) return ''; return new Date(d).toISOString().replace(/\.\d{3}Z$/, ''); };
-
-  const calcDuration = (start, end) => {
-    if (!start || !end) return 'PT8H0M0S';
-    let days = Math.max(1, Math.round((new Date(end) - new Date(start)) / 86400000) + 1);
-    days = days - Math.floor(days / 7) * 2; // descontar fines de semana
-    if (days < 1) days = 1;
-    return `PT${days * 8}H0M0S`;
+  const calcDur = (s, e) => {
+    if (!s || !e) return 'PT8H0M0S';
+    let d = Math.max(1, Math.round((new Date(e) - new Date(s)) / 86400000) + 1);
+    d -= Math.floor(d / 7) * 2;
+    return `PT${Math.max(1, d) * 8}H0M0S`;
   };
 
-  let tasks = '';
-  let uid = 1;
+  let tasks = '', uid = 1;
+  tasks += `<Task><UID>0</UID><ID>0</ID><Name>${esc(p.name)}</Name><Type>1</Type><OutlineLevel>0</OutlineLevel><Start>${mspDate(projectStart)}</Start><Summary>1</Summary></Task>`;
 
-  // Tarea resumen (UID 0)
-  tasks += `<Task><UID>0</UID><ID>0</ID><Name>${esc(p.name)}</Name><Type>1</Type><OutlineLevel>0</OutlineLevel><Priority>500</Priority><Start>${mspDate(projectStart)}</Start><Summary>1</Summary></Task>`;
-
-  // Agrupar por categoría → WBS
   const cats = {};
-  adenda.items.forEach(item => { if (!cats[item.cat]) cats[item.cat] = []; cats[item.cat].push(item); });
-
-  const taskUidMap = {}; // item.id → uid para asignaciones
+  adenda.items.forEach(it => { if (!cats[it.cat]) cats[it.cat] = []; cats[it.cat].push(it); });
+  const tMap = {};
 
   for (const [cat, items] of Object.entries(cats)) {
-    // Categoría = tarea resumen (OutlineLevel 1)
-    tasks += `<Task><UID>${uid}</UID><ID>${uid}</ID><Name>${esc(cat)}</Name><OutlineLevel>1</OutlineLevel><Summary>1</Summary><Type>1</Type><Priority>500</Priority></Task>`;
+    tasks += `<Task><UID>${uid}</UID><ID>${uid}</ID><Name>${esc(cat)}</Name><OutlineLevel>1</OutlineLevel><Summary>1</Summary><Type>1</Type></Task>`;
     uid++;
-
     for (const item of items) {
       const sch = schedules[item.id] || {};
-      const start = sch.start || projectStart;
-      const end = sch.end || start;
+      const st = sch.start || projectStart, en = sch.end || st;
       const pct = sch.status === 'done' ? 100 : sch.status === 'progress' ? 50 : 0;
-      const con = sch.contractorId ? (state.contractors || []).find(c => c.id === sch.contractorId) : null;
-
-      taskUidMap[item.id] = uid;
-      tasks += `<Task>
- <UID>${uid}</UID><ID>${uid}</ID>
- <Name>${esc(item.name)}</Name>
- <OutlineLevel>2</OutlineLevel><Type>0</Type><Priority>500</Priority>
- <Start>${mspDate(start)}</Start><Finish>${mspDate(end)}</Finish>
- <Duration>${calcDuration(start, end)}</Duration>
- <PercentComplete>${pct}</PercentComplete>
- <FixedCost>${Math.round(effPrice(item) * item.qty)}</FixedCost>
- <Notes>${esc(item.qty + ' ' + item.unit + (con ? ' | Contratista: ' + con.name : ''))}</Notes>
- <Summary>0</Summary>
-</Task>`;
+      tMap[item.id] = uid;
+      tasks += `<Task><UID>${uid}</UID><ID>${uid}</ID><Name>${esc(item.name)}</Name><OutlineLevel>2</OutlineLevel><Type>0</Type><Start>${mspDate(st)}</Start><Finish>${mspDate(en)}</Finish><Duration>${calcDur(st, en)}</Duration><PercentComplete>${pct}</PercentComplete><FixedCost>${Math.round(effPrice(item) * item.qty)}</FixedCost><Notes>${esc(item.qty + ' ' + item.unit)}</Notes><Summary>0</Summary></Task>`;
       uid++;
     }
   }
 
-  // Recursos = contratistas
-  let resources = '', resUid = 1;
-  const cMap = {};
+  let resources = '', rUid = 1, cMap = {};
   (state.contractors || []).filter(c => !c.isBlacklisted).forEach(c => {
-    cMap[c.id] = resUid;
-    resources += `<Resource><UID>${resUid}</UID><ID>${resUid}</ID><Name>${esc(c.name)}</Name><Type>1</Type><Initials>${esc(c.name.substring(0,2).toUpperCase())}</Initials><Group>${esc(c.specialty || '')}</Group></Resource>`;
-    resUid++;
+    cMap[c.id] = rUid;
+    resources += `<Resource><UID>${rUid}</UID><ID>${rUid}</ID><Name>${esc(c.name)}</Name><Type>1</Type><Group>${esc(c.specialty || '')}</Group></Resource>`;
+    rUid++;
   });
 
-  // Asignaciones tarea ↔ recurso
-  let assignments = '', assUid = 1;
-  adenda.items.forEach(item => {
-    const sch = schedules[item.id] || {};
-    if (sch.contractorId && cMap[sch.contractorId] && taskUidMap[item.id]) {
-      assignments += `<Assignment><UID>${assUid}</UID><TaskUID>${taskUidMap[item.id]}</TaskUID><ResourceUID>${cMap[sch.contractorId]}</ResourceUID><Units>1</Units></Assignment>`;
-      assUid++;
-    }
+  let assignments = '', aUid = 1;
+  adenda.items.forEach(it => {
+    const sch = schedules[it.id] || {};
+    if (sch.contractorId && cMap[sch.contractorId] && tMap[it.id])
+      assignments += `<Assignment><UID>${aUid++}</UID><TaskUID>${tMap[it.id]}</TaskUID><ResourceUID>${cMap[sch.contractorId]}</ResourceUID><Units>1</Units></Assignment>`;
   });
 
-  // Calendario laboral Paraguay (Lun-Sáb 07:00-16:00)
-  const wdXml = n => `<WeekDay><DayType>${n}</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>07:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime><WorkingTime><FromTime>13:00:00</FromTime><ToTime>16:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay>`;
+  const wd = n => `<WeekDay><DayType>${n}</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>07:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime><WorkingTime><FromTime>13:00:00</FromTime><ToTime>16:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay>`;
 
   const xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Project xmlns="http://schemas.microsoft.com/project">
-<Name>${esc(p.name)}</Name>
-<Title>${esc(p.name)} - Cronograma</Title>
-<Company>${esc((state.profile && state.profile.company) || 'Puntero')}</Company>
-<Author>${esc((state.profile && state.profile.name) || '')}</Author>
-<CreationDate>${mspDate(new Date().toISOString())}</CreationDate>
+<Name>${esc(p.name)}</Name><Title>${esc(p.name)} - Cronograma</Title>
+<Company>${esc((state.profile && state.profile.company) || '')}</Company>
 <StartDate>${mspDate(projectStart)}</StartDate>
-<CurrencySymbol>Gs.</CurrencySymbol>
-<CurrencyCode>PYG</CurrencyCode>
-<CalendarUID>1</CalendarUID>
-<DefaultStartTime>07:00:00</DefaultStartTime>
-<DefaultFinishTime>16:00:00</DefaultFinishTime>
-<MinutesPerDay>480</MinutesPerDay>
-<MinutesPerWeek>2400</MinutesPerWeek>
-<DaysPerMonth>22</DaysPerMonth>
-<Calendars><Calendar>
- <UID>1</UID><Name>Paraguay Construccion</Name><IsBaseCalendar>1</IsBaseCalendar>
- <WeekDays>
-  <WeekDay><DayType>1</DayType><DayWorking>0</DayWorking></WeekDay>
-  ${wdXml(2)}${wdXml(3)}${wdXml(4)}${wdXml(5)}${wdXml(6)}
-  <WeekDay><DayType>7</DayType><DayWorking>0</DayWorking></WeekDay>
- </WeekDays>
+<CurrencySymbol>Gs.</CurrencySymbol><CurrencyCode>PYG</CurrencyCode>
+<CalendarUID>1</CalendarUID><DefaultStartTime>07:00:00</DefaultStartTime><DefaultFinishTime>16:00:00</DefaultFinishTime>
+<MinutesPerDay>480</MinutesPerDay><MinutesPerWeek>2400</MinutesPerWeek><DaysPerMonth>22</DaysPerMonth>
+<Calendars><Calendar><UID>1</UID><Name>Paraguay</Name><IsBaseCalendar>1</IsBaseCalendar>
+<WeekDays><WeekDay><DayType>1</DayType><DayWorking>0</DayWorking></WeekDay>${wd(2)}${wd(3)}${wd(4)}${wd(5)}${wd(6)}<WeekDay><DayType>7</DayType><DayWorking>0</DayWorking></WeekDay></WeekDays>
 </Calendar></Calendars>
-<Tasks>${tasks}</Tasks>
-<Resources>${resources}</Resources>
-<Assignments>${assignments}</Assignments>
+<Tasks>${tasks}</Tasks><Resources>${resources}</Resources><Assignments>${assignments}</Assignments>
 </Project>`;
 
   const blob = new Blob([xml], { type: 'application/xml' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url;
-  a.download = `Cronograma_${(p.name || 'proyecto').replace(/\s+/g, '_')}.xml`;
-  a.click();
-  URL.revokeObjectURL(url);
-  toast("✓ Cronograma MS Project exportado");
-  closeModal();
+  a.href = url; a.download = `Cronograma_${(p.name || 'proyecto').replace(/\s+/g, '_')}.xml`;
+  a.click(); URL.revokeObjectURL(url);
+  toast("Cronograma MS Project (.xml) exportado ✓");
 }
 
 // ── PDF ────────────────────────────────────────────────────────────────
@@ -2332,27 +2280,14 @@ function showModal(type, arg) {
   }
 
   if (type === "export") {
-    el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:560px">
+    el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:480px">
       <div class="modal-title">Exportar Presupuesto<button class="delbtn" onclick="closeModal()">✕</button></div>
-      <div class="export-options" style="grid-template-columns:1fr 1fr 1fr">
-        <div class="export-card" onclick="exportXLS()">
-          <div class="export-icon">📊</div>
-          <div class="export-name">Excel / CSV</div>
-          <div class="export-desc">Abre en Excel o LibreOffice</div>
-        </div>
-        <div class="export-card" onclick="exportToGoogleSheets()">
-          <div class="export-icon" style="line-height:1"><svg width="28" height="28" viewBox="0 0 24 24" fill="none"><rect x="3" y="2" width="18" height="20" rx="2" fill="#0F9D58"/><rect x="6" y="6" width="12" height="12" rx="1" fill="white"/><line x1="6" y1="10" x2="18" y2="10" stroke="#0F9D58" stroke-width="1.2"/><line x1="6" y1="14" x2="18" y2="14" stroke="#0F9D58" stroke-width="1.2"/><line x1="12" y1="6" x2="12" y2="18" stroke="#0F9D58" stroke-width="1.2"/></svg></div>
-          <div class="export-name">Google Sheets</div>
-          <div class="export-desc">Archivo .xlsx con 2 hojas formateadas</div>
-        </div>
-        <div class="export-card" onclick="exportScheduleMSProject()">
-          <div class="export-icon" style="line-height:1"><svg width="28" height="28" viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="18" rx="2" fill="#217346"/><text x="12" y="15.5" text-anchor="middle" fill="white" font-size="7" font-weight="bold" font-family="Arial">MPP</text></svg></div>
-          <div class="export-name">MS Project</div>
-          <div class="export-desc">Cronograma en XML de Microsoft Project</div>
-        </div>
+      <div class="export-options">
+        <div class="export-card" onclick="exportXLS()"><div class="export-icon">📊</div><div class="export-name">Excel / CSV</div><div class="export-desc">Abre con doble clic en Excel o LibreOffice</div></div>
+        <div class="export-card" onclick="exportXLS()"><div class="export-icon">📋</div><div class="export-name">Google Sheets</div><div class="export-desc">Archivo → Importar → CSV en Google Sheets</div></div>
       </div>
-      <p style="font-size:.82rem;color:var(--tx3);text-align:center;font-style:italic;margin-top:6px">CSV/XLSX = presupuesto completo · MS Project = solo cronograma con WBS y recursos</p>
-      <div class="modal-acts"><button class="btn" onclick="closeModal()">Cerrar</button></div>
+      <p style="font-size:.95rem;color:var(--tx3);text-align:center;font-style:italic">Incluye ítems, desglose mat/MO, cómputo de materiales y notas.</p>
+      <div class="modal-acts"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn success" onclick="exportXLS()">Descargar</button></div>
     </div></div>`;
   }
 
