@@ -22,7 +22,8 @@ function renderSchedule() {
     // ── Estilos para selección de filas ──────────────────────────────────
     var h = '<style>.sch-row-selected td{background:rgba(245,158,11,0.12) !important;box-shadow:inset 3px 0 0 var(--acc)}' +
         '.sch-row-selected td:first-child{position:relative}' +
-        '.sch-row-selected td:first-child::after{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--acc)}</style>' +
+        '.sch-row-selected td:first-child::after{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--acc)}' +
+        '.gantt-row.sch-row-selected{background:rgba(245,158,11,0.12) !important;box-shadow:inset 3px 0 0 var(--acc)}</style>' +
         '<div class="prices-wrap">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px">' +
         '<div><h2 style="font-family:var(--font-display);font-weight:800;margin-bottom:2px">📅 CRONOGRAMA DE OBRA</h2>' +
@@ -296,19 +297,21 @@ function renderGanttChart() {
 
     var h = '<div class="gantt-wrap" style="min-width:' + Math.max(600, 200 + daysTotal * 32) + 'px">' +
         '<div class="gantt-header" style="display:grid;grid-template-columns:200px repeat(' + daysTotal + ',minmax(28px,1fr));font-size:0.7rem;font-weight:600;color:var(--tx2);border-bottom:2px solid var(--bor)">' +
-        '<div style="padding:6px 8px;font-size:0.75rem;font-weight:700">Rubro</div>';
+        '<div style="padding:6px 8px;font-size:0.75rem;font-weight:700;border-right:1px solid var(--bor)">Rubro</div>';
     for (var i = 0; i < daysTotal; i++) {
         var d = new Date(minTs + i * 86400000);
         var isWeekend = d.getDay() === 0 || d.getDay() === 6;
-        h += '<div style="padding:4px 0;text-align:center;background:' + (isWeekend ? "rgba(239,68,68,0.06)" : "transparent") + ';color:' + (isWeekend ? "var(--tx3)" : "var(--tx2)") + '">' + d.getDate() + '</div>';
+        h += '<div style="padding:4px 0;text-align:center;background:' + (isWeekend ? "rgba(239,68,68,0.06)" : "transparent") + ';color:' + (isWeekend ? "var(--tx3)" : "var(--tx2)") + ';border-right:1px solid var(--bor)">' + d.getDate() + '</div>';
     }
     h += '</div>';
 
     ganttItems.forEach(function (item) {
         var sch = schedules[item.id] || {};
         var color = sch.status === "done" ? "var(--ok)" : sch.status === "progress" ? "var(--blue)" : sch.status === "blocked" ? "var(--err)" : "var(--bor)";
-        h += '<div class="gantt-row" style="display:grid;grid-template-columns:200px repeat(' + daysTotal + ',minmax(28px,1fr));border-bottom:1px solid var(--bor);font-size:0.75rem">' +
-            '<div style="padding:6px 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600">' + escapeHtml(item.name) + '</div>';
+        var globalIdx = adenda.items.indexOf(item);
+        var selectedClass = (window._selectedSchRow === globalIdx) ? " sch-row-selected" : "";
+        h += '<div class="gantt-row' + selectedClass + '" data-sch-row="' + globalIdx + '" style="display:grid;grid-template-columns:200px repeat(' + daysTotal + ',minmax(28px,1fr));border-bottom:1px solid var(--bor);font-size:0.75rem;cursor:default" onclick="toggleSchRow(' + globalIdx + ')">' +
+            '<div style="padding:6px 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;border-right:1px solid var(--bor)">' + escapeHtml(item.name) + '</div>';
         var startIdx = -1, span = 0;
         if (sch.start && sch.end) {
             startIdx = Math.floor((new Date(sch.start).getTime() - minTs) / 86400000);
@@ -317,10 +320,10 @@ function renderGanttChart() {
         for (var i = 0; i < daysTotal; i++) {
             if (i === startIdx && span > 0) {
                 var label = sch.status === "done" ? "✓" : sch.status === "progress" ? "▶" : "";
-                h += '<div style="grid-column:span ' + span + ';padding:3px 6px"><div style="background:' + color + ';height:20px;border-radius:4px;display:flex;align-items:center;padding:0 6px;font-size:0.65rem;font-weight:700;color:white;overflow:hidden">' + label + '</div></div>';
+                h += '<div style="grid-column:span ' + span + ';padding:3px 6px;border-right:1px solid var(--bor)"><div style="background:' + color + ';height:20px;border-radius:4px;display:flex;align-items:center;padding:0 6px;font-size:0.65rem;font-weight:700;color:white;overflow:hidden">' + label + '</div></div>';
                 i += (span - 1);
             } else {
-                h += '<div></div>';
+                h += '<div style="border-right:1px solid var(--bor)"></div>';
             }
         }
         h += '</div>';
