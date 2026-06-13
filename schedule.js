@@ -35,7 +35,8 @@ function renderSchedule() {
         '<span style="font-weight:600;font-size:0.85rem;white-space:nowrap">📅 Inicio:</span>' +
         dateInputPY("proj-start-date", p.execution.projectStartDate || "", "setProjectStartDate(this.value)", "width:150px") +
         '<span style="font-size:0.8rem;color:var(--tx3);flex:1;min-width:120px">' + (adenda.items.length) + ' rubros · ' +
-        Object.keys(schedules).filter(function (k) { return schedules[k].status === "done"; }).length + ' completados</span>' +
+        Object.keys(schedules).filter(function (k) { return schedules[k].status === "done"; }).length + ' completados' +
+        (state._schFilter ? ' · <strong>Filtrando: ' + escapeHtml(state._schFilter) + '</strong>' : '') + '</span>' +
         '<button class="btn sm" onclick="recalculateScheduleDates()">🔄 Recalcular</button>' +
         '<button class="btn sm primary" onclick="exportScheduleCSV()">📊 Exportar CSV</button></div>';
 
@@ -43,31 +44,53 @@ function renderSchedule() {
     h += '<div style="margin-bottom:20px;overflow-x:auto;border:1px solid var(--bor);border-radius:var(--rad);background:var(--sur);padding:4px">' +
         renderGanttChart() + '</div>';
 
+    // ── Filtro por rubro/categoría ────────────────────────────────────────
+    var cats = {};
+    adenda.items.forEach(function (it) { cats[it.cat] = (cats[it.cat] || 0) + 1; });
+    var catKeys = Object.keys(cats).sort();
+    var filter = state._schFilter || "";
+    h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">' +
+        '<span style="font-size:0.8rem;font-weight:600;color:var(--tx2)">🔍 Filtrar:</span>' +
+        '<button class="btn sm ' + (!filter ? "primary" : "") + '" onclick="setSchFilter(\'\')" style="font-size:0.75rem">Todos</button>';
+    for (var ci = 0; ci < catKeys.length; ci++) {
+        h += '<button class="btn sm ' + (filter === catKeys[ci] ? "primary" : "") + '" onclick="setSchFilter(\'' + catKeys[ci].replace(/'/g, "\\'") + '\')" style="font-size:0.75rem">' + escapeHtml(catKeys[ci]) + ' (' + cats[catKeys[ci]] + ')</button>';
+    }
+    h += '</div>';
+
+    // ── Filtrar items ─────────────────────────────────────────────────────
+    var filteredItems = [];
+    for (var fi = 0; fi < adenda.items.length; fi++) {
+        if (!filter || adenda.items[fi].cat === filter) {
+            filteredItems.push(adenda.items[fi]);
+        }
+    }
+
     // ── Tabla detallada ───────────────────────────────────────────────────
     h += '<div style="overflow-x:auto;border:1px solid var(--bor);border-radius:var(--rad)">' +
-        '<table style="width:100%;border-collapse:collapse;font-size:0.82rem;min-width:900px">';
+        '<table style="width:100%;border-collapse:collapse;font-size:0.82rem;min-width:1000px">';
 
     // Cabecera
     var cols = [
-        { label: "#", width: "36px", align: "center" },
-        { label: "Rubro / Actividad", width: "auto", align: "left" },
-        { label: "Cantidad", width: "80px", align: "center" },
-        { label: "Inicio", width: "110px", align: "center" },
-        { label: "Fin", width: "110px", align: "center" },
+        { label: "#", width: "32px", align: "center" },
+        { label: "Rubro / Actividad", width: "", align: "left" },
+        { label: "Unidad", width: "60px", align: "center" },
+        { label: "Cant.", width: "65px", align: "center" },
+        { label: "Inicio", width: "105px", align: "center" },
+        { label: "Fin", width: "105px", align: "center" },
         { label: "Duración", width: "70px", align: "center" },
-        { label: "Estado", width: "120px", align: "center" },
-        { label: "Ejecución", width: "160px", align: "left" },
+        { label: "Estado", width: "115px", align: "center" },
+        { label: "Ejecución", width: "150px", align: "left" },
     ];
 
     h += '<thead><tr style="background:var(--sur2)">';
     for (var ci = 0; ci < cols.length; ci++) {
-        h += '<th style="padding:10px 8px;border:1px solid var(--bor);text-align:' + cols[ci].align + ';font-weight:700;color:var(--tx2);text-transform:uppercase;font-size:0.7rem;' +
-            (cols[ci].width !== "auto" ? "width:" + cols[ci].width + ";" : "") + '">' + cols[ci].label + '</th>';
+        h += '<th style="padding:10px 6px;border:1px solid var(--bor);text-align:' + cols[ci].align + ';font-weight:700;color:var(--tx2);text-transform:uppercase;font-size:0.7rem;' +
+            (cols[ci].width ? "width:" + cols[ci].width + ";" : "") + '">' + cols[ci].label + '</th>';
     }
     h += '</tr></thead><tbody>';
 
-    for (var idx = 0; idx < adenda.items.length; idx++) {
-        var item = adenda.items[idx];
+    for (var idx = 0; idx < filteredItems.length; idx++) {
+        var item = filteredItems[idx];
         var sch = schedules[item.id] || { status: "pending", start: "", end: "", contractorId: null, executionMode: "contractor", assignedStaff: [] };
 
         var startDate = sch.start ? parseDate(sch.start) : null;
@@ -76,50 +99,56 @@ function renderSchedule() {
 
         var statusColors = { pending: "var(--tx3)", progress: "var(--blue)", blocked: "var(--err)", done: "var(--ok)" };
         var statusBg = { pending: "rgba(148,163,184,0.15)", progress: "rgba(56,132,255,0.15)", blocked: "rgba(239,68,68,0.15)", done: "rgba(34,197,94,0.15)" };
-        var statusLabels = { pending: "⏳ Pendiente", progress: "🏗️ En Ejecución", blocked: "⚠️ Bloqueado", done: "✅ Finalizado" };
         var st = sch.status || "pending";
-
         var durationDays = duration !== "-" ? parseInt(duration) : 0;
 
-        var selectedClass = (window._selectedSchRow === idx) ? " sch-row-selected" : "";
-        h += '<tr class="sch-row-main' + selectedClass + '" data-sch-row="' + idx + '" style="border-bottom:1px solid var(--bor);cursor:default" onclick="toggleSchRow(' + idx + ')">' +
+        // Buscar el índice global para la selección
+        var globalIdx = adenda.items.indexOf(item);
+        var selectedClass = (window._selectedSchRow === globalIdx) ? " sch-row-selected" : "";
+        h += '<tr class="sch-row-main' + selectedClass + '" data-sch-row="' + globalIdx + '" style="border-bottom:1px solid var(--bor);cursor:default" onclick="toggleSchRow(' + globalIdx + ')">' +
             // #
-            '<td style="padding:8px 6px;border:1px solid var(--bor);text-align:center;vertical-align:middle;color:var(--tx3);font-size:0.75rem">' + (idx + 1) + '</td>' +
-            // Rubro
-            '<td style="padding:8px 10px;border:1px solid var(--bor);vertical-align:middle">' +
-            '<div style="font-weight:600;font-size:0.85rem">' + escapeHtml(item.name) + '</div>' +
-            '<div style="font-size:0.7rem;color:var(--tx3)">' + escapeHtml(item.unit) + '</div></td>' +
+            '<td style="padding:8px 4px;border:1px solid var(--bor);text-align:center;vertical-align:middle;color:var(--tx3);font-size:0.75rem">' + (globalIdx + 1) + '</td>' +
+            // Rubro — ahora con más espacio y word-break
+            '<td style="padding:8px 10px;border:1px solid var(--bor);vertical-align:middle;word-break:break-word;min-width:180px">' +
+            '<div style="font-weight:600;font-size:0.85rem;line-height:1.3">' + escapeHtml(item.name) + '</div>' +
+            '<div style="font-size:0.65rem;color:var(--tx3);margin-top:2px">' + escapeHtml(item.cat) + '</div></td>' +
+            // Unidad
+            '<td style="padding:8px 4px;border:1px solid var(--bor);text-align:center;vertical-align:middle;color:var(--tx3);font-size:0.75rem">' + escapeHtml(item.unit) + '</td>' +
             // Cantidad
-            '<td style="padding:8px 6px;border:1px solid var(--bor);text-align:center;vertical-align:middle;font-weight:600;font-size:0.8rem">' + fmtD(item.qty) + '</td>' +
+            '<td style="padding:8px 4px;border:1px solid var(--bor);text-align:center;vertical-align:middle;font-weight:600;font-size:0.8rem">' + fmtD(item.qty) + '</td>' +
             // Inicio
-            '<td style="padding:6px 8px;border:1px solid var(--bor);text-align:center;vertical-align:middle">' +
-            dateInputPY("sch-start-" + item.id, sch.start || "", "updateSchedule('" + item.id + "', 'start', this.value)", "width:100%") + '</td>' +
+            '<td style="padding:6px 4px;border:1px solid var(--bor);text-align:center;vertical-align:middle">' +
+            dateInputPY("sch-start-" + item.id, sch.start || "", "updateSchedule('" + item.id + "', 'start', this.value)", "width:95%") + '</td>' +
             // Fin
-            '<td style="padding:6px 8px;border:1px solid var(--bor);text-align:center;vertical-align:middle">' +
-            dateInputPY("sch-end-" + item.id, sch.end || "", "updateSchedule('" + item.id + "', 'end', this.value)", "width:100%") + '</td>' +
+            '<td style="padding:6px 4px;border:1px solid var(--bor);text-align:center;vertical-align:middle">' +
+            dateInputPY("sch-end-" + item.id, sch.end || "", "updateSchedule('" + item.id + "', 'end', this.value)", "width:95%") + '</td>' +
             // Duración
-            '<td style="padding:8px 6px;border:1px solid var(--bor);text-align:center;vertical-align:middle;font-weight:700;font-size:0.85rem">' +
+            '<td style="padding:8px 4px;border:1px solid var(--bor);text-align:center;vertical-align:middle;font-weight:700;font-size:0.85rem">' +
             '<span style="background:var(--sur2);padding:2px 8px;border-radius:4px">' + durationDays + 'd</span></td>' +
             // Estado
-            '<td style="padding:8px 6px;border:1px solid var(--bor);text-align:center;vertical-align:middle">' +
-            '<select style="padding:4px 6px;border:1px solid var(--bor);border-radius:4px;background:' + statusBg[st] + ';color:' + statusColors[st] + ';font-weight:600;font-size:0.78rem;cursor:pointer" ' +
+            '<td style="padding:8px 4px;border:1px solid var(--bor);text-align:center;vertical-align:middle">' +
+            '<select style="padding:4px 4px;border:1px solid var(--bor);border-radius:4px;background:' + statusBg[st] + ';color:' + statusColors[st] + ';font-weight:600;font-size:0.75rem;cursor:pointer;width:100%" ' +
             'onchange="updateSchedule(\'' + item.id + "', 'status', this.value)\">" +
             '<option value="pending"' + (st === "pending" ? " selected" : "") + '>⏳ Pendiente</option>' +
-            '<option value="progress"' + (st === "progress" ? " selected" : "") + '>🏗️ En Ejecución</option>' +
+            '<option value="progress"' + (st === "progress" ? " selected" : "") + '>🏗️ Ejecución</option>' +
             '<option value="blocked"' + (st === "blocked" ? " selected" : "") + '>⚠️ Bloqueado</option>' +
             '<option value="done"' + (st === "done" ? " selected" : "") + '>✅ Finalizado</option></select></td>' +
             // Ejecución
-            '<td style="padding:6px 8px;border:1px solid var(--bor);vertical-align:middle">' +
+            '<td style="padding:6px 6px;border:1px solid var(--bor);vertical-align:middle">' +
             renderExecutionCell(item.id, sch) + '</td></tr>';
 
-        // Fila de avance (barra de progreso debajo de cada rubro)
+        // Fila de avance
         h += '<tr style="border-bottom:1px solid var(--bor)">' +
-            '<td colspan="2" style="padding:2px 10px 6px;border:1px solid var(--bor);font-size:0.7rem;color:var(--tx3)">Avance</td>' +
-            '<td colspan="6" style="padding:2px 10px 6px;border:1px solid var(--bor)">' +
+            '<td colspan="2" style="padding:2px 10px 6px;border:1px solid var(--bor);font-size:0.65rem;color:var(--tx3)">Avance</td>' +
+            '<td colspan="7" style="padding:2px 10px 6px;border:1px solid var(--bor)">' +
             '<div style="display:flex;align-items:center;gap:8px">' +
             '<div style="flex:1;height:6px;background:var(--bor);border-radius:3px;overflow:hidden">' +
             '<div style="width:' + (st === "done" ? 100 : st === "progress" ? 50 : 0) + '%;height:100%;background:' + statusColors[st] + ';border-radius:3px;transition:width .3s"></div></div>' +
-            '<span style="font-weight:700;font-size:0.75rem;color:var(--tx2);min-width:30px;text-align:right">' + (st === "done" ? "100%" : st === "progress" ? "50%" : "0%") + '</span></div></td></tr>';
+            '<span style="font-weight:700;font-size:0.72rem;color:var(--tx2);min-width:30px;text-align:right">' + (st === "done" ? "100%" : st === "progress" ? "50%" : "0%") + '</span></div></td></tr>';
+    }
+
+    if (filteredItems.length === 0) {
+        h += '<tr><td colspan="9" style="padding:30px;text-align:center;color:var(--tx3);border:1px solid var(--bor)">No hay items en esta categoría.</td></tr>';
     }
 
     h += '</tbody></table></div></div>';
@@ -162,6 +191,12 @@ function toggleSchRow(idx) {
     } else {
         window._selectedSchRow = idx;
     }
+    renderSchedule();
+}
+
+function setSchFilter(cat) {
+    state._schFilter = cat || "";
+    save();
     renderSchedule();
 }
 
