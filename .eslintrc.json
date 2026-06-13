@@ -1,0 +1,32 @@
+{
+  "env": {
+    "browser": true,
+    "es2022": true
+  },
+  "globals": {
+    "firebase": "readonly",
+    "L": "readonly",
+    "jsPDF": "readonly",
+    "DB": "writable",
+    "DB_RAW": "readonly",
+    "DB_VERSION": "readonly",
+    "LABOR_PCT": "readonly",
+    "IVA_MAT": "readonly",
+    "IVA_LAB": "readonly",
+    "DEFAULT_YIELDS": "readonly",
+    "state": "writable",
+    "_FIRESTORE": "readonly",
+    "_AUTH": "readonly",
+    "_STORAGE": "readonly",
+    "_currentUser": "writable"
+  },
+  "rules": {
+    "no-unused-vars": ["warn", { "args": "none" }],
+    "no-undef": "error",
+    "eqeqeq": ["error", "always", { "null": "never" }],
+    "curly": "warn",
+    "no-throw-literal": "error",
+    "prefer-const": "warn",
+    "no-var": "off"
+  }
+}

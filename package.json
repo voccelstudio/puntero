@@ -1,0 +1,19 @@
+{
+  "name": "puntero",
+  "version": "2.0.0",
+  "description": "Gestión de obra - Presupuestos, cronogramas y seguimiento",
+  "private": true,
+  "scripts": {
+    "lint": "eslint . --ext .js",
+    "format": "prettier --write \"**/*.{js,css,html}\"",
+    "format:check": "prettier --check \"**/*.{js,css,html}\"",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "jsdom": "^29.1.1",
+    "prettier": "^3.2.5",
+    "vitest": "^1.6.0"
+  }
+}

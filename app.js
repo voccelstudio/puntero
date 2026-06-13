@@ -1,5 +1,20 @@
 // ── HELPERS ──────────────────────────────────────────────────────────────
-const debounce = (fn, ms = 200) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); } };
+function escapeHtml(str) {
+  if (typeof str !== "string") return "";
+  var map = { "&": "&amp;", '"': "&quot;", "'": "&#39;", "<": "&lt;", ">": "&gt;" };
+  return str.replace(/[&"'<>]/g, function (m) { return map[m]; });
+}
+
+var debounce = function (fn, ms) {
+  if (ms === void 0) ms = 200;
+  var t;
+  return function () {
+    var a = [];
+    for (var _i = 0; _i < arguments.length; _i++) a[_i] = arguments[_i];
+    clearTimeout(t);
+    t = setTimeout(function () { fn.apply(null, a); }, ms);
+  };
+};
 
 
 const fmt = n => {
@@ -234,19 +249,26 @@ let state = {
   migratedV7: false, // [NUEVO] Flag para geoloc y jornaleros
 };
 
-// Load state from localStorage
+// Load state from localStorage (fast cache)
 try {
-  const s = localStorage.getItem("ppy_v5");
+  var s = localStorage.getItem("ppy_v5");
   if (s) {
     Object.assign(state, JSON.parse(s));
   } else {
-    // Si no hay datos, cargar proyecto demo inicial
     loadDemoProject();
   }
-  // Override Pro status to true
   state.isPro = true;
   migrateToMultiProject();
 } catch (e) { }
+
+// Init Dexie and try to load authoritative data from IndexedDB
+initDexie();
+dexieLoad(function () {
+  // Dexie loaded, re-render if needed
+  if (typeof setSection === "function" && state.section) {
+    setSection(state.section);
+  }
+});
 
 try {
   const d = localStorage.getItem("ppy_db5");
@@ -750,6 +772,45 @@ function checkBackupReminder() {
   }
 }
 
+// ── DEXIE (IndexedDB) ────────────────────────────────────────────────
+var _DEXIE = null;
+function initDexie() {
+  if (typeof Dexie === "undefined") return;
+  try {
+    _DEXIE = new Dexie("PunteroDB");
+    _DEXIE.version(1).stores({ state: "id", db: "id" });
+  } catch (e) { console.warn("Dexie init failed:", e); }
+}
+
+function dexieSave() {
+  if (!_DEXIE) return;
+  _DEXIE.state.put({ id: "main", data: JSON.parse(JSON.stringify(state)) }).catch(function (e) {
+    console.warn("Dexie save error:", e);
+  });
+  _DEXIE.db.put({ id: "main", data: JSON.parse(JSON.stringify(DB)) }).catch(function (e) {
+    console.warn("Dexie db save error:", e);
+  });
+}
+
+function dexieLoad(callback) {
+  if (!_DEXIE) return callback && callback();
+  _DEXIE.state.get("main").then(function (doc) {
+    if (doc && doc.data) {
+      Object.assign(state, doc.data);
+    }
+    return _DEXIE.db.get("main");
+  }).then(function (doc) {
+    if (doc && doc.data) {
+      DB = doc.data;
+    }
+    localStorage.setItem("ppy_v5", JSON.stringify(state));
+    localStorage.setItem("ppy_db5", JSON.stringify(DB));
+    if (callback) callback();
+  }).catch(function () {
+    if (callback) callback();
+  });
+}
+
 // ── CORE LOGIC ────────────────────────────────────────────────────────
 var _saveTimer = null;
 
@@ -758,6 +819,7 @@ function save() {
     localStorage.setItem("ppy_v5", JSON.stringify(state));
     localStorage.setItem("ppy_db5", JSON.stringify(DB));
   } catch (e) { }
+  dexieSave();
   firestoreSync();
 }
 
@@ -3430,6 +3492,18 @@ async function clearCloudData() {
     renderCloudSettings();
   } catch (e) { toast("Error: " + e.message, false); }
 }
+
+// ── GLOBAL ERROR HANDLER ──────────────────────────────────────────────────
+window.onerror = function (msg, url, line, col, err) {
+  console.error("[Puntero]", msg, "at", url + ":" + line);
+  var el = document.getElementById("toast-el");
+  if (el && el.style.display === "none") {
+    toast("Error inesperado. Revisá la consola.", false);
+  }
+};
+window.addEventListener("unhandledrejection", function (e) {
+  console.warn("[Puntero] Promise rechazada:", e.reason);
+});
 
 // ── INIT ───────────────────────────────────────────────────────────────────
 window.onload = () => {

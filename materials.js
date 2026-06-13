@@ -132,17 +132,40 @@ function showDeliveryModal(orderId) {
     </div></div>`;
 }
 
-let _tempDeliveryPhoto = "";
+var _tempDeliveryPhoto = "";
 function handleDeliveryPhoto(input) {
-    if (input.files && input.files[0]) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            _tempDeliveryPhoto = e.target.result;
-            const preview = document.getElementById("del-photo-preview");
-            preview.innerHTML = `<img src="${_tempDeliveryPhoto}" style="max-width:100%; max-height:100%; object-fit:contain">`;
-        };
-        reader.readAsDataURL(input.files[0]);
+    if (!input.files || !input.files[0]) return;
+    var file = input.files[0];
+    var preview = document.getElementById("del-photo-preview");
+    if (!preview) return;
+    preview.innerHTML = "<div style='padding:20px;color:var(--tx3)'>Subiendo foto...</div>";
+
+    // Si Firebase Storage está disponible, subir a la nube
+    if (window._STORAGE && window._currentUser) {
+        var storageRef = window._STORAGE.ref("users/" + window._currentUser.uid + "/delivery_photos/" + Date.now() + "_" + file.name);
+        var task = storageRef.put(file);
+        task.then(function (snapshot) {
+            return snapshot.ref.getDownloadURL();
+        }).then(function (url) {
+            _tempDeliveryPhoto = url;
+            preview.innerHTML = '<img src="' + url + '" style="max-width:100%;max-height:100%;object-fit:contain">';
+            toast("Foto subida a la nube ✓");
+        }).catch(function () {
+            // Fallback a base64 si falla Storage
+            fallbackPhotoUpload(file, preview);
+        });
+    } else {
+        fallbackPhotoUpload(file, preview);
     }
+}
+
+function fallbackPhotoUpload(file, preview) {
+    var reader = new FileReader();
+    reader.onload = function (e) {
+        _tempDeliveryPhoto = e.target.result;
+        preview.innerHTML = '<img src="' + _tempDeliveryPhoto + '" style="max-width:100%;max-height:100%;object-fit:contain">';
+    };
+    reader.readAsDataURL(file);
 }
 
 function confirmDelivery(orderId) {
