@@ -19,8 +19,11 @@ function renderSchedule() {
     var totalProgress = progress.totalProgress || 0;
     var schedules = p.execution.schedules || {};
 
-    // ── Cabecera ──────────────────────────────────────────────────────────
-    var h = '<div class="prices-wrap">' +
+    // ── Estilos para selección de filas ──────────────────────────────────
+    var h = '<style>.sch-row-selected td{background:rgba(245,158,11,0.12) !important;box-shadow:inset 3px 0 0 var(--acc)}' +
+        '.sch-row-selected td:first-child{position:relative}' +
+        '.sch-row-selected td:first-child::after{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--acc)}</style>' +
+        '<div class="prices-wrap">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px">' +
         '<div><h2 style="font-family:var(--font-display);font-weight:800;margin-bottom:2px">📅 CRONOGRAMA DE OBRA</h2>' +
         '<p style="color:var(--tx3);font-size:0.85rem">Proyecto: <strong>' + escapeHtml(p.name) + '</strong></p></div>' +
@@ -78,7 +81,8 @@ function renderSchedule() {
 
         var durationDays = duration !== "-" ? parseInt(duration) : 0;
 
-        h += '<tr style="border-bottom:1px solid var(--bor)">' +
+        var selectedClass = (window._selectedSchRow === idx) ? " sch-row-selected" : "";
+        h += '<tr class="sch-row-main' + selectedClass + '" data-sch-row="' + idx + '" style="border-bottom:1px solid var(--bor);cursor:default" onclick="toggleSchRow(' + idx + ')">' +
             // #
             '<td style="padding:8px 6px;border:1px solid var(--bor);text-align:center;vertical-align:middle;color:var(--tx3);font-size:0.75rem">' + (idx + 1) + '</td>' +
             // Rubro
@@ -150,6 +154,15 @@ function renderExecutionCell(itemId, sch) {
             '<button class="btn sm" style="padding:2px 6px;font-size:0.7rem" onclick="showAssignPersonnelModal(\'' + itemId + '\')">👥</button></div>';
     }
     return h;
+}
+
+function toggleSchRow(idx) {
+    if (window._selectedSchRow === idx) {
+        window._selectedSchRow = null;
+    } else {
+        window._selectedSchRow = idx;
+    }
+    renderSchedule();
 }
 
 function updateSchedule(itemId, field, value) {
