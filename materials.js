@@ -80,7 +80,7 @@ function renderMaterials() {
                                             <div style="font-size:0.9rem; font-weight:600">${o.deliveryDate ? formatDatePY(o.deliveryDate) : 'S/D'}</div>
                                         </div>
                                         ${o.deliveryPhoto ? `
-                                            <div onclick="previewImage('${o.deliveryPhoto}')" style="width:50px; height:50px; border-radius:4px; background:url(${o.deliveryPhoto}) center/cover; cursor:pointer; border:1px solid var(--bor)" title="Ver Remisión"></div>
+                                            <div onclick="previewImage('${o.deliveryPhoto.replace(/'/g, "\\'")}')" style="width:50px; height:50px; border-radius:4px; background:url(${o.deliveryPhoto}) center/cover; cursor:pointer; border:1px solid var(--bor)" title="Ver Remisión"></div>
                                         ` : ''}
                                     </div>
                                 ` : ''}
