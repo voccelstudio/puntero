@@ -279,9 +279,13 @@ function renderGanttChart() {
     var p = getActiveProject();
     var adenda = getActiveAdenda();
     if (!p || !adenda || adenda.items.length === 0) return "";
+    var filter = state._schFilter || "";
+    var ganttItems = filter ? adenda.items.filter(function (it) { return it.cat === filter; }) : adenda.items;
+    if (ganttItems.length === 0) return '<p style="color:var(--tx3);font-size:0.85rem;padding:16px;text-align:center">No hay items en esta categoría para el Gantt.</p>';
+
     var minTs = Infinity, maxTs = -Infinity;
     var schedules = p.execution.schedules || {};
-    adenda.items.forEach(function (item) {
+    ganttItems.forEach(function (item) {
         var sch = schedules[item.id] || {};
         if (sch.start) minTs = Math.min(minTs, new Date(sch.start).getTime());
         if (sch.end) maxTs = Math.max(maxTs, new Date(sch.end).getTime());
@@ -289,10 +293,8 @@ function renderGanttChart() {
     if (minTs === Infinity || maxTs === -Infinity) return '<p style="color:var(--tx3);font-size:0.85rem;padding:16px;text-align:center">Definí las fechas del cronograma para ver el diagrama de Gantt.</p>';
     maxTs += 2 * 86400000;
     var daysTotal = Math.ceil((maxTs - minTs) / 86400000) + 1;
-    var weeksTotal = Math.ceil(daysTotal / 7);
 
     var h = '<div class="gantt-wrap" style="min-width:' + Math.max(600, 200 + daysTotal * 32) + 'px">' +
-        // Cabecera con semanas
         '<div class="gantt-header" style="display:grid;grid-template-columns:200px repeat(' + daysTotal + ',minmax(28px,1fr));font-size:0.7rem;font-weight:600;color:var(--tx2);border-bottom:2px solid var(--bor)">' +
         '<div style="padding:6px 8px;font-size:0.75rem;font-weight:700">Rubro</div>';
     for (var i = 0; i < daysTotal; i++) {
@@ -302,7 +304,7 @@ function renderGanttChart() {
     }
     h += '</div>';
 
-    adenda.items.forEach(function (item) {
+    ganttItems.forEach(function (item) {
         var sch = schedules[item.id] || {};
         var color = sch.status === "done" ? "var(--ok)" : sch.status === "progress" ? "var(--blue)" : sch.status === "blocked" ? "var(--err)" : "var(--bor)";
         h += '<div class="gantt-row" style="display:grid;grid-template-columns:200px repeat(' + daysTotal + ',minmax(28px,1fr));border-bottom:1px solid var(--bor);font-size:0.75rem">' +
