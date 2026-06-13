@@ -338,6 +338,7 @@ function migrateToV8() {
     if (state.migratedV7) return;
     state.projects.forEach(p => {
         if (!p.location) p.location = { lat: null, lng: null, address: "", mapUrl: "" };
+        if (!p.execution) p.execution = {};
         if (!p.execution.dayWorkers) p.execution.dayWorkers = [];
         if (!p.execution.laborPayments) p.execution.laborPayments = [];
     });
@@ -3505,6 +3506,48 @@ window.addEventListener("unhandledrejection", function (e) {
   console.warn("[Puntero] Promise rechazada:", e.reason);
 });
 
+// ── AUTO EXCHANGE RATE ─────────────────────────────────────────────────────
+function fetchExchangeRate() {
+  var cached = state._exchangeRateCache;
+  if (cached && Date.now() - cached.ts < 86400000) return;
+  fetch("https://open.er-api.com/v6/latest/USD").then(function (r) { return r.json(); }).then(function (d) {
+    if (d && d.rates && d.rates.PYG) {
+      state.exchangeRate = d.rates.PYG;
+      state._exchangeRateCache = { rate: d.rates.PYG, ts: Date.now() };
+      save();
+    }
+  }).catch(function () {});
+}
+
+// ── BASE64 TO STORAGE MIGRATION ────────────────────────────────────────────
+function migrateBase64ToStorage() {
+  if (!window._STORAGE || !window._currentUser) return;
+  if (state._base64Migrated) return;
+  var found = 0;
+  // Scan materialOrders for base64 delivery photos
+  (state.projects || []).forEach(function (p) {
+    (p.execution?.materialOrders || []).forEach(function (o) {
+      if (o.deliveryPhoto && o.deliveryPhoto.startsWith("data:")) {
+        found++;
+        var byteString = atob(o.deliveryPhoto.split(",")[1]);
+        var mime = o.deliveryPhoto.split(",")[0].match(/:(.*?);/)[1];
+        var ab = new ArrayBuffer(byteString.length);
+        var ia = new Uint8Array(ab);
+        for (var i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+        var blob = new Blob([ab], { type: mime });
+        var ref = window._STORAGE.ref("users/" + window._currentUser.uid + "/migrated/" + o.id + ".jpg");
+        ref.put(blob).then(function (snap) { return snap.ref.getDownloadURL(); }).then(function (url) {
+          o.deliveryPhoto = url;
+          save();
+        }).catch(function () {});
+      }
+    });
+  });
+  if (found > 0) toast("Migrando " + found + " fotos a la nube...");
+  state._base64Migrated = true;
+  save();
+}
+
 // ── INIT ───────────────────────────────────────────────────────────────────
 window.onload = () => {
   if (!state.finances) state.finances = { income: [], expenses: [] };
@@ -3516,11 +3559,18 @@ window.onload = () => {
   migrateToV7();
   renderCurrencyArea();
   initFirebaseAuth();
+  fetchExchangeRate();
   
-  setSection('global_dashboard');
+  // Mobile-first: daily log como landing en celular
+  var isMobile = window.innerWidth < 768 || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+  if (isMobile && state.section !== "logs") state.section = "logs";
+  setSection(state.section || (isMobile ? "logs" : "global_dashboard"));
 
   updateBadge();
   checkBackupReminder();
+  
+  // Migrar fotos base64 antiguas a Storage (si hay sesión)
+  setTimeout(migrateBase64ToStorage, 3000);
 };
 
 /**

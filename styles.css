@@ -370,7 +370,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:.9rem}
 .gantt-body{display:flex;flex-direction:column}
 .gantt-row{display:grid;border-bottom:1px solid var(--bor);transition:background .2s}
 .gantt-row:hover{background:var(--sur2)}
-.gantt-item-name{padding:8px 10px;font-size:.85rem;color:var(--tx2);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-right:1px solid var(--bor);position:sticky;left:0;background:inherit;z-index:1}
+.gantt-item-name{padding:8px 10px;font-size:.85rem;color:var(--tx2);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-right:1px solid var(--bor);position:sticky;left:0;background:var(--sur);z-index:2}
 .gantt-cell{border-right:1px dashed var(--bor)}
 .gantt-cell.weekend{background:rgba(var(--tx-rgb),.02)}
 .gantt-bar{height:100%;min-height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--bg);font-weight:800;box-shadow:0 2px 8px rgba(0,0,0,.12);cursor:pointer;transition:transform .1s}
@@ -378,6 +378,22 @@ table.tbl{width:100%;border-collapse:collapse;font-size:.9rem}
 
 /* ═══════════════════════════════════════════ CONTRACTORS ═══ */
 .con-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;padding:14px}
+/* TABS SYSTEM */
+.tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid var(--bor); padding-bottom: 8px; overflow-x: auto; }
+.tab-btn { padding: 8px 16px; border: none; background: none; color: var(--tx3); font-weight: 700; cursor: pointer; border-radius: var(--rad); font-size: 0.9rem; transition: all 0.2s; white-space: nowrap; }
+.tab-btn:hover { background: var(--sur2); color: var(--tx); }
+.tab-btn.active { background: var(--acc); color: white; }
+
+/* ROLE BADGES */
+.role-badge { font-size: 0.65rem; font-weight: 800; text-transform:uppercase; padding: 2px 6px; border-radius: 4px; letter-spacing: 0.02em; }
+.role-ayudante { background: #94a3b8; color: white; }
+.role-oficial { background: var(--blue); color: white; }
+.role-puntero { background: var(--acc); color: white; }
+
+/* MAP CONTAINER */
+.map-container { width: 100%; height: 300px; border-radius: var(--rad); border: 1px solid var(--bor); background: var(--sur); margin-bottom: 15px; position: relative; overflow: hidden; }
+.map-placeholder { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--tx3); flex-direction: column; gap: 10px; }
+
 .con-card{background:var(--sur);border:1px solid var(--bor);border-radius:var(--rad);padding:18px;position:relative;transition:all .2s;overflow:hidden}
 .con-card.blacklist{border-color:var(--err);opacity:.8}
 .con-card.blacklist::before{content:"LISTA NEGRA";position:absolute;top:10px;right:-30px;background:var(--err);color:var(--bg);font-size:.6rem;font-weight:900;padding:4px 30px;transform:rotate(45deg);z-index:2}

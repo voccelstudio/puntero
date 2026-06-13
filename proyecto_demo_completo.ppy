@@ -1,0 +1,174 @@
+{
+  "project": {
+    "id": "p_demo_full",
+    "name": "Residencia Familiar - San Lorenzo",
+    "client": "Carlos Giménez",
+    "phone": "0981 123 456",
+    "address": "Barrio San Isidro, San Lorenzo, Paraguay",
+    "m2Area": 180,
+    "date": "01/04/2026",
+    "status": "active",
+    "activeAdendaId": "main",
+    "budgets": [
+      {
+        "id": "main",
+        "name": "Presupuesto Principal",
+        "profitPct": 12,
+        "ivaEnabled": true,
+        "notes": "Presupuesto válido por 30 días. Incluye IVA 10% materiales y 5% mano de obra.",
+        "items": [
+          { "id": 101, "cat": "ESTRUCTURAS", "name": "Zapata fck=18 MPa", "unit": "m3", "qty": 5, "unitPrice": 2554380, "matCost": 1851000, "laborCost": 703380, "mats": [], "disc": 0, "note": "" },
+          { "id": 102, "cat": "ESTRUCTURAS", "name": "Columna fck=18 MPa", "unit": "m3", "qty": 3, "unitPrice": 3100000, "matCost": 2250000, "laborCost": 850000, "mats": [], "disc": 0, "note": "" },
+          { "id": 103, "cat": "ESTRUCTURAS", "name": "Viga de fundación 0.25x0.50", "unit": "ml", "qty": 45, "unitPrice": 185000, "matCost": 135000, "laborCost": 50000, "mats": [], "disc": 0, "note": "" },
+          { "id": 201, "cat": "MAMPOSTERÍA", "name": "Elevación 0.15m ladrillo común", "unit": "m2", "qty": 240, "unitPrice": 125000, "matCost": 91838, "laborCost": 33162, "mats": [], "disc": 0, "note": "" },
+          { "id": 202, "cat": "MAMPOSTERÍA", "name": "Pilar de confinamiento 0.12x0.12", "unit": "ml", "qty": 80, "unitPrice": 82000, "matCost": 60000, "laborCost": 22000, "mats": [], "disc": 0, "note": "" },
+          { "id": 301, "cat": "FUNDACIONES", "name": "Relleno compactado con piedra", "unit": "m3", "qty": 12, "unitPrice": 95000, "matCost": 70000, "laborCost": 25000, "mats": [], "disc": 0, "note": "" },
+          { "id": 401, "cat": "CONTRAPISOS", "name": "Contrapiso armado 0.08m", "unit": "m2", "qty": 160, "unitPrice": 95000, "matCost": 70000, "laborCost": 25000, "mats": [], "disc": 0, "note": "" },
+          { "id": 501, "cat": "REVOQUES", "name": "Revoque fino exterior", "unit": "m2", "qty": 180, "unitPrice": 68000, "matCost": 45000, "laborCost": 23000, "mats": [], "disc": 0, "note": "" },
+          { "id": 502, "cat": "REVOQUES", "name": "Revoque fino interior", "unit": "m2", "qty": 320, "unitPrice": 58000, "matCost": 38000, "laborCost": 20000, "mats": [], "disc": 0, "note": "" },
+          { "id": 601, "cat": "TECHOS", "name": "Estructura de techo madera", "unit": "m2", "qty": 160, "unitPrice": 145000, "matCost": 105000, "laborCost": 40000, "mats": [], "disc": 0, "note": "" },
+          { "id": 602, "cat": "TECHOS", "name": "Cubierta teja española Yoayu", "unit": "m2", "qty": 160, "unitPrice": 125000, "matCost": 95000, "laborCost": 30000, "mats": [], "disc": 0, "note": "" },
+          { "id": 701, "cat": "PISOS", "name": "Cerámica esmaltada 45x45", "unit": "m2", "qty": 140, "unitPrice": 115000, "matCost": 80000, "laborCost": 35000, "mats": [], "disc": 0, "note": "" },
+          { "id": 801, "cat": "PINTURAS", "name": "Látex interior dos manos", "unit": "m2", "qty": 400, "unitPrice": 35000, "matCost": 20000, "laborCost": 15000, "mats": [], "disc": 0, "note": "" },
+          { "id": 802, "cat": "PINTURAS", "name": "Látex exterior dos manos", "unit": "m2", "qty": 180, "unitPrice": 42000, "matCost": 25000, "laborCost": 17000, "mats": [], "disc": 0, "note": "" },
+          { "id": 901, "cat": "INSTALACIÓN ELÉCTRICA", "name": "Punto de luz interruptor", "unit": "pto", "qty": 25, "unitPrice": 85000, "matCost": 55000, "laborCost": 30000, "mats": [], "disc": 0, "note": "" },
+          { "id": 902, "cat": "INSTALACIÓN ELÉCTRICA", "name": "Punto de luz tomacorriente", "unit": "pto", "qty": 35, "unitPrice": 75000, "matCost": 48000, "laborCost": 27000, "mats": [], "disc": 0, "note": "" },
+          { "id": 1001, "cat": "DESAGÜE CLOACAL", "name": "Punto de desagüe cloacal", "unit": "pto", "qty": 6, "unitPrice": 180000, "matCost": 120000, "laborCost": 60000, "mats": [], "disc": 0, "note": "" },
+          { "id": 1002, "cat": "AGUA CORRIENTE", "name": "Punto de agua fría", "unit": "pto", "qty": 8, "unitPrice": 95000, "matCost": 60000, "laborCost": 35000, "mats": [], "disc": 0, "note": "" },
+          { "id": 1101, "cat": "ARTEFACTOS SANITARIOS", "name": "Inodoro completo", "unit": "un", "qty": 4, "unitPrice": 350000, "matCost": 280000, "laborCost": 70000, "mats": [], "disc": 0, "note": "" },
+          { "id": 1102, "cat": "ARTEFACTOS SANITARIOS", "name": "Lavatorio de pedal", "unit": "un", "qty": 3, "unitPrice": 250000, "matCost": 200000, "laborCost": 50000, "mats": [], "disc": 0, "note": "" },
+          { "id": 1103, "cat": "CARPINTERÍA MADERA", "name": "Puerta interior placa 0.80m", "unit": "un", "qty": 8, "unitPrice": 450000, "matCost": 350000, "laborCost": 100000, "mats": [], "disc": 0, "note": "" },
+          { "id": 1201, "cat": "VARIOS", "name": "Limpieza final de obra", "unit": "gl", "qty": 1, "unitPrice": 1200000, "matCost": 200000, "laborCost": 1000000, "mats": [], "disc": 0, "note": "" }
+        ]
+      }
+    ],
+    "execution": {
+      "schedules": {
+        "101": { "status": "done", "start": "2026-04-01", "end": "2026-04-12", "contractorId": "con_est", "executionMode": "contractor", "assignedStaff": [] },
+        "102": { "status": "done", "start": "2026-04-10", "end": "2026-04-18", "contractorId": "con_est", "executionMode": "contractor", "assignedStaff": [] },
+        "103": { "status": "done", "start": "2026-04-01", "end": "2026-04-10", "contractorId": "con_est", "executionMode": "contractor", "assignedStaff": [] },
+        "201": { "status": "progress", "start": "2026-04-18", "end": "2026-05-10", "contractorId": "con_est", "executionMode": "contractor", "assignedStaff": [] },
+        "202": { "status": "progress", "start": "2026-04-20", "end": "2026-05-05", "contractorId": "con_est", "executionMode": "contractor", "assignedStaff": [] },
+        "301": { "status": "done", "start": "2026-04-01", "end": "2026-04-05", "contractorId": "con_est", "executionMode": "contractor", "assignedStaff": [] },
+        "401": { "status": "pending", "start": "2026-05-10", "end": "2026-05-20", "contractorId": null, "executionMode": "own_team", "assignedStaff": ["own_1"] },
+        "501": { "status": "pending", "start": "2026-05-20", "end": "2026-06-05", "contractorId": null, "executionMode": "contractor", "assignedStaff": [] },
+        "502": { "status": "pending", "start": "2026-05-25", "end": "2026-06-10", "contractorId": null, "executionMode": "contractor", "assignedStaff": [] },
+        "601": { "status": "pending", "start": "2026-06-05", "end": "2026-06-20", "contractorId": null, "executionMode": "contractor", "assignedStaff": [] },
+        "602": { "status": "pending", "start": "2026-06-15", "end": "2026-06-28", "contractorId": null, "executionMode": "contractor", "assignedStaff": [] },
+        "701": { "status": "pending", "start": "2026-07-01", "end": "2026-07-15", "contractorId": null, "executionMode": "contractor", "assignedStaff": [] },
+        "801": { "status": "pending", "start": "2026-07-10", "end": "2026-07-25", "contractorId": null, "executionMode": "contractor", "assignedStaff": [] },
+        "802": { "status": "pending", "start": "2026-07-15", "end": "2026-07-28", "contractorId": null, "executionMode": "contractor", "assignedStaff": [] },
+        "901": { "status": "pending", "start": "2026-06-10", "end": "2026-06-22", "contractorId": null, "executionMode": "contractor", "assignedStaff": [] },
+        "902": { "status": "pending", "start": "2026-06-10", "end": "2026-06-22", "contractorId": null, "executionMode": "contractor", "assignedStaff": [] },
+        "1001": { "status": "progress", "start": "2026-05-01", "end": "2026-05-08", "contractorId": "con_sani", "executionMode": "contractor", "assignedStaff": [] },
+        "1002": { "status": "progress", "start": "2026-05-01", "end": "2026-05-08", "contractorId": "con_sani", "executionMode": "contractor", "assignedStaff": [] },
+        "1101": { "status": "pending", "start": "2026-07-20", "end": "2026-07-25", "contractorId": null, "executionMode": "contractor", "assignedStaff": [] },
+        "1102": { "status": "pending", "start": "2026-07-20", "end": "2026-07-25", "contractorId": null, "executionMode": "contractor", "assignedStaff": [] },
+        "1103": { "status": "pending", "start": "2026-07-01", "end": "2026-07-10", "contractorId": null, "executionMode": "contractor", "assignedStaff": [] },
+        "1201": { "status": "pending", "start": "2026-08-01", "end": "2026-08-03", "contractorId": null, "executionMode": "own_team", "assignedStaff": ["own_1", "own_2"] }
+      },
+      "dailyLogs": [
+        { "id": "log_demo_1", "date": "2026-04-01", "weather": "sunny", "workDone": "Inicio de excavación de zapatas. Se marcaron los ejes de la obra y se comenzó la excavación de las 5 zapatas previstas. El terreno se encuentra en buenas condiciones, sin presencia de napas.", "attendance": [{ "name": "Pedro Benítez", "origin": "Contratista: Constructor Esteche", "present": true }, { "name": "Juan Ramírez", "origin": "Contratista: Constructor Esteche", "present": true }, { "name": "Santiago López", "origin": "Contratista: Constructor Esteche", "present": false }], "location": { "lat": -25.341, "lng": -57.515 }, "photos": [], "inspection": [{ "id": "seguridad", "label": "🪖 Equipos de seguridad (casco, arnés)", "done": true }, { "id": "limpieza", "label": "🧹 Orden y limpieza del frente", "done": true }, { "id": "materiales", "label": "🧱 Materiales en obra (llegada/stock)", "done": true }, { "id": "avance", "label": "📐 Avance contra cronograma", "done": true }] },
+        { "id": "log_demo_2", "date": "2026-04-05", "weather": "cloudy", "workDone": "Colocación de armadura en zapatas y hormigonado de las primeras 3. Llegó el camión de hormigón de Hormipar a las 9:30. Se hormigonaron las zapatas 1, 2 y 3 sin inconvenientes.", "attendance": [{ "name": "Pedro Benítez", "origin": "Contratista: Constructor Esteche", "present": true }, { "name": "Juan Ramírez", "origin": "Contratista: Constructor Esteche", "present": true }], "location": { "lat": -25.342, "lng": -57.516 }, "photos": [], "inspection": [{ "id": "seguridad", "label": "🪖 Equipos de seguridad (casco, arnés)", "done": true }, { "id": "estructura", "label": "🏗️ Estructuras y encofrados", "done": true }, { "id": "avance", "label": "📐 Avance contra cronograma", "done": true }] },
+        { "id": "log_demo_3", "date": "2026-04-12", "weather": "sunny", "workDone": "Desencofrado de zapatas. Se retiraron los encofrados y se verificaron las dimensiones. Todo correcto. Se inició el replanteo para las columnas.", "attendance": [{ "name": "Pedro Benítez", "origin": "Contratista: Constructor Esteche", "present": true }, { "name": "Juan Ramírez", "origin": "Contratista: Constructor Esteche", "present": true }, { "name": "Santiago López", "origin": "Contratista: Constructor Esteche", "present": true }], "location": { "lat": -25.341, "lng": -57.516 }, "photos": [], "inspection": [{ "id": "estructura", "label": "🏗️ Estructuras y encofrados", "done": true }] },
+        { "id": "log_demo_4", "date": "2026-04-18", "weather": "sunny", "workDone": "Inicio de mampostería. Comenzó el levantamiento de paredes en la zona delantera. Se usa ladrillo común con mezcla 1:4. Avance estimado: 30 m2.", "attendance": [{ "name": "Pedro Benítez", "origin": "Contratista: Constructor Esteche", "present": true }, { "name": "Juan Ramírez", "origin": "Contratista: Constructor Esteche", "present": true }], "inspection": [{ "id": "seguridad", "label": "🪖 Equipos de seguridad (casco, arnés)", "done": true }, { "id": "materiales", "label": "🧱 Materiales en obra (llegada/stock)", "done": false }] },
+        { "id": "log_demo_5", "date": "2026-04-25", "weather": "rainy", "workDone": "Solo medio día de trabajo por lluvia. Se realizaron tareas menores de orden y limpieza. Se cubrieron los materiales sensibles con lona.", "attendance": [{ "name": "Pedro Benítez", "origin": "Contratista: Constructor Esteche", "present": true }], "inspection": [{ "id": "limpieza", "label": "🧹 Orden y limpieza del frente", "done": true }] },
+        { "id": "log_demo_6", "date": "2026-04-28", "weather": "cloudy", "workDone": "Avance de mampostería: se completaron 45 m2 adicionales. Se dejaron vanos para puertas y ventanas según plano. Instalación de tuberías de desagüe en baños.", "attendance": [{ "name": "Pedro Benítez", "origin": "Contratista: Constructor Esteche", "present": true }, { "name": "Juan Ramírez", "origin": "Contratista: Constructor Esteche", "present": true }, { "name": "Roberto Martínez", "origin": "Contratista: Instalaciones Sanitarias", "present": true }], "inspection": [{ "id": "instalaciones", "label": "🔌 Instalaciones (eléctrica, agua)", "done": true }, { "id": "avance", "label": "📐 Avance contra cronograma", "done": true }] }
+      ],
+      "materialOrders": [
+        { "id": 10001, "supplier": "Corralón Don Ramón", "total": 4850000, "date": "2026-04-01", "items": [{ "name": "Cemento tipo 1", "qty": 100, "unit": "kg" }, { "name": "Varilla conf. Ø8mm", "qty": 200, "unit": "kg" }, { "name": "Arena lavada", "qty": 5, "unit": "m3" }], "status": "delivered", "isPaid": true, "deliveryDate": "2026-04-01" },
+        { "id": 10002, "supplier": "Corralón Don Ramón", "total": 3200000, "date": "2026-04-10", "items": [{ "name": "Ladrillo común", "qty": 3000, "unit": "un" }], "status": "delivered", "isPaid": true, "deliveryDate": "2026-04-11" },
+        { "id": 10003, "supplier": "Ferretería El Progreso", "total": 1800000, "date": "2026-04-20", "items": [{ "name": "Cemento tipo 1", "qty": 50, "unit": "kg" }, { "name": "Cal triturada", "qty": 100, "unit": "kg" }], "status": "delivered", "isPaid": false, "deliveryDate": "2026-04-21" },
+        { "id": 10004, "supplier": "Materiales San Lorenzo", "total": 6500000, "date": "2026-05-05", "items": [{ "name": "Teja española Yoayu", "qty": 160, "unit": "un" }, { "name": "Caballetes", "qty": 15, "unit": "un" }], "status": "pending", "isPaid": false }
+      ],
+      "finances": {
+        "income": [
+          { "id": "inc_1", "amount": 25000000, "date": "2026-04-02", "note": "Anticipo 30% - Transferencia bancaria" },
+          { "id": "inc_2", "amount": 15000000, "date": "2026-04-30", "note": "Segundo desembolso - Cheque" }
+        ],
+        "expenses": [
+          { "id": "exp_1", "amount": 4850000, "date": "2026-04-01", "note": "Pago Corralón Don Ramón - Materiales iniciales" },
+          { "id": "exp_2", "amount": 2000000, "date": "2026-04-05", "note": "Anticipo Constructor Esteche" },
+          { "id": "exp_3", "amount": 3200000, "date": "2026-04-11", "note": "Pago Corralón Don Ramón - Ladrillos" },
+          { "id": "exp_4", "amount": 1500000, "date": "2026-04-15", "note": "Pago a contratista sanitario" }
+        ]
+      },
+      "documents": [],
+      "aftercare": [
+        { "title": "Filtración en baño social", "date": "2026-05-15", "desc": "El cliente reportó una pequeña filtración en la pared del baño social. Revisar y sellar junta.", "status": "pending", "id": 1680000000001 },
+        { "title": "Ajuste de puerta principal", "date": "2026-05-10", "desc": "La puerta principal no cierra correctamente. Lijar marco y ajustar bisagras.", "status": "resolved", "id": 1680000000002 }
+      ],
+      "projectStartDate": "2026-04-01",
+      "projectEndDate": "2026-08-03",
+      "dayWorkers": [
+        { "id": "dw_1", "name": "Marcos", "surname": "Ayala", "idNumber": "4.567.890", "role": "Ayudante", "dailyRate": 80000, "hasIPS": false, "hasCriminalRecords": false },
+        { "id": "dw_2", "name": "Luis", "surname": "Mendoza", "idNumber": "3.214.567", "role": "Puntero", "dailyRate": 180000, "hasIPS": true, "hasCriminalRecords": false }
+      ],
+      "laborPayments": []
+    },
+    "location": {
+      "lat": -25.341,
+      "lng": -57.515,
+      "address": "Barrio San Isidro, San Lorenzo",
+      "mapUrl": ""
+    }
+  },
+  "contractors": [
+    {
+      "id": "con_est",
+      "name": "Constructor Esteche",
+      "phone": "0981 777 888",
+      "specialty": "Albañilería y Estructura",
+      "notes": "Contratista principal de la obra. Muy recomendado.",
+      "isBlacklisted": false,
+      "payments": [
+        { "amount": 2000000, "date": "2026-04-05", "note": "Anticipo inicio obra", "id": 1680000001001 },
+        { "amount": 3000000, "date": "2026-04-20", "note": "Pago parcial", "id": 1680000001002 }
+      ],
+      "staff": [
+        { "name": "Pedro", "surname": "Benítez", "idNumber": "1.234.567", "hasIPS": true, "hasCriminalRecords": false },
+        { "name": "Juan", "surname": "Ramírez", "idNumber": "2.345.678", "hasIPS": false, "hasCriminalRecords": false },
+        { "name": "Santiago", "surname": "López", "idNumber": "3.456.789", "hasIPS": false, "hasCriminalRecords": false }
+      ]
+    },
+    {
+      "id": "con_sani",
+      "name": "Instalaciones Sanitarias Rivas",
+      "phone": "0971 555 444",
+      "specialty": "Plomería y Desagüe",
+      "notes": "Buen precio y trabajo rápido. Usar nuevamente.",
+      "isBlacklisted": false,
+      "payments": [
+        { "amount": 1500000, "date": "2026-04-15", "note": "Anticipo instalaciones sanitarias", "id": 1680000002001 }
+      ],
+      "staff": [
+        { "name": "Roberto", "surname": "Martínez", "idNumber": "5.678.901", "hasIPS": true, "hasCriminalRecords": false }
+      ]
+    },
+    {
+      "id": "con_elec",
+      "name": "Electricidad del Este",
+      "phone": "0981 333 222",
+      "specialty": "Instalaciones Eléctricas",
+      "notes": "Pendiente de contratar para la etapa eléctrica.",
+      "isBlacklisted": false,
+      "payments": [],
+      "staff": []
+    }
+  ],
+  "profile": {
+    "company": "VOCCEL Estudio",
+    "professional": "Martín Huber",
+    "matricula": "M.A. 1234",
+    "ruc": "1234567-8",
+    "phone": "0981 999 000",
+    "email": "martin@voccel.com",
+    "address": "Asunción, Paraguay",
+    "instagram": "@voccelstudio",
+    "whatsapp": "0981999000",
+    "website": "voccel.com"
+  },
+  "exportDate": "2026-04-01T00:00:00.000Z",
+  "app": "Puntero",
+  "version": "7.0"
+}
