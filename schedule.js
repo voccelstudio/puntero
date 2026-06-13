@@ -20,85 +20,74 @@ function renderSchedule() {
     const { totalProgress } = calcOverallProgress();
     const schedules = p.execution.schedules || {};
 
-    let h = `<div class="prices-wrap">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px">
-            <div>
-                <h2 style="font-family:var(--font-display); font-weight:800; margin-bottom:4px">CRONOGRAMA DE EJECUCIÓN</h2>
-                <p style="color:var(--tx3); font-size:0.9rem">Proyecto: <strong>${p.name}</strong></p>
-            </div>
-            <div style="text-align:right">
-                <div style="font-size:1.2rem; font-weight:800; color:var(--ok)">${totalProgress}%</div>
-                <div style="font-size:0.75rem; color:var(--tx3); text-transform:uppercase">Progreso Total</div>
-            </div>
-        </div>
+    let h = '<div class="prices-wrap">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">' +
+        '<div><h2 style="font-family:var(--font-display);font-weight:800;margin-bottom:4px">📅 CRONOGRAMA DE EJECUCIÓN</h2>' +
+        '<p style="color:var(--tx3);font-size:0.9rem">Proyecto: <strong>' + escapeHtml(p.name) + '</strong></p></div>' +
+        '<div style="text-align:right"><div style="font-size:1.2rem;font-weight:800;color:var(--ok)">' + totalProgress + '%</div>' +
+        '<div style="font-size:0.75rem;color:var(--tx3);text-transform:uppercase">Progreso Total</div></div></div>' +
 
-        <div class="card" style="margin-bottom:24px; padding:15px; display:flex; align-items:center; gap:15px; background:var(--sur2)">
-            ${dateInputPY('proj-start-date', p.execution.projectStartDate || '', "setProjectStartDate(this.value)", "width:160px")}
-            <div style="flex:1">
-                <div style="font-weight:700; font-size:0.875rem; color:var(--tx2)">Inicio del Proyecto</div>
-                <div style="font-size:0.75rem; color:var(--tx3)">Recalcular fechas secuenciales.</div>
-            </div>
-            <button class="btn sm" onclick="recalculateScheduleDates()">🔄 Recalcular Todo</button>
-        </div>
+        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;padding:12px;background:var(--sur2);border-radius:var(--rad)">' +
+        dateInputPY("proj-start-date", p.execution.projectStartDate || "", "setProjectStartDate(this.value)", "width:160px") +
+        '<span style="font-size:0.85rem;color:var(--tx3);flex:1">Inicio del proyecto — recalcular fechas secuenciales.</span>' +
+        '<button class="btn sm" onclick="recalculateScheduleDates()">🔄 Recalcular</button></div>' +
 
-        <div class="card" style="margin-bottom:24px; padding:0; overflow:hidden">
-            <div style="padding:15px; overflow-x:auto; background:var(--sur)">
-                ${renderGanttChart()}
-            </div>
-        </div>
+        '<div style="margin-bottom:20px;overflow-x:auto;border:1px solid var(--bor);border-radius:var(--rad);background:var(--sur)">' +
+        renderGanttChart() + '</div>' +
 
-        <div class="sch-card" style="border:none">
-            <div class="sch-row hdr" style="grid-template-columns: 1.5fr 1fr 1fr 1fr 1.5fr">
-                <div>Rubro</div>
-                <div>Estado</div>
-                <div>Inicio</div>
-                <div>Fin</div>
-                <div>Ejecución / Responsable</div>
-            </div>`;
+        // Tabla estilo planilla
+        '<div style="overflow-x:auto;border:1px solid var(--bor);border-radius:var(--rad);background:var(--bg)">' +
+        '<table style="width:100%;border-collapse:collapse;font-size:0.85rem;min-width:700px">' +
+        '<thead><tr style="background:var(--sur2)">' +
+        '<th style="padding:10px 12px;border:1px solid var(--bor);text-align:left;font-weight:700;color:var(--tx2);text-transform:uppercase;font-size:0.75rem">Rubro</th>' +
+        '<th style="padding:10px 12px;border:1px solid var(--bor);text-align:center;font-weight:700;color:var(--tx2);text-transform:uppercase;font-size:0.75rem;width:130px">Estado</th>' +
+        '<th style="padding:10px 12px;border:1px solid var(--bor);text-align:center;font-weight:700;color:var(--tx2);text-transform:uppercase;font-size:0.75rem;width:140px">Inicio</th>' +
+        '<th style="padding:10px 12px;border:1px solid var(--bor);text-align:center;font-weight:700;color:var(--tx2);text-transform:uppercase;font-size:0.75rem;width:140px">Fin</th>' +
+        '<th style="padding:10px 12px;border:1px solid var(--bor);text-align:left;font-weight:700;color:var(--tx2);text-transform:uppercase;font-size:0.75rem;width:200px">Ejecución / Responsable</th>' +
+        '</tr></thead><tbody>';
 
-    adenda.items.forEach(item => {
-        const sch = schedules[item.id] || { status: 'pending', start: '', end: '', contractorId: null, executionMode: 'contractor' };
-        const statusClass = `st-${sch.status}`;
-        
-        let execSelect = `<select class="sch-contractor" onchange="updateSchedule('${item.id}', 'executionMode', this.value)">
-            <option value="contractor" ${sch.executionMode === 'contractor' ? 'selected' : ''}>👷 Contratista</option>
-            <option value="own_team" ${sch.executionMode === 'own_team' ? 'selected' : ''}>🏗️ Equipo Propio</option>
-            <option value="day_workers" ${sch.executionMode === 'day_workers' ? 'selected' : ''}>👤 Jornaleros</option>
-        </select>`;
+    adenda.items.forEach(function (item) {
+        var sch = schedules[item.id] || { status: "pending", start: "", end: "", contractorId: null, executionMode: "contractor" };
+        var statusClass = "st-" + sch.status;
 
-        let assignedTo = '';
-        if (sch.executionMode === 'contractor') {
-            assignedTo = `<select class="sch-contractor" style="margin-top:4px" onchange="updateSchedule('${item.id}', 'contractorId', this.value)">
-                <option value="">-- Sin Contratista --</option>
-                ${(state.contractors || []).map(c => `<option value="${c.id}" ${sch.contractorId === c.id ? 'selected' : ''}>${c.name}</option>`).join("")}
-            </select>`;
+        var execOpts = '<select style="width:100%;padding:4px;border:1px solid var(--bor);border-radius:4px;background:var(--bg);color:var(--tx);font-size:0.8rem" onchange="updateSchedule(\'' + item.id + "', 'executionMode', this.value)\">" +
+            '<option value="contractor"' + (sch.executionMode === "contractor" ? " selected" : "") + ">👷 Contratista</option>" +
+            '<option value="own_team"' + (sch.executionMode === "own_team" ? " selected" : "") + ">🏗️ Equipo Propio</option>" +
+            '<option value="day_workers"' + (sch.executionMode === "day_workers" ? " selected" : "") + ">👤 Jornaleros</option></select>";
+
+        var assignedHtml = "";
+        if (sch.executionMode === "contractor") {
+            assignedHtml = '<select style="width:100%;padding:4px;border:1px solid var(--bor);border-radius:4px;background:var(--bg);color:var(--tx);font-size:0.8rem;margin-top:4px" onchange="updateSchedule(\'' + item.id + "', 'contractorId', this.value)\">" +
+                '<option value="">— Sin contratista —</option>' +
+                (state.contractors || []).map(function (c) { return '<option value="' + c.id + '"' + (sch.contractorId === c.id ? " selected" : "") + ">" + escapeHtml(c.name) + "</option>"; }).join("") +
+                "</select>";
         } else {
-            assignedTo = `<button class="btn sm full" style="margin-top:4px" onclick="showAssignPersonnelModal('${item.id}')">👥 Asignar Personal</button>`;
+            assignedHtml = '<button class="btn sm full" style="margin-top:4px;font-size:0.75rem" onclick="showAssignPersonnelModal(\'' + item.id + "')\">👥 Asignar Personal</button>";
         }
 
-        h += `<div class="sch-row" style="grid-template-columns: 1.5fr 1fr 1fr 1fr 1.5fr">
-            <div>
-                <div style="font-weight:700; font-size:0.9rem">${item.name}</div>
-                <div style="font-size:0.75rem; color:var(--tx3)">${item.qty} ${item.unit}</div>
-            </div>
-            <div>
-                <select class="st-badge ${statusClass}" onchange="updateSchedule('${item.id}', 'status', this.value)">
-                    <option value="pending" ${sch.status === 'pending' ? 'selected' : ''}>⏳ Pendiente</option>
-                    <option value="progress" ${sch.status === 'progress' ? 'selected' : ''}>🏗️ Iniciado</option>
-                    <option value="blocked" ${sch.status === 'blocked' ? 'selected' : ''}>⚠️ Bloqueado</option>
-                    <option value="done" ${sch.status === 'done' ? 'selected' : ''}>✅ Completado</option>
-                </select>
-            </div>
-            <div>${dateInputPY('sch-start-' + item.id, sch.start || '', "updateSchedule('" + item.id + "', 'start', this.value)", "width:100%")}</div>
-            <div>${dateInputPY('sch-end-' + item.id, sch.end || '', "updateSchedule('" + item.id + "', 'end', this.value)", "width:100%")}</div>
-            <div>
-                ${execSelect}
-                ${assignedTo}
-            </div>
-        </div>`;
+        h += '<tr style="border-bottom:1px solid var(--bor)">' +
+            '<td style="padding:8px 12px;border:1px solid var(--bor);vertical-align:middle">' +
+            '<div style="font-weight:700;font-size:0.85rem">' + escapeHtml(item.name) + '</div>' +
+            '<div style="font-size:0.7rem;color:var(--tx3)">' + fmtD(item.qty) + " " + escapeHtml(item.unit) + "</div></td>" +
+
+            '<td style="padding:8px 12px;border:1px solid var(--bor);text-align:center;vertical-align:middle">' +
+            '<select style="width:100%;padding:4px;border:1px solid var(--bor);border-radius:4px;background:var(--bg);color:var(--tx);font-size:0.8rem" class="' + statusClass + '" onchange="updateSchedule(\'' + item.id + "', 'status', this.value)\">" +
+            '<option value="pending"' + (sch.status === "pending" ? " selected" : "") + ">⏳ Pendiente</option>" +
+            '<option value="progress"' + (sch.status === "progress" ? " selected" : "") + ">🏗️ Iniciado</option>" +
+            '<option value="blocked"' + (sch.status === "blocked" ? " selected" : "") + ">⚠️ Bloqueado</option>" +
+            '<option value="done"' + (sch.status === "done" ? " selected" : "") + ">✅ Completado</option></select></td>" +
+
+            '<td style="padding:8px 12px;border:1px solid var(--bor);text-align:center;vertical-align:middle">' +
+            dateInputPY("sch-start-" + item.id, sch.start || "", "updateSchedule('" + item.id + "', 'start', this.value)", "width:100%") + "</td>" +
+
+            '<td style="padding:8px 12px;border:1px solid var(--bor);text-align:center;vertical-align:middle">' +
+            dateInputPY("sch-end-" + item.id, sch.end || "", "updateSchedule('" + item.id + "', 'end', this.value)", "width:100%") + "</td>" +
+
+            '<td style="padding:8px 12px;border:1px solid var(--bor);vertical-align:middle">' +
+            execOpts + assignedHtml + "</td></tr>";
     });
 
-    h += `</div></div>`;
+    h += "</tbody></table></div></div>";
     el.innerHTML = h;
 }
 
