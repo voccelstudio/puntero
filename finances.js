@@ -1,5 +1,5 @@
 /**
- * finances.js — Gestión de ingresos y egresos (Cashflow)
+ * finances.js — Gestión financiera integral (Ingresos, Egresos y jornales)
  */
 
 function renderFinances() {
@@ -8,143 +8,106 @@ function renderFinances() {
     const p = getActiveProject();
     if (!p) { el.innerHTML = "<div class='empty'>Seleccioná un proyecto para ver sus finanzas.</div>"; return; }
     if (!p.execution.finances) p.execution.finances = { income: [], expenses: [] };
-    if (!p.execution.finances.income) p.execution.finances.income = [];
-    if (!p.execution.finances.expenses) p.execution.finances.expenses = [];
 
     const finances = p.execution.finances;
+    const { total } = getTotals(); // Presupuesto meta
+    
+    const incomeTotal = (finances.income || []).reduce((s, i) => s + i.amount, 0);
+    const expensesTotal = (finances.expenses || []).reduce((s, e) => s + e.amount, 0);
 
-    const { total } = getTotals();
-    const incomeTotal = finances.income.reduce((s, i) => s + i.amount, 0);
-    const expensesTotal = finances.expenses.reduce((s, e) => s + e.amount, 0);
+    // 1. Pagos a Contratistas
+    const assignedConIds = new Set(Object.values(p.execution.schedules || {}).map(s => s.contractorId).filter(Boolean));
+    const contractorPayments = (state.contractors || []).filter(c => assignedConIds.has(c.id)).reduce((s, c) => s + (c.payments || []).reduce((sp, py) => sp + (py.amount || 0), 0), 0);
 
-    // Pagos a contratistas filtrados por proyecto (solo los asignados a este proyecto)
-    const assignedConIds = new Set(
-        Object.values(p.execution.schedules || {})
-            .map(s => s && s.contractorId)
-            .filter(Boolean)
-    );
-    const projectContractors = (state.contractors || []).filter(c => assignedConIds.has(c.id));
-    const contractorPayments = projectContractors.reduce((s, c) => s + (c.payments || []).reduce((sp, py) => sp + (py.amount || 0), 0), 0);
+    // 2. Costo de Jornales (Basado en Asistencia en Bitácora)
+    let laborCostTotal = 0;
+    (p.execution.dailyLogs || []).forEach(log => {
+        (log.attendance || []).forEach(att => {
+            if (att.present) {
+                // Buscar el jornal correspondiente
+                let rate = 0;
+                if (att.origin === 'Equipo Propio') {
+                    const m = state.ownTeam.find(o => `${o.name} ${o.surname}` === att.name);
+                    if (m) rate = m.dailyRate;
+                } else if (att.origin === 'Jornalero') {
+                    const m = p.execution.dayWorkers.find(d => `${d.name} ${d.surname}` === att.name);
+                    if (m) rate = m.dailyRate;
+                }
+                laborCostTotal += rate;
+            }
+        });
+    });
 
-    const totalSpent = expensesTotal + contractorPayments;
+    const totalSpent = expensesTotal + contractorPayments + laborCostTotal;
     const balance = incomeTotal - totalSpent;
 
     el.innerHTML = `
     <div class="prices-wrap">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
-            <div>
-                <h2 class="sec-lbl" style="margin:0">FLUJO DE CAJA</h2>
-                <p style="color:var(--tx3); font-size:0.9rem">Proyecto: <strong>${p.name}</strong></p>
-            </div>
+            <h2 class="sec-lbl" style="margin:0">FLUJO DE CAJA: ${p.name}</h2>
             <div style="display:flex; gap:10px">
-                <button class="btn" onclick="showModal('add_income')">+ Registrar Cobro</button>
-                <button class="btn primary" onclick="showModal('add_expense')">+ Registrar Gasto</button>
+                <button class="btn" onclick="showModal('add_income')">+ Cobro Cliente</button>
+                <button class="btn primary" onclick="showModal('add_expense')">+ Gasto General</button>
             </div>
         </div>
 
         <div class="dash-grid">
-            <div class="dash-card">
-                <div class="dash-num" style="color:var(--ok)">${fmt(incomeTotal)}</div>
-                <div class="dash-lbl">Ingresos Totales</div>
-            </div>
-            <div class="dash-card">
-                <div class="dash-num" style="color:var(--err)">${fmt(totalSpent)}</div>
-                <div class="dash-lbl">Egresos Reales</div>
-            </div>
-            <div class="dash-card">
-                <div class="dash-num" style="color:${balance >= 0 ? 'var(--ok)' : 'var(--err)'}">${fmt(balance)}</div>
-                <div class="dash-lbl">Saldo en Caja</div>
-            </div>
-            <div class="dash-card">
-                <div class="dash-num">${fmt(total)}</div>
-                <div class="dash-lbl">Presupuesto (Meta)</div>
+            <div class="dash-card"><div class="dash-num" style="color:var(--ok)">${fmt(incomeTotal)}</div><div class="dash-lbl">Ingresos</div></div>
+            <div class="dash-card"><div class="dash-num" style="color:var(--err)">${fmt(totalSpent)}</div><div class="dash-lbl">Egresos Reales</div></div>
+            <div class="dash-card"><div class="dash-num" style="color:${balance >= 0 ? 'var(--ok)' : 'var(--err)'}">${fmt(balance)}</div><div class="dash-lbl">Saldo en Caja</div></div>
+            <div class="dash-card"><div class="dash-num">${fmt(total)}</div><div class="dash-lbl">Presupuesto Meta</div></div>
+        </div>
+
+        <div class="card" style="margin-top:20px">
+            <h3 class="sec-lbl">Resumen de Egresos por Categoría</h3>
+            <div class="grid3" style="margin-top:15px">
+                <div style="padding:15px; background:var(--sur2); border-radius:var(--rad)">
+                    <div style="font-size:0.75rem; color:var(--tx3)">CONTRATISTAS (EXT)</div>
+                    <div style="font-size:1.1rem; font-weight:800">${fmt(contractorPayments)}</div>
+                </div>
+                <div style="padding:15px; background:var(--sur2); border-radius:var(--rad)">
+                    <div style="font-size:0.75rem; color:var(--tx3)">JORNALES (DIRECTO)</div>
+                    <div style="font-size:1.1rem; font-weight:800">${fmt(laborCostTotal)}</div>
+                </div>
+                <div style="padding:15px; background:var(--sur2); border-radius:var(--rad)">
+                    <div style="font-size:0.75rem; color:var(--tx3)">GASTOS GENERALES</div>
+                    <div style="font-size:1.1rem; font-weight:800">${fmt(expensesTotal)}</div>
+                </div>
             </div>
         </div>
 
         <div class="card" style="margin-top:20px">
-            <h3 class="sec-lbl">Libro Diario (Movimientos de Caja)</h3>
-            <p style="font-size:0.8rem; color:var(--tx3); margin-bottom:10px">Listado unificado de todos los cobros y pagos del proyecto.</p>
-            
-            <div class="scroll-area" style="max-height:500px">
-                <table class="tbl">
-                    <thead>
+            <h3 class="sec-lbl">Últimos Movimientos</h3>
+            <table class="tbl sm">
+                <thead><tr><th>Fecha</th><th>Tipo</th><th>Concepto</th><th style="text-align:right">Monto</th></tr></thead>
+                <tbody>
+                    ${[...(finances.income || []).map(i => ({...i, t: 'in', c: 'Ingreso'})), ...(finances.expenses || []).map(e => ({...e, t: 'ex', c: 'Gasto'}))]
+                        .sort((a,b) => parseDate(b.date) - parseDate(a.date)).slice(0, 10).map(m => `
                         <tr>
-                            <th>Fecha</th>
-                            <th>Categoría</th>
-                            <th>Concepto / Referencia</th>
-                            <th style="text-align:right">Monto</th>
+                            <td>${formatDatePY(m.date)}</td>
+                            <td><span class="iva-badge" style="background:${m.t==='in'?'var(--ok)':'var(--bor)'}; color:white">${m.c}</span></td>
+                            <td>${m.note}</td>
+                            <td style="text-align:right; font-weight:700; color:${m.t==='in'?'var(--ok)':'var(--err)'}">${m.t==='in'?'+':'-'} ${fmt(m.amount)}</td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        ${(() => {
-                            const income = finances.income.map(i => ({ ...i, type: 'income', cat: 'Cobro Cliente' }));
-                            const expenses = finances.expenses.map(e => ({ ...e, type: 'expense', cat: 'Gasto General' }));
-                            const payments = projectContractors.flatMap(c => (c.payments || []).map(pay => ({ ...pay, type: 'expense', cat: 'Mano de Obra', note: `${c.name}: ${pay.note}` })));
-
-                            const all = [...income, ...expenses, ...payments].sort((a, b) => parseDate(b.date) - parseDate(a.date));
-
-                            return all.length === 0 ? '<tr><td colspan="4" style="text-align:center; padding:20px">No hay movimientos registrados.</td></tr>' : all.map(t => `
-                                <tr>
-                                    <td>${formatDatePY(t.date)}</td>
-                                    <td><span class="iva-badge" style="background:${t.type === 'income' ? 'var(--matbg)' : 'var(--labbg)'}; color:${t.type === 'income' ? 'var(--ok)' : 'var(--lab)'}">${t.cat}</span></td>
-                                    <td>${t.note}</td>
-                                    <td style="text-align:right; font-weight:700; color:${t.type === 'income' ? 'var(--ok)' : 'var(--err)'}">
-                                        ${t.type === 'income' ? '+' : '-'} ${fmt(t.amount)}
-                                    </td>
-                                </tr>
-                            `).join("");
-                        })()}
-                    </tbody>
-                </table>
-            </div>
+                    `).join("") || '<tr><td colspan="4" class="empty">Sin movimientos registrados.</td></tr>'}
+                </tbody>
+            </table>
         </div>
     </div>`;
 }
 
-// Modals
-window.modals = window.modals || {};
-window.modals.add_income = () => `
-    <div class="modal-title">Registrar Ingreso (Cobro)</div>
-    <div class="grid2">
-        <input id="fi-amount" type="number" placeholder="Monto (₲)">
-        ${dateInputPY('fi-date', todayISO(), '', 'width:100%')}
-        <input id="fi-note" class="fullcol" placeholder="Concepto del cobro (ej: Entrega inicial)">
-    </div>
-    <div class="modal-acts">
-        <button class="btn" onclick="closeModal()">Cancelar</button>
-        <button class="btn primary" onclick="saveFinance('income')">Guardar Cobro</button>
-    </div>`;
-
-window.modals.add_expense = () => `
-    <div class="modal-title">Registrar Egreso (Gasto)</div>
-    <div class="grid2">
-        <input id="fe-amount" type="number" placeholder="Monto (₲)">
-        ${dateInputPY('fe-date', todayISO(), '', 'width:100%')}
-        <input id="fe-note" class="fullcol" placeholder="Concepto del gasto (ej: Viáticos, Combustible)">
-    </div>
-    <div class="modal-acts">
-        <button class="btn" onclick="closeModal()">Cancelar</button>
-        <button class="btn primary" onclick="saveFinance('expense')">Guardar Gasto</button>
-    </div>`;
-
 function saveFinance(type) {
     const p = getActiveProject();
-    if (!p) return;
-    if (!p.execution.finances) p.execution.finances = { income: [], expenses: [] };
-    if (!p.execution.finances.income) p.execution.finances.income = [];
-    if (!p.execution.finances.expenses) p.execution.finances.expenses = [];
-
+    if (!p || !p.execution) return toast("Sin proyecto activo", false);
     const pre = type === 'income' ? 'fi' : 'fe';
     const amount = parseFloat(document.getElementById(`${pre}-amount`).value);
     const date = document.getElementById(`${pre}-date`).value;
     const note = document.getElementById(`${pre}-note`).value;
-
-    if (!amount || !note) return toast("Monto y concepto obligatorios", false);
-
+    if (!amount || !note) return toast("Datos incompletos", false);
+    if (!p.execution.finances) p.execution.finances = { income: [], expenses: [] };
     const list = type === 'income' ? p.execution.finances.income : p.execution.finances.expenses;
     list.push({ id: Date.now(), amount, date, note });
-    save();
-    closeModal();
-    renderFinances();
-    toast("Movimiento registrado ✓");
+    save(); closeModal(); renderFinances(); toast("Movimiento registrado ✓");
 }
+
+// Reutilizar modales de add_income y add_expense que están definidos globalmente o en app.js

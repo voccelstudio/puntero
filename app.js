@@ -1,4 +1,7 @@
 // ── HELPERS ──────────────────────────────────────────────────────────────
+const debounce = (fn, ms = 200) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); } };
+
+
 const fmt = n => {
   if (n === undefined || n === null || isNaN(n)) return "0";
   let val = n;
@@ -192,16 +195,17 @@ let state = {
   ivaEnabled: false, ivaEnPDF: false,
   adjustPct: 0,
   profile: { company: "", professional: "", matricula: "", ruc: "", phone: "", email: "", address: "", instagram: "", whatsapp: "", website: "" },
-  pdfTheme: "minimal",
-  budgets: [],
-  m2Area: 0,
-  itemNotes: {},
-  itemDiscounts: {},
-  contractors: [], // Nueva base de datos de contratistas
-  schedules: {},   // Datos de cronograma { budgetItemId: { start, end, status, contractorId } }
-  projectStartDate: null, // Fecha global de inicio
-  dailyLogs: [],   // Bitácora { id, date, weather, workDone, photos, attendance }
-  staff: [],       // Lista de personal para asistencia
+  contractors: [], // Base de datos de contratistas
+  ownTeam: [],     // [NUEVO] Personal propio global
+  roles: {         // [NUEVO] Valores base de jornales
+    "Ayudante": 80000,
+    "Oficial": 130000,
+    "Puntero": 180000
+  },
+  schedules: {},   
+  projectStartDate: null, 
+  dailyLogs: [],   
+  staff: [],       
   priceHistory: [
     { name: "Cemento tipo 1 /kg", aug25: 1165, mar26: 1165, unit: "kg" },
     { name: "Arena lavada /m3", aug25: 62000, mar26: 63500, unit: "m3" },
@@ -214,19 +218,20 @@ let state = {
   ],
   logoDataUrl: "",
   signDataUrl: "",
-  isPro: true, // Always Pro now as requested
-  suppliers: [],   // Base de datos global de proveedores
-  paymentAlarms: [], // Alarmas de pago globales
-  materialOrders: [], // [NUEVO] Órdenes de materiales
-  finances: { income: [], expenses: [] }, // [NUEVO] Gestión financiera
-  performance: { goals: [] }, // [NUEVO] Desempeño
-  documents: [], // [NUEVO] Planos y Documentos
-  currency: "PYG", // Moneda principal del proyecto: PYG o USD
-  exchangeRate: 7500, // Cotización del día
-  projects: [],      // [NUEVO] Lista de proyectos independientes
-  activeProjectId: null, // ID del proyecto actual
-  activeAdendaId: null,  // ID de la adenda/presupuesto actual dentro del proyecto
-  migratedV6: false, // Flag de migración
+  isPro: true, 
+  suppliers: [],   
+  paymentAlarms: [], 
+  materialOrders: [], 
+  finances: { income: [], expenses: [] }, 
+  performance: { goals: [] }, 
+  documents: [], 
+  currency: "PYG", 
+  exchangeRate: 7500, 
+  projects: [],      
+  activeProjectId: null, 
+  activeAdendaId: null,  
+  migratedV6: false, 
+  migratedV7: false, // [NUEVO] Flag para geoloc y jornaleros
 };
 
 // Load state from localStorage
@@ -303,7 +308,22 @@ function migrateToMultiProject() {
   }
   
   state.migratedV6 = true;
+  migrateToV8(); // Ejecutar nueva migración
   save();
+}
+
+function migrateToV8() {
+    if (state.migratedV7) return;
+    state.projects.forEach(p => {
+        if (!p.location) p.location = { lat: null, lng: null, address: "", mapUrl: "" };
+        if (!p.execution.dayWorkers) p.execution.dayWorkers = [];
+        if (!p.execution.laborPayments) p.execution.laborPayments = [];
+    });
+    if (!state.ownTeam) state.ownTeam = [];
+    if (!state.roles) {
+        state.roles = { "Ayudante": 80000, "Oficial": 130000, "Puntero": 180000 };
+    }
+    state.migratedV7 = true;
 }
 
 /**
@@ -329,7 +349,7 @@ function renderGlobalDashboard() {
             if (sch.status !== 'done' && sch.end && new Date(sch.end) < today) {
                 const adenda = p.budgets.find(b => b.items.find(i => i.id == itemId));
                 const item = adenda ? adenda.items.find(i => i.id == itemId) : { name: 'Item desconocido' };
-                urgentItems.push({ project: p.name, type: '⚠️ Retraso Obra', desc: item.name, amount: null, date: sch.end, color: 'var(--warn)' });
+                urgentItems.push({ project: p.name, type: '⚠️ Retraso Obra', desc: item.name, amount: null, date: sch.end, color: 'var(--lab)' });
             }
         });
 
@@ -605,11 +625,13 @@ function renderProjects() {
 
     if (!state.projectSort) state.projectSort = 'name';
     if (!state.projectFilter) state.projectFilter = '';
+    if (state.projectShowArchived === undefined) state.projectShowArchived = false;
 
-    let filtered = [...state.projects].filter(p => 
-        p.name.toLowerCase().includes(state.projectFilter.toLowerCase()) || 
-        (p.client && p.client.toLowerCase().includes(state.projectFilter.toLowerCase()))
-    );
+    let filtered = [...state.projects].filter(p => {
+        if (!state.projectShowArchived && p.archived) return false;
+        return p.name.toLowerCase().includes(state.projectFilter.toLowerCase()) || 
+            (p.client && p.client.toLowerCase().includes(state.projectFilter.toLowerCase()));
+    });
 
     filtered.sort((a, b) => {
         if (state.projectSort === 'name') return a.name.localeCompare(b.name);
@@ -620,6 +642,8 @@ function renderProjects() {
         }
         return 0;
     });
+
+    const archivedCount = state.projects.filter(p => p.archived).length;
 
     let h = `
     <div class="prices-wrap">
@@ -638,10 +662,12 @@ function renderProjects() {
         </div>
 
         <div style="display:flex; gap:10px; margin-bottom:20px; align-items:center; overflow-x:auto; padding-bottom:5px">
-            <span style="font-size:0.8rem; color:var(--tx3); font-weight:700; text-transform:uppercase">Ordenar por:</span>
+            <span style="font-size:0.8rem; color:var(--tx3); font-weight:700; text-transform:uppercase; white-space:nowrap">Ordenar por:</span>
             <button class="btn sm ${state.projectSort === 'name' ? 'primary' : ''}" onclick="state.projectSort='name'; renderProjects()">🔤 Nombre</button>
             <button class="btn sm ${state.projectSort === 'client' ? 'primary' : ''}" onclick="state.projectSort='client'; renderProjects()">👤 Cliente</button>
             <button class="btn sm ${state.projectSort === 'amount' ? 'primary' : ''}" onclick="state.projectSort='amount'; renderProjects()">💰 Monto</button>
+            <span style="width:1px;height:20px;background:var(--bor);margin:0 4px"></span>
+            <button class="btn sm ${state.projectShowArchived ? 'primary' : ''}" onclick="state.projectShowArchived=!state.projectShowArchived; renderProjects()">📦 Archivados ${archivedCount > 0 ? `(${archivedCount})` : ''}</button>
         </div>
 
         <div class="grid3">
@@ -650,34 +676,64 @@ function renderProjects() {
                 const total = p.budgets.reduce((s, b) => s + b.items.reduce((ss, i) => ss + (i.unitPrice * i.qty), 0), 0);
                 
                 return `
-                <div class="card ${isSelected ? 'active-proj' : ''}" style="cursor:pointer; border-top: 4px solid ${isSelected ? 'var(--acc)' : 'var(--bor)'}; transition: transform 0.2s" onclick="switchProject('${p.id}')">
-                    <div style="margin-bottom:12px">
-                        <div style="font-size:0.7rem; color:var(--acc); font-weight:800; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px">Proyecto</div>
-                        <h3 style="margin:0; font-family:var(--font-display); font-weight:800; font-size:1.1rem; line-height:1.2">${p.name}</h3>
+                <div class="card ${isSelected ? 'active-proj' : ''}" style="border-top: 4px solid ${p.archived ? 'var(--tx3)' : isSelected ? 'var(--acc)' : 'var(--bor)'}; transition: transform 0.2s; ${p.archived ? 'opacity:0.7;' : ''}">
+                    <div style="margin-bottom:10px">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start">
+                            <div>
+                                <div style="font-size:0.7rem; color:var(--acc); font-weight:800; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px">Proyecto</div>
+                                <h3 style="margin:0; font-family:var(--font-display); font-weight:800; font-size:1.1rem; line-height:1.2">${p.name}${p.archived ? ' <span style="font-size:0.65rem;color:var(--tx3);font-weight:400">(archivado)</span>' : ''}</h3>
+                            </div>
+                            ${p.archived ? `<span style="font-size:1.2rem" title="Archivado">📦</span>` : ''}
+                        </div>
                     </div>
                     
-                    <div style="margin-bottom:12px">
+                    <div style="margin-bottom:10px">
                         <div style="font-size:0.7rem; color:var(--tx3); font-weight:700; text-transform:uppercase; margin-bottom:2px">Cliente</div>
                         <div style="font-size:0.95rem; font-weight:600; color:var(--tx2)">${p.client || '—'}</div>
                     </div>
 
-                    <div style="background:var(--sur2); padding:10px; border-radius:var(--rad); margin-bottom:15px">
+                    <div style="background:var(--sur2); padding:10px; border-radius:var(--rad); margin-bottom:12px">
                         <div style="font-size:0.7rem; color:var(--tx3); text-transform:uppercase; margin-bottom:2px">Inversión Total</div>
                         <div style="font-weight:800; font-size:1.2rem; color:var(--acc)">${fmt(total)}</div>
                         <div style="font-size:0.75rem; color:var(--tx3); margin-top:4px">${p.budgets.length} Presupuesto(s)</div>
                     </div>
 
-                    <div style="display:flex; justify-content:space-between; align-items:center">
-                        <span style="font-size:0.7rem; color:var(--tx3)">ID: ${p.id.toString().slice(-6)}</span>
-                        ${isSelected ? '<span style="color:var(--ok); font-size:0.7rem; font-weight:800">ACTIVO</span>' : '<span style="font-size:0.7rem; color:var(--tx3)">Ver obra →</span>'}
+                    <div style="margin-top:12px; display:flex; gap:6px; flex-wrap:wrap">
+                        <button class="btn sm" style="flex:1; background:rgba(var(--acc-rgb),0.1); border-color:rgba(var(--acc-rgb),0.3)" onclick="event.stopPropagation(); switchProject('${p.id}')">📋 Abrir</button>
+                        <button class="btn sm" style="flex:1" onclick="event.stopPropagation(); showModal('edit_project','${p.id}')">✏️ Editar</button>
+                        ${p.archived 
+                            ? `<button class="btn sm" style="flex:1" onclick="event.stopPropagation(); unarchiveProject('${p.id}')">♻️ Restaurar</button>` 
+                            : `<button class="btn sm" style="flex:1" onclick="event.stopPropagation(); archiveProject('${p.id}')">📦 Archivar</button>`}
+                    </div>
+                    <div style="margin-top:6px; display:flex; gap:6px; flex-wrap:wrap">
+                        <button class="btn sm" style="flex:1" onclick="event.stopPropagation(); shareProjectWhatsApp('${p.id}')">📤 Compartir</button>
+                        <button class="btn sm danger" style="flex:1" onclick="event.stopPropagation(); deleteProject('${p.id}')">✕ Eliminar</button>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; padding-top:8px; border-top:1px solid var(--bor)">
+                        <div style="display:flex; gap:6px">
+                            <span style="font-size:0.7rem; color:var(--tx3)">ID: ${p.id.toString().slice(-6)}</span>
+                            ${p.location && p.location.lat ? '<span title="Ubicación registrada" style="cursor:help">📍</span>' : ''}
+                        </div>
+                        ${isSelected ? '<span style="color:var(--ok); font-size:0.7rem; font-weight:800">ACTIVO</span>' : '<span style="font-size:0.7rem; color:var(--tx3)">Seleccionar →</span>'}
                     </div>
                 </div>
                 `;
-            }).join("") || `<div class="fullcol card empty" style="padding:40px">No se encontraron proyectos.</div>`}
+            }).join("") || `<div class="fullcol card empty" style="padding:40px; text-align:center">${state.projectShowArchived ? 'No hay proyectos archivados.' : 'No se encontraron proyectos. <button class="btn sm primary" onclick="showModal(\'new_project\')">+ Crear primero</button>'}</div>`}
         </div>
     </div>`;
 
     el.innerHTML = h;
+}
+
+function shareProjectWhatsApp(id) {
+    const p = state.projects.find(x => x.id === id);
+    if (!p) return;
+    const total = p.budgets.reduce((s, b) => s + b.items.reduce((ss, i) => ss + (i.unitPrice * i.qty), 0), 0);
+    const loc = p.location && p.location.lat ? `📍 ${p.location.address || 'Ver ubicación'}\n` : '';
+    const msg = `📋 *${p.name}*\n👤 Cliente: ${p.client || '—'}\n💰 Inversión: ${fmt(total)}\n${loc}📎 Exportado desde Puntero`;
+    const waUrl = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+    window.open(waUrl, '_blank');
+    toast("Compartiendo por WhatsApp...");
 }
 
 // Recordatorio de Backup (cada 3 días de uso)
@@ -695,15 +751,31 @@ function checkBackupReminder() {
 }
 
 // ── CORE LOGIC ────────────────────────────────────────────────────────
+var _saveTimer = null;
+
 function save() {
   try {
     localStorage.setItem("ppy_v5", JSON.stringify(state));
     localStorage.setItem("ppy_db5", JSON.stringify(DB));
   } catch (e) { }
+  firestoreSync();
+}
+
+function firestoreSync() {
+  if (!window._currentUser) return;
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(function () {
+    try {
+      window._FIRESTORE.collection("users").doc(window._currentUser.uid).set({
+        appState: JSON.parse(JSON.stringify(state)),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+    } catch (e) { console.warn("Firestore sync error:", e); }
+  }, 500);
 }
 
 function applyTheme(t) {
-  document.documentElement.setAttribute("data-theme", t === "dark" ? "" : t);
+  document.documentElement.setAttribute("data-theme", t || "slate");
 }
 
 let _tt = null;
@@ -735,13 +807,14 @@ function setSection(s) {
     performance: "Rendimiento y KPIs",
     documents: "Planos y Galería",
     suppliers: "Directorio de Proveedores",
+    jornaleros: "Jornaleros y Jornales",
     resources: "Biblioteca y Recursos",
     projects: "Gestión de Proyectos"
   };
   const vtitle = document.getElementById("view-title");
   if (vtitle) vtitle.textContent = titles[s] || "Puntero";
 
-  ["global_dashboard", "budget", "schedule", "contractors", "prices", "dashboard", "themes", "logs", "materials", "finances", "performance", "documents", "suppliers", "resources", "projects", "aftercare", "computo"].forEach(x => {
+  ["global_dashboard", "budget", "schedule", "contractors", "jornaleros", "prices", "dashboard", "themes", "logs", "materials", "finances", "performance", "documents", "suppliers", "resources", "projects", "aftercare", "computo"].forEach(x => {
     const el = document.getElementById("section-" + x);
     if (el) el.style.display = s === x ? "" : "none";
     const b = document.getElementById("btn-" + x);
@@ -757,6 +830,7 @@ function setSection(s) {
   if (s === "dashboard") renderDashboard();
   if (s === "schedule") renderSchedule();
   if (s === "contractors") renderContractors();
+  if (s === "jornaleros") renderJornaleros();
   if (s === "logs") renderLogs();
   if (s === "materials") renderMaterials();
   if (s === "finances") renderFinances();
@@ -780,6 +854,9 @@ function renderDashboard() {
   if (!p) { el.innerHTML = "<div class='empty'>Seleccioná un proyecto.</div>"; return; }
   if (!p.execution) p.execution = { schedules: {}, dailyLogs: [], materialOrders: [], finances: { income: [], expenses: [] }, documents: [], aftercare: [] };
   if (!p.execution.schedules) p.execution.schedules = {};
+  if (!p.execution.finances) p.execution.finances = { income: [], expenses: [] };
+  if (!p.execution.finances.income) p.execution.finances.income = [];
+  if (!p.execution.finances.expenses) p.execution.finances.expenses = [];
 
   const { totalProgress } = calcOverallProgress();
   const { total } = getTotals();
@@ -812,6 +889,7 @@ function renderDashboard() {
                 ${dateInputPY('proj-overview-start', p.execution.projectStartDate || '', "updateProjectDate('start', this.value)")}
                 <span>Fin Est.:</span>
                 ${dateInputPY('proj-overview-end', p.execution.projectEndDate || '', "updateProjectDate('end', this.value)")}
+                <button class="btn sm" onclick="showProjectLocationModal()" style="margin-left:5px">📍 Ubicación de Obra</button>
             </div>
         </div>
         <div class="db-badge">${p.name}</div>
@@ -1123,13 +1201,17 @@ function addItem(cat, name) {
 
 function addCustomItem() {
   const adenda = getActiveAdenda();
-  if (!adenda) { toast("Seleccioná un proyecto", false); return; }
+  const pj = getActiveProject();
+  if (!adenda || !pj) { toast("Seleccioná un proyecto", false); return; }
   const n = document.getElementById("ci-name").value.trim();
-  const p = parseFloat(document.getElementById("ci-price").value) || 0;
+  const price = parseFloat(document.getElementById("ci-price").value) || 0;
   const u = document.getElementById("ci-unit").value.trim() || "gl";
-  if (!n || !p) { toast("Completá nombre y precio", false); return; }
-  const mat = Math.round(p * 0.65); const lab = Math.round(p * 0.35);
-  adenda.items.push({ cat: "PERSONALIZADOS", name: n, unit: u, unitPrice: p, matCost: mat, laborCost: lab, mats: [], qty: 1, id: Date.now() + Math.random(), custom: true, disc: 0, note: "" });
+  if (!n || !price) { toast("Completá nombre y precio", false); return; }
+  const mat = Math.round(price * 0.65); const lab = Math.round(price * 0.35);
+  const id = Date.now() + Math.random();
+  adenda.items.push({ cat: "PERSONALIZADOS", name: n, unit: u, unitPrice: price, matCost: mat, laborCost: lab, mats: [], qty: 1, id, custom: true, disc: 0, note: "" });
+  if (!pj.execution.schedules) pj.execution.schedules = {};
+  if (!pj.execution.schedules[id]) pj.execution.schedules[id] = { status: 'pending', start: '', end: '', contractorId: null };
   document.getElementById("ci-name").value = ""; document.getElementById("ci-price").value = ""; document.getElementById("ci-unit").value = "";
   renderTable(); save(); toast("Ítem agregado ✓");
 }
@@ -1339,6 +1421,8 @@ function calcMaterials() {
 }
 
 // ── CATALOG ──────────────────────────────────────────────────────────
+const debouncedRenderCatalog = debounce(renderCatalog, 150);
+
 function renderCatalog() {
   const adenda = getActiveAdenda();
   const ivaActive = adenda && adenda.ivaEnabled;
@@ -1417,8 +1501,6 @@ function renderTable() {
   let h = m2html + `<div class="bud-hdr">
     <span style="font-size:.95rem;color:var(--tx3)">${adenda.items.length} ítem${adenda.items.length !== 1 ? "s" : ""}</span>
     <div style="flex:1"></div>
-    <span style="font-size:.95rem;color:var(--tx3)">${adenda.items.length} ítem${adenda.items.length !== 1 ? "s" : ""}</span>
-    <div style="flex:1"></div>
     <button class="btn sm" onclick="setSection('computo')">🧱 Ver Cómputo</button>
     <button class="btn sm" onclick="showModal('breakdown')">📊 Desglose</button>
   </div>
@@ -1478,7 +1560,7 @@ function renderBudget() {
 
     <div class="main">
     <div class="card">
-      <div class="srch"><span class="srch-ico">🔍</span><input placeholder="Buscar rubro..." value="${state.search.replace(/"/g, '&quot;')}" oninput="state.search=this.value;renderCatalog()"></div>
+      <div class="srch"><span class="srch-ico">🔍</span><input placeholder="Buscar rubro..." value="${state.search.replace(/"/g, '&quot;')}" oninput="state.search=this.value;debouncedRenderCatalog()"></div>
       <div class="cat-scroll" id="catalog"></div>
     </div>
     <div style="display:flex;flex-direction:column;gap:11px">
@@ -1803,7 +1885,14 @@ function exportToGoogleSheets() {
   const sumLabelSpan = totalCols - 2;
 
   const sumRow = (label, val, st) => {
-    return `<Row ss:Height="22">${sC(label, st || 'sumLbl')}${'<Cell ss:StyleID="' + (st || 'sumLbl') + '"/>'.repeat(sumLabelSpan - 1)}${nC(Math.round(val), st === 'totalLbl' ? 'totalNum' : 'sumNum')}</Row>`;
+    const cells = [sC(label, st || 'sumLbl')];
+    for (let i = 0; i < sumLabelSpan - 1; i++) cells.push(`<Cell ss:StyleID="${st || 'sumLbl'}"/>`);
+    cells.push(nC(Math.round(val), st === 'totalLbl' ? 'totalNum' : 'sumNum'));
+    // Add missing cells for internal notes column
+    if (totalCols > (sumLabelSpan + 1)) {
+        for (let i = 0; i < (totalCols - (sumLabelSpan + 1)); i++) cells.push(`<Cell ss:StyleID="${st || 'sumLbl'}"/>`);
+    }
+    return `<Row ss:Height="22">${cells.join('')}</Row>`;
   };
 
   rows += sumRow('Costo Materiales', totalMats);
@@ -1822,7 +1911,7 @@ function exportToGoogleSheets() {
   if ((adenda.notes || '').trim()) {
     rows += `<Row ss:Height="8"></Row>`;
     rows += `<Row ss:Height="22">${sC('NOTAS / CONDICIONES','catRow')}${'<Cell ss:StyleID="catRow"/>'.repeat(totalCols - 1)}</Row>`;
-    rows += `<Row ss:Height="20">${sC(adenda.notes,'d')}</Row>`;
+    rows += `<Row ss:Height="40">${sC(adenda.notes,'d')}${'<Cell ss:StyleID="d"/>'.repeat(totalCols - 1)}</Row>`;
   }
 
   // ── HOJA 2: Cómputo de Materiales ──
@@ -2263,6 +2352,7 @@ function createProject() {
         m2Area: parseFloat(document.getElementById("np-m2").value) || 0,
         date: formatDatePY(new Date()),
         status: 'active',
+        archived: false,
         activeAdendaId: 'main',
         budgets: [
             {
@@ -2295,6 +2385,75 @@ function createProject() {
     toast("Proyecto creado ✓");
 }
 
+function saveEditProject(id) {
+    const p = state.projects.find(x => x.id === id);
+    if (!p) return;
+    const name = document.getElementById("ep-name").value.trim();
+    if (!name) return toast("El nombre es obligatorio", false);
+    p.name = name;
+    p.client = document.getElementById("ep-client").value;
+    p.phone = document.getElementById("ep-phone").value;
+    p.address = document.getElementById("ep-addr").value;
+    p.m2Area = parseFloat(document.getElementById("ep-m2").value) || 0;
+    save(); closeModal(); renderProjects();
+    toast("Proyecto actualizado ✓");
+}
+
+function archiveProject(id) {
+    const p = state.projects.find(x => x.id === id);
+    if (!p) return;
+    p.archived = true;
+    if (state.activeProjectId === id) {
+        const next = state.projects.find(x => x.id !== id && !x.archived);
+        state.activeProjectId = next ? next.id : null;
+    }
+    save(); renderProjects();
+    toast("Proyecto archivado 📦");
+}
+
+function unarchiveProject(id) {
+    const p = state.projects.find(x => x.id === id);
+    if (!p) return;
+    p.archived = false;
+    save(); renderProjects();
+    toast("Proyecto restaurado ✓");
+}
+
+function deleteProject(id) {
+    const p = state.projects.find(x => x.id === id);
+    if (!p) return;
+    if (!confirm(`¿Eliminar el proyecto "${p.name}" permanentemente?\n\nSe borrarán todos los presupuestos, cronogramas, bitácoras, finanzas y documentos asociados.\n\nEsta acción no se puede deshacer.`)) return;
+    if (confirm("¿Hacer una copia de seguridad antes de eliminar?")) {
+        exportSingleProject(id);
+    }
+    state.projects = state.projects.filter(x => x.id !== id);
+    if (state.activeProjectId === id) {
+        const next = state.projects.find(x => !x.archived);
+        state.activeProjectId = next ? next.id : null;
+    }
+    save(); renderProjects();
+    toast("Proyecto eliminado ✕");
+}
+
+function exportSingleProject(id) {
+    const p = state.projects.find(x => x.id === id);
+    if (!p) return;
+    const assignedConIds = new Set(
+        Object.values(p.execution.schedules || {})
+            .map(s => s && s.contractorId)
+            .filter(Boolean)
+    );
+    const contractors = (state.contractors || []).filter(c => assignedConIds.has(c.id));
+    const data = { project: JSON.parse(JSON.stringify(p)), contractors, profile: state.profile, exportDate: new Date().toISOString(), app: "Puntero", version: "7.0" };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Backup_${(p.name || "proyecto").replace(/\s+/g, '_')}.ppy`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
 function showModal(type, arg) {
   const el = document.getElementById("modal-area");
   if (!el) return;
@@ -2317,6 +2476,25 @@ function showModal(type, arg) {
       <div class="modal-acts">
         <button class="btn" onclick="closeModal()">Cancelar</button>
         <button class="btn primary" onclick="createProject()">Crear e Iniciar 🚀</button>
+      </div></div></div>`;
+  }
+
+  else if (type === "edit_project") {
+      const pid = arg;
+      const p = state.projects.find(x => x.id === pid);
+      if (!p) return;
+      el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:550px">
+      <div class="modal-title">Modificar Proyecto<button class="delbtn" onclick="closeModal()">✕</button></div>
+      <div class="grid2">
+        <div class="fullcol"><label class="stat-lbl">Nombre de la Obra</label><input id="ep-name" value="${p.name.replace(/"/g, '&quot;')}"></div>
+        <div><label class="stat-lbl">Cliente</label><input id="ep-client" value="${(p.client || '').replace(/"/g, '&quot;')}"></div>
+        <div><label class="stat-lbl">Teléfono</label><input id="ep-phone" value="${(p.phone || '').replace(/"/g, '&quot;')}"></div>
+        <div class="fullcol"><label class="stat-lbl">Ubicación / Dirección</label><input id="ep-addr" value="${(p.address || '').replace(/"/g, '&quot;')}"></div>
+        <div><label class="stat-lbl">Superficie (m²)</label><input id="ep-m2" type="number" value="${p.m2Area || 0}"></div>
+      </div>
+      <div class="modal-acts">
+        <button class="btn" onclick="closeModal()">Cancelar</button>
+        <button class="btn primary" onclick="saveEditProject('${pid}')">Guardar Cambios 💾</button>
       </div></div></div>`;
   }
 
@@ -2349,7 +2527,7 @@ function showModal(type, arg) {
       <div class="modal-title">Exportar Presupuesto<button class="delbtn" onclick="closeModal()">✕</button></div>
       <div class="export-options">
         <div class="export-card" onclick="exportXLS()"><div class="export-icon">📊</div><div class="export-name">Excel / CSV</div><div class="export-desc">Abre con doble clic en Excel o LibreOffice</div></div>
-        <div class="export-card" onclick="exportXLS()"><div class="export-icon">📋</div><div class="export-name">Google Sheets</div><div class="export-desc">Archivo → Importar → CSV en Google Sheets</div></div>
+        <div class="export-card" onclick="exportToGoogleSheets()"><div class="export-icon">📋</div><div class="export-name">Google Sheets</div><div class="export-desc">Archivo → Abrir → Subir en Google Sheets</div></div>
       </div>
       <p style="font-size:.95rem;color:var(--tx3);text-align:center;font-style:italic">Incluye ítems, desglose mat/MO, cómputo de materiales y notas.</p>
       <div class="modal-acts"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn success" onclick="exportXLS()">Descargar</button></div>
@@ -2375,9 +2553,8 @@ function showModal(type, arg) {
         <p style="font-size:0.875rem; color:var(--tx3)">Tu colega solo tiene que arrastrar este archivo a su instancia de Puntero para ver todo.</p>
       </div>
       <div class="modal-acts">
-        <button class="btn sm" onclick="importProject()">📥 Importar Proyecto</button>
-        <div style="flex:1"></div>
         <button class="btn" onclick="closeModal()">Cancelar</button>
+        <button class="btn sm" onclick="importProject()">📥 Importar Proyecto</button>
         <button class="btn primary" onclick="exportProject()">Exportar y Enviar 📤</button>
       </div>
     </div></div>`;
@@ -2437,11 +2614,13 @@ function showModal(type, arg) {
   }
 
   else if (type === "load") {
-    const rows = state.budgets.length === 0
-      ? `<p style="font-size:1rem;color:var(--tx3)">No hay presupuestos guardados.</p>`
-      : state.budgets.map(b => `<div class="modal-row"><div style="flex:1"><div class="modal-name">Nº${String(b.num || 0).padStart(4, "0")} — ${b.projectName}</div><div class="modal-meta">${b.clientName || "Sin cliente"} · ${formatDatePY(b.date)} · ${b.items.length} ítems</div></div><button class="btn sm" onclick="doLoad(${b.id})">Cargar</button><button class="btn sm" onclick="dupBudget(${b.id})" title="Duplicar">⎘</button><button class="btn sm danger" onclick="doDeleteBudget(${b.id})">✕</button></div>`).join("");
+    const p = getActiveProject();
+    const versions = (p && p.versions) || [];
+    const rows = versions.length === 0
+      ? `<p style="font-size:1rem;color:var(--tx3)">No hay versiones guardadas. Usá "Guardar" arriba para crear una.</p>`
+      : versions.map(v => `<div class="modal-row"><div style="flex:1"><div class="modal-name">${v.name}</div><div class="modal-meta">${formatDatePY(v.date)} · ${v.items?.length || 0} ítems</div></div><button class="btn sm" onclick="loadVersion('${v.id}')">📂 Cargar</button><button class="btn sm danger" onclick="deleteVersion('${v.id}');showModal('load')">✕</button></div>`).join("");
     el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
-      <div class="modal-title">Presupuestos Guardados<button class="delbtn" onclick="closeModal()">✕</button></div>
+      <div class="modal-title">Historial de Versiones<button class="delbtn" onclick="closeModal()">✕</button></div>
       ${rows}<div class="modal-acts"><button class="btn" onclick="closeModal()">Cerrar</button></div>
     </div></div>`;
   }
@@ -2708,13 +2887,7 @@ function importDB() {
   };
   inp.click();
 }
-// Funciones legacy reemplazadas por el sistema de proyectos + saveVersion/loadVersion
-function doSave() {
-  toast("Usá 'Guardar Versión' arriba para guardar una snapshot ✓");
-  closeModal();
-}
-function doLoad(id) { toast("Usá 'Historial Versiones' (cada proyecto tiene el suyo)", false); closeModal(); }
-function doDeleteBudget(id) { toast("Eliminá versiones desde el historial del proyecto", false); }
+// Legacy functions — removed, functionality replaced by saveVersion/loadVersion
 function doSaveProfile() {
   state.profile = { company: document.getElementById("p-company").value, professional: document.getElementById("p-prof").value, matricula: document.getElementById("p-mat").value, ruc: document.getElementById("p-ruc").value, phone: document.getElementById("p-phone").value, email: document.getElementById("p-email").value, address: document.getElementById("p-address").value, instagram: document.getElementById("p-ig").value, whatsapp: document.getElementById("p-wa").value, website: document.getElementById("p-web").value };
   save(); closeModal(); toast("Perfil guardado ✓");
@@ -2730,23 +2903,35 @@ function updateBadge() {
 function renderGlobalStats() {
   const el = document.getElementById("section-dashboard");
   if (!el) return;
-  const total = state.budgets.length;
-  const totalVal = state.budgets.reduce((s, b) => {
-    const sub = b.items.reduce((ss, i) => ss + (i.unitPrice || 0) * i.qty, 0);
+
+  const projects = state.projects || [];
+  const activeProjects = projects.filter(p => p.status === 'active');
+  const totalVal = projects.reduce((s, p) => {
+    const mainAdenda = p.budgets.find(b => b.id === (p.activeAdendaId || 'main')) || p.budgets[0];
+    const sub = mainAdenda ? mainAdenda.items.reduce((ss, i) => ss + (i.unitPrice || 0) * i.qty, 0) : 0;
     return s + sub;
   }, 0);
-  const avg = total ? totalVal / total : 0;
-  const thisMonth = state.budgets.filter(b => {
-    try { const d = parseDate(b.date); return d && d.getMonth() === new Date().getMonth(); } catch (e) { return false; }
+  const avg = projects.length ? totalVal / projects.length : 0;
+  
+  const thisMonth = projects.filter(p => {
+    try { 
+        const d = p.date ? new Date(p.date.split('/').reverse().join('-')) : null;
+        return d && d.getMonth() === new Date().getMonth(); 
+    } catch (e) { return false; }
   }).length;
+
   const rubros = {};
-  for (const b of state.budgets) for (const i of b.items) { rubros[i.cat] = (rubros[i.cat] || 0) + 1; }
+  for (const p of projects) {
+    const mainAdenda = p.budgets.find(b => b.id === (p.activeAdendaId || 'main')) || p.budgets[0];
+    if (mainAdenda) for (const i of mainAdenda.items) { rubros[i.cat] = (rubros[i.cat] || 0) + 1; }
+  }
   const topRubros = Object.entries(rubros).sort((a, b) => b[1] - a[1]).slice(0, 5);
   const today = new Date();
-  const alerts = state.budgets.map(b => {
+  
+  const alertList = projects.flatMap(p => p.budgets.map(b => ({...b, projectName: p.name, clientName: p.client})));
+  const alerts = alertList.map(b => {
     try {
-      const emision = parseDate(b.date);
-      if (!emision) return { ...b, diff: 999 };
+      const emision = b.date ? new Date(b.date.split('/').reverse().join('-')) : today;
       const vence = new Date(emision.getTime() + (b.validDays || 30) * 86400000);
       const diff = Math.ceil((vence - today) / 86400000);
       return { ...b, diff, vence };
@@ -2754,12 +2939,30 @@ function renderGlobalStats() {
   }).filter(b => b.diff < 15).sort((a, b) => a.diff - b.diff);
 
   let alertHtml = alerts.length === 0
-    ? `<p style="font-size:.875rem;color:var(--tx3)">Sin presupuestos próximos a vencer.</p>`
+    ? `<p style="font-size:.875rem;color:var(--tx3)">Sin alertas próximas.</p>`
     : alerts.map(b => `<div class="alert-row ${b.diff <= 3 ? "warn" : "ok"}">
         <div class="alert-dot ${b.diff <= 3 ? "warn" : "ok"}"></div>
-        <div class="alert-txt"><strong>Nº${String(b.num || 0).padStart(4, "0")}</strong> — ${b.projectName} (${b.clientName || "Sin cliente"})</div>
+        <div class="alert-txt"><strong>${b.projectName}</strong> (${b.name})</div>
         <div class="alert-date">${b.diff <= 0 ? "VENCIDO" : b.diff + " días"}</div>
       </div>`).join("");
+
+  let projectsHtml = activeProjects.length === 0
+    ? `<div class="empty" style="padding:24px"><p>No hay proyectos activos.</p><button class="btn sm primary" onclick="showModal('new_project')">+ Nuevo Proyecto</button></div>`
+    : activeProjects.map(p => {
+        const adenda = p.budgets.find(b => b.id === (p.activeAdendaId || 'main')) || p.budgets[0];
+        const total = adenda ? adenda.items.reduce((s, i) => s + (i.unitPrice || 0) * i.qty, 0) : 0;
+        return `<div class="modal-row" style="background:var(--sur); border:1px solid var(--bor); margin-bottom:10px; padding:15px; cursor:pointer" onclick="state.activeProjectId='${p.id}'; state.activeAdendaId='${p.activeAdendaId}'; save(); setSection('budget');">
+            <div style="flex:1">
+                <div style="font-weight:700; font-size:1.05rem; color:var(--acc)">${p.name}</div>
+                <div style="font-size:0.85rem; color:var(--tx3); margin-top:4px">👤 ${p.client || 'Sin cliente'} · 📍 ${p.address || 'Sin dirección'}</div>
+                <div style="display:flex; gap:12px; margin-top:8px">
+                    <span class="ichip mat" style="font-size:0.75rem">📦 ${adenda ? adenda.items.length : 0} items</span>
+                    <span class="ichip lab" style="font-size:0.75rem">₲ ${fmt(total)}</span>
+                </div>
+            </div>
+            <button class="btn sm primary">Abrir 📂</button>
+        </div>`;
+    }).join("");
 
   let histHtml = state.priceHistory.map(p => {
     const change = Math.round((p.mar26 - p.aug25) / p.aug25 * 100);
@@ -2819,30 +3022,51 @@ function renderGlobalStats() {
     <div class="tmpl-meta">${t.meta}</div>
   </div>`).join("");
   window._TEMPLATES = TEMPLATES;
+
   el.innerHTML = `<div class="prices-wrap">
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:18px">
-      <div class="dash-card"><div class="dash-num">${total}</div><div class="dash-lbl">Presupuestos</div><div class="dash-sub">Total creados</div></div>
-      <div class="dash-card"><div class="dash-num" style="font-size:1.2rem">₲ ${total ? new Intl.NumberFormat("es-PY").format(Math.round(totalVal / 1000000)) + "M" : "-"}</div><div class="dash-lbl">Valor total</div><div class="dash-sub">Suma de todos</div></div>
-      <div class="dash-card"><div class="dash-num" style="font-size:1.2rem">₲ ${total ? new Intl.NumberFormat("es-PY").format(Math.round(avg / 1000000)) + "M" : "-"}</div><div class="dash-lbl">Promedio</div><div class="dash-sub">Por presupuesto</div></div>
-      <div class="dash-card"><div class="dash-num">${thisMonth}</div><div class="dash-lbl">Este mes</div><div class="dash-sub">Presupuestos creados</div></div>
+    <div style="margin-bottom:24px">
+        <h2 style="font-family:var(--font-display); font-weight:800; margin-bottom:6px">PANEL GENERAL</h2>
+        <p style="color:var(--tx3)">Resumen de actividad y proyectos activos.</p>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px">
-      <div class="card">
-        <div class="sec-lbl" style="margin-bottom:8px">Rubros más utilizados</div>
-        ${topRubros.length ? topRubros.map(([r, n]) => `<div class="hist-row"><div class="hist-name">${r}</div><div class="hist-bar-wrap"><div class="hist-bar" style="width:${Math.min(100, n * 20)}%"></div></div><div class="hist-pct" style="color:var(--tx2)">${n}x</div></div>`).join("") : `<p style="font-size:.875rem;color:var(--tx3)">Sin datos aún.</p>`}
-      </div>
-      <div class="card">
-        <div class="sec-lbl">Alertas de vencimiento</div>
-        ${alertHtml}
-      </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:24px">
+      <div class="dash-card"><div class="dash-num">${projects.length}</div><div class="dash-lbl">Proyectos</div><div class="dash-sub">Total registrados</div></div>
+      <div class="dash-card"><div class="dash-num" style="font-size:1.1rem">₲ ${new Intl.NumberFormat("es-PY").format(Math.round(totalVal / 1000000))}M</div><div class="dash-lbl">Valor Cartera</div><div class="dash-sub">Total presupuestado</div></div>
+      <div class="dash-card"><div class="dash-num" style="font-size:1.1rem">₲ ${new Intl.NumberFormat("es-PY").format(Math.round(avg / 1000000))}M</div><div class="dash-lbl">Promedio</div><div class="dash-sub">Por proyecto</div></div>
+      <div class="dash-card"><div class="dash-num">${activeProjects.length}</div><div class="dash-lbl">Activos</div><div class="dash-sub">En ejecución</div></div>
     </div>
-    <div class="card" style="margin-bottom:14px">
+
+    <div style="display:grid; grid-template-columns: 1.5fr 1fr; gap:20px; align-items:start">
+        <div class="card" style="padding:0; overflow:hidden">
+            <div style="padding:15px; border-bottom:1px solid var(--bor); background:var(--sur2); display:flex; justify-content:space-between; align-items:center">
+                <h3 style="font-size:0.9rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em">🚀 Proyectos Activos</h3>
+                <button class="btn sm primary" onclick="showModal('new_project')">+ Nuevo</button>
+            </div>
+            <div style="padding:15px; max-height:500px; overflow-y:auto">
+                ${projectsHtml}
+            </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:20px">
+            <div class="card">
+                <div class="sec-lbl">Alertas de Vencimiento</div>
+                ${alertHtml}
+            </div>
+            <div class="card">
+                <div class="sec-lbl" style="margin-bottom:8px">Rubros Frecuentes</div>
+                ${topRubros.length ? topRubros.map(([r, n]) => `<div class="hist-row"><div class="hist-name">${r}</div><div class="hist-bar-wrap"><div class="hist-bar" style="width:${Math.min(100, n * 20)}%"></div></div><div class="hist-pct" style="color:var(--tx2)">${n}x</div></div>`).join("") : `<p style="font-size:.875rem;color:var(--tx3)">Sin datos aún.</p>`}
+            </div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top:24px; margin-bottom:24px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <div class="sec-lbl">Historial comparativo de precios</div>
-        <span style="font-size:1rem;color:var(--tx3)">Ago-2025 → Actualidad</span>
+        <div class="sec-lbl">Historial Comparativo de Precios Mercado PY</div>
+        <span style="font-size:0.85rem;color:var(--tx3)">Ago-2025 → Actualidad</span>
       </div>
       ${histHtml}
     </div>
+
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <div class="sec-lbl">Plantillas de Obra</div>
@@ -3016,16 +3240,210 @@ function renderCurrencyArea() {
     `;
 }
 
+// ── FIREBASE AUTH ──────────────────────────────────────────────────────────
+window._currentUser = null;
+
+function initFirebaseAuth() {
+  window._AUTH.onAuthStateChanged(function (user) {
+    window._currentUser = user;
+    var btn = document.getElementById("auth-btn");
+    if (btn) {
+      btn.textContent = user ? "👤 " + user.email : "🔐 Iniciar Sesión";
+    }
+    if (user) loadFromFirestore();
+  });
+}
+
+async function loadFromFirestore() {
+  if (!window._currentUser) return;
+  try {
+    var doc = await window._FIRESTORE.collection("users").doc(window._currentUser.uid).get();
+    if (!doc.exists || !doc.data().appState) {
+      if (state.projects && state.projects.length > 0) {
+        await window._FIRESTORE.collection("users").doc(window._currentUser.uid).set({
+          appState: JSON.parse(JSON.stringify(state)),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        toast("Datos locales subidos a la nube ✓");
+      }
+      return;
+    }
+    var prevSection = state.section;
+    Object.assign(state, doc.data().appState);
+    localStorage.setItem("ppy_v5", JSON.stringify(state));
+    toast("Datos sincronizados desde la nube ✓");
+    if (typeof setSection === "function") setSection(state.section || prevSection || "global_dashboard");
+  } catch (e) { console.warn("Firestore load error:", e); }
+}
+
+function showAuthModal() {
+  if (window._currentUser) {
+    var el = document.getElementById("modal-area");
+    el.innerHTML = '<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:350px">' +
+      '<div class="modal-title">Mi Cuenta<button class="delbtn" onclick="closeModal()">✕</button></div>' +
+      '<div style="text-align:center;padding:20px">' +
+      '<div style="font-size:2rem;margin-bottom:10px">👤</div>' +
+      '<div style="font-weight:700;margin-bottom:4px">' + window._currentUser.email + '</div>' +
+      '<div style="color:var(--tx3);font-size:0.85rem">' + window._currentUser.uid.slice(0, 8) + '...</div>' +
+      '<div style="margin-top:15px;font-size:0.8rem;color:var(--tx3)">Los datos se sincronizan automáticamente con la nube.</div>' +
+      '</div>' +
+      '<div class="modal-acts"><button class="btn danger full" onclick="logout()">Cerrar Sesión</button></div></div></div>';
+    return;
+  }
+  var el = document.getElementById("modal-area");
+  el.innerHTML = '<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:350px">' +
+    '<div class="modal-title">Iniciar Sesión<button class="delbtn" onclick="closeModal()">✕</button></div>' +
+    '<div id="auth-error" style="color:var(--err);font-size:0.85rem;margin-bottom:10px;display:none"></div>' +
+    '<div style="display:flex;flex-direction:column;gap:12px">' +
+    '<input id="auth-email" type="email" placeholder="Correo electrónico" style="width:100%">' +
+    '<input id="auth-pass" type="password" placeholder="Contraseña" style="width:100%">' +
+    '</div>' +
+    '<div class="modal-acts" style="flex-direction:column">' +
+    '<button class="btn primary full" onclick="login()">Iniciar Sesión</button>' +
+    '<button class="btn full" onclick="register()">Crear Cuenta Nueva</button>' +
+    '</div></div></div>';
+}
+
+async function login() {
+  var email = document.getElementById("auth-email").value.trim();
+  var pass = document.getElementById("auth-pass").value;
+  if (!email || !pass) return toast("Completá todos los campos", false);
+  try {
+    await window._AUTH.signInWithEmailAndPassword(email, pass);
+    closeModal();
+    toast("Sesión iniciada ✓");
+  } catch (e) {
+    var errEl = document.getElementById("auth-error");
+    if (errEl) { errEl.textContent = e.message; errEl.style.display = ""; }
+  }
+}
+
+async function register() {
+  var email = document.getElementById("auth-email").value.trim();
+  var pass = document.getElementById("auth-pass").value;
+  if (!email || !pass) return toast("Completá todos los campos", false);
+  if (pass.length < 6) return toast("La contraseña debe tener al menos 6 caracteres", false);
+  try {
+    await window._AUTH.createUserWithEmailAndPassword(email, pass);
+    closeModal();
+    toast("Cuenta creada ✓");
+  } catch (e) {
+    var errEl = document.getElementById("auth-error");
+    if (errEl) { errEl.textContent = e.message; errEl.style.display = ""; }
+  }
+}
+
+async function logout() {
+  try {
+    await window._AUTH.signOut();
+    closeModal();
+    toast("Sesión cerrada ✓");
+  } catch (e) { toast("Error al cerrar sesión", false); }
+}
+
+// ── INIT ───────────────────────────────────────────────────────────────────
 window.onload = () => {
   if (!state.finances) state.finances = { income: [], expenses: [] };
   if (!state.materialOrders) state.materialOrders = [];
   if (!state.contractors) state.contractors = [];
+  if (!state.jornaleros) state.jornaleros = [];
+  if (!state.jornalConfig) state.jornalConfig = { ayudante: 80000, oficial: 110000, puntero: 140000 };
   
   migrateToV7();
   renderCurrencyArea();
+  initFirebaseAuth();
   
   setSection('global_dashboard');
 
   updateBadge();
   checkBackupReminder();
 };
+
+/**
+ * GEOLOCALIZACIÓN Y MAPAS
+ */
+function showProjectLocationModal() {
+    const p = getActiveProject();
+    if (!p) return;
+    const loc = p.location || { lat: -25.26, lng: -57.57, address: "" };
+
+    const el = document.getElementById("modal-area");
+    el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:600px">
+        <div class="modal-title">Ubicación de la Obra<button class="delbtn" onclick="closeModal()">✕</button></div>
+        <div class="info-box" style="margin-bottom:15px">Hacé click en el mapa para marcar la ubicación exacta de la obra.</div>
+        <div id="project-map" class="map-container">
+            <div class="map-placeholder">Cargando mapa...</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:10px">
+            <input id="loc-address" placeholder="Dirección o Referencia (ej: Calle 4 y Avda. Mariscal)" value="${loc.address || ''}">
+            <div class="grid2">
+                <input id="loc-lat" type="number" step="any" placeholder="Latitud" value="${loc.lat || ''}" readonly>
+                <input id="loc-lng" type="number" step="any" placeholder="Longitud" value="${loc.lng || ''}" readonly>
+            </div>
+        </div>
+        <div class="modal-acts">
+            <button class="btn" onclick="closeModal()">Cerrar</button>
+            <button class="btn ok-btn" onclick="shareProjectLocation()">📤 Compartir Ubicación</button>
+            <button class="btn primary" onclick="saveProjectLocation()">Guardar Ubicación 📍</button>
+        </div>
+    </div></div>`;
+
+    setTimeout(() => initProjectMap(loc), 300);
+}
+
+let _map, _marker;
+function initProjectMap(loc) {
+    const center = loc.lat && loc.lng ? [loc.lat, loc.lng] : [-25.2637, -57.5759]; // Asunción por defecto
+    
+    _map = L.map('project-map').setView(center, 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap'
+    }).addTo(_map);
+
+    if (loc.lat && loc.lng) {
+        _marker = L.marker(center, { draggable: true }).addTo(_map);
+    }
+
+    _map.on('click', function(e) {
+        const { lat, lng } = e.latlng;
+        if (_marker) {
+            _marker.setLatLng(e.latlng);
+        } else {
+            _marker = L.marker(e.latlng, { draggable: true }).addTo(_map);
+        }
+        document.getElementById('loc-lat').value = lat.toFixed(6);
+        document.getElementById('loc-lng').value = lng.toFixed(6);
+    });
+}
+
+function saveProjectLocation() {
+    const p = getActiveProject();
+    if (!p) return;
+    const lat = parseFloat(document.getElementById('loc-lat').value);
+    const lng = parseFloat(document.getElementById('loc-lng').value);
+    const address = document.getElementById('loc-address').value;
+
+    if (!lat || !lng) return toast("Marcá la ubicación en el mapa", false);
+
+    p.location = { lat, lng, address };
+    save();
+    closeModal();
+    renderDashboard();
+    renderProjects();
+    toast("Ubicación guardada ✓");
+}
+
+function shareProjectLocation() {
+    const p = getActiveProject();
+    const lat = document.getElementById('loc-lat').value || (p.location && p.location.lat);
+    const lng = document.getElementById('loc-lng').value || (p.location && p.location.lng);
+    const address = document.getElementById('loc-address').value || (p.location && p.location.address);
+
+    if (!lat || !lng) return toast("No hay ubicación guardada", false);
+
+    const googleMapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+    const text = `📍 *Ubicación de Obra: ${p.name}*\nDirección: ${address || 'Ver mapa'}\n\nLink: ${googleMapsUrl}`;
+    const waUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    
+    window.open(waUrl, '_blank');
+}

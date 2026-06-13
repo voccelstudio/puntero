@@ -22,33 +22,7 @@ function renderResources() {
         `;
     }).join("");
 
-    // Plantillas de obra
-    const TEMPLATES = [
-        {
-          icon: "🏠", name: "Dúplex Estándar 120m²", desc: "2 plantas, 3 dorm, terminaciones medias. Incluye estructura, mampostería y revoques.", meta: "~₲ 280.000.000", items: [
-            ["ESTRUCTURAS", "Hormigón Armado p/ vigas y pilares", 18], ["MAMPOSTERÍA", "Elevación 0.15m ladrillo hueco", 280],
-            ["REVOQUES", "Revoque 2 capas (grueso y fino)", 450], ["PISOS", "Piso porcelanato 60x60", 120],
-            ["INSTALACIÓN ELÉCTRICA", "Punto de luz completo", 65], ["INSTALACIÓN ELÉCTRICA", "Tomacorriente doble", 40]
-          ]
-        },
-        {
-          icon: "🚜", name: "Muralla Perimetral 100m", desc: "Cimiento de piedra, elevación ladrillo común, pilares cada 3m, sin revoque.", meta: "~₲ 45.000.000", items: [
-            ["FUNDACIONES", "Cimiento piedra bruta colocada", 35], ["ESTRUCTURAS", "Hormigón Armado p/ encadenado", 8],
-            ["MAMPOSTERÍA", "Elevación 0.15m ladrillo común", 250], ["VARIOS", "Limpieza de terreno y nivelación", 1]
-          ]
-        },
-        {
-          icon: "🏗️", name: "Ampliación 30m²", desc: "Cimiento, mampostería, techo chapa, revoque, piso calcáreo. Sin instalaciones.", meta: "~₲ 45.000.000", items: [
-            ["FUNDACIONES", "Cimiento PBC con cal (1/2:1:4)", 4], ["MAMPOSTERÍA", "Elevación 0.15m ladrillo común", 55],
-            ["TECHOS", "Chapa Nº28 s/ caños metálicos", 35], ["CONTRAPISOS", "Contrapiso 7cm cascotes", 30],
-            ["REVOQUES", "Revoque 1 capa sin hidrófugo", 110], ["PISOS", "Baldosa calcárea 20x20cm", 30],
-            ["PINTURAS", "Pintura a la cal", 110],
-          ]
-        }
-    ];
-    window._TEMPLATES = TEMPLATES;
-
-    const tmplCards = TEMPLATES.map((t, idx) => `
+    const tmplCards = (window._TEMPLATES || []).map((t, idx) => `
         <div class="tmpl-card" onclick="applyTemplate(${idx})">
             <div class="tmpl-icon">${t.icon}</div>
             <div class="tmpl-name">${t.name}</div>
@@ -90,64 +64,4 @@ function renderResources() {
     `;
 }
 
-/**
- * LÓGICA DE PLANTILLAS
- */
-function applyTemplate(idx) {
-    const adenda = getActiveAdenda();
-    const proj = getActiveProject();
-    if (!adenda || !proj) return toast("Sin proyecto activo", false);
-
-    const t = window._TEMPLATES[idx];
-    if (!confirm('¿Cargar plantilla "' + t.name + '" al presupuesto actual? Se agregarán los ítems.')) return;
-
-    let added = 0;
-    for (const [cat, name, qty] of t.items) {
-        if (DB[cat] && DB[cat][name]) {
-            const data = DB[cat][name];
-            adenda.items.push({
-                cat, name, unit: data.unit,
-                unitPrice: data.total,
-                matCost: data.matCost,
-                laborCost: data.laborCost,
-                mats: data.mats || [],
-                qty,
-                id: Date.now() + Math.random() + added,
-                disc: 0, note: ""
-            });
-            added++;
-        }
-    }
-
-    proj.m2Area = t.name.includes("60m²") ? 60 : t.name.includes("120m²") ? 120 : t.name.includes("100m²") ? 100 : 30;
-    save();
-    setSection("budget");
-    toast('Plantilla "' + t.name + '" cargada — ' + added + ' ítems ✓');
-}
-
-/**
- * IMPORTACIÓN DE DB
- */
-function importDB() {
-    const inp = document.createElement("input");
-    inp.type = "file";
-    inp.accept = ".json";
-    inp.onchange = e => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = ev => {
-            try {
-                const d = JSON.parse(ev.target.result);
-                DB = d;
-                save();
-                toast("Base de datos importada ✓");
-                renderResources();
-            } catch (err) {
-                toast("Error al importar: " + err.message, false);
-            }
-        };
-        reader.readAsText(file);
-    };
-    inp.click();
-}
+// applyTemplate() e importDB() están definidas en app.js
