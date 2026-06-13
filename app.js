@@ -763,9 +763,11 @@ function save() {
 
 function firestoreSync() {
   if (!window._currentUser) return;
+  if (state._cloudSyncEnabled === false) return;
   clearTimeout(_saveTimer);
   _saveTimer = setTimeout(function () {
     try {
+      state._lastCloudSync = new Date().toISOString();
       window._FIRESTORE.collection("users").doc(window._currentUser.uid).set({
         appState: JSON.parse(JSON.stringify(state)),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -809,12 +811,13 @@ function setSection(s) {
     suppliers: "Directorio de Proveedores",
     jornaleros: "Jornaleros y Jornales",
     resources: "Biblioteca y Recursos",
-    projects: "Gestión de Proyectos"
+    projects: "Gestión de Proyectos",
+    cloud: "☁️ Cloud"
   };
   const vtitle = document.getElementById("view-title");
   if (vtitle) vtitle.textContent = titles[s] || "Puntero";
 
-  ["global_dashboard", "budget", "schedule", "contractors", "jornaleros", "prices", "dashboard", "themes", "logs", "materials", "finances", "performance", "documents", "suppliers", "resources", "projects", "aftercare", "computo"].forEach(x => {
+  ["global_dashboard", "budget", "schedule", "contractors", "jornaleros", "prices", "dashboard", "themes", "logs", "materials", "finances", "performance", "documents", "suppliers", "resources", "projects", "aftercare", "computo", "cloud"].forEach(x => {
     const el = document.getElementById("section-" + x);
     if (el) el.style.display = s === x ? "" : "none";
     const b = document.getElementById("btn-" + x);
@@ -838,6 +841,7 @@ function setSection(s) {
   if (s === "documents") renderDocuments();
   if (s === "suppliers") renderSuppliers();
   if (s === "resources") renderResources();
+  if (s === "cloud") renderCloudSettings();
 }
 
 /**
@@ -3339,6 +3343,92 @@ async function logout() {
     closeModal();
     toast("Sesión cerrada ✓");
   } catch (e) { toast("Error al cerrar sesión", false); }
+}
+
+// ── CLOUD SETTINGS ─────────────────────────────────────────────────────────
+function renderCloudSettings() {
+  var el = document.getElementById("section-cloud");
+  if (!el) return;
+  var user = window._currentUser;
+  var syncEnabled = state._cloudSyncEnabled !== false;
+  var dataSize = new Blob([JSON.stringify(state)]).size;
+  var dataSizeStr = dataSize > 1024 ? (dataSize / 1024).toFixed(1) + " KB" : dataSize + " B";
+  var lastSync = state._lastCloudSync || null;
+  var syncLabel = lastSync ? formatDatePY(lastSync) + " " + (lastSync.split("T")[1] || "").slice(0, 5) : "—";
+
+  el.innerHTML =
+    '<div class="prices-wrap">' +
+    '<div style="margin-bottom:20px"><h2 class="sec-lbl" style="margin-bottom:4px">☁️ Cloud</h2><p style="color:var(--tx3);font-size:0.9rem">Sincronización y gestión de datos en la nube.</p></div>' +
+
+    '<div class="card"><h3 class="sec-lbl">Estado de Conexión</h3><div style="margin-top:12px">' +
+    '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bor)"><span>Cuenta</span><span style="font-weight:600">' + (user ? user.email : "No conectado") + '</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bor)"><span>Estado</span><span style="font-weight:600;color:' + (user ? "var(--ok)" : "var(--tx3)") + '">' + (user ? "🟢 Conectado" : "⚪ Sin sesión") + '</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bor)"><span>Última sincronización</span><span style="font-weight:600">' + syncLabel + '</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:8px 0"><span>Tamaño de datos</span><span style="font-weight:600">' + dataSizeStr + '</span></div>' +
+    '</div></div>' +
+
+    '<div class="card" style="margin-top:16px"><h3 class="sec-lbl">Sincronización</h3><div style="margin-top:12px">' +
+    '<label style="display:flex;align-items:center;gap:12px;cursor:pointer">' +
+    '<input type="checkbox" ' + (syncEnabled ? "checked" : "") + ' onchange="state._cloudSyncEnabled=this.checked;save();toast(this.checked?\'Cloud activado\':\'Cloud desactivado\')">' +
+    '<span style="font-weight:600">Sincronización automática a la nube</span></label>' +
+    '<p style="color:var(--tx3);font-size:0.8rem;margin-top:6px">Cada cambio se sube automáticamente a Firestore cuando hay sesión iniciada.</p>' +
+    '</div></div>' +
+
+    '<div class="card" style="margin-top:16px"><h3 class="sec-lbl">Backup y Datos</h3><div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">' +
+    '<button class="btn full" onclick="exportBackup()">📥 Descargar Backup (JSON)</button>' +
+    '<button class="btn full" onclick="importBackup()">📤 Restaurar Backup</button>' +
+    (user ? '<button class="btn full danger" onclick="clearCloudData()">🗑️ Borrar datos de la nube</button>' : "") +
+    '</div></div>' +
+
+    '<div class="card" style="margin-top:16px;background:var(--sur2)">' +
+    '<h3 class="sec-lbl" style="font-size:0.85rem">📋 Firebase Spark Plan (Gratis)</h3>' +
+    '<p style="font-size:0.8rem;color:var(--tx3);margin-top:8px">Firestore: 1 GB almacenados · 50k lecturas/día · 20k escrituras/día<br>Authentication: 10k usuarios/mes<br>Hosting: 10 GB storage · 360 MB/día ancho de banda</p>' +
+    '<p style="font-size:0.8rem;color:var(--tx3);margin-top:8px">Con uso normal no vas a tener costos. Cada guardado escribe ~2-5 KB en Firestore (~100-200 operaciones/día con uso intensivo).</p>' +
+    '</div></div>';
+}
+
+function exportBackup() {
+  var blob = new Blob([JSON.stringify({ state: state, db: DB, exportedAt: new Date().toISOString() })], { type: "application/json" });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url;
+  a.download = "puntero_backup_" + new Date().toISOString().split("T")[0] + ".json";
+  a.click();
+  URL.revokeObjectURL(url);
+  toast("Backup descargado ✓");
+}
+
+function importBackup() {
+  var inp = document.createElement("input");
+  inp.type = "file";
+  inp.accept = ".json";
+  inp.onchange = function (e) {
+    var file = e.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function (ev) {
+      try {
+        var d = JSON.parse(ev.target.result);
+        if (d.state) Object.assign(state, d.state);
+        if (d.db) DB = d.db;
+        save();
+        toast("Backup restaurado ✓");
+        setSection(state.section || "cloud");
+      } catch (err) { toast("Error al restaurar: " + err.message, false); }
+    };
+    reader.readAsText(file);
+  };
+  inp.click();
+}
+
+async function clearCloudData() {
+  if (!window._currentUser) return toast("No hay sesión activa", false);
+  if (!confirm("¿Borrar todos los datos de la nube?\n\nLos datos locales NO se borran. Esta acción no se puede deshacer.")) return;
+  try {
+    await window._FIRESTORE.collection("users").doc(window._currentUser.uid).delete();
+    toast("Datos de la nube borrados ✓");
+    renderCloudSettings();
+  } catch (e) { toast("Error: " + e.message, false); }
 }
 
 // ── INIT ───────────────────────────────────────────────────────────────────
