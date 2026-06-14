@@ -110,6 +110,7 @@ function renderContratos() {
       </div>
       <div style="margin-top:14px; display:flex; gap:6px; flex-wrap:wrap">
         <button class="btn sm" style="flex:1; background:rgba(var(--acc-rgb),0.1); border-color:rgba(var(--acc-rgb),0.3)" onclick="showEditContratoModal('${c.id}')">✏️ Editar</button>
+        <button class="btn sm" style="flex:1" onclick="previewContrato('${c.id}')">👁️ Previsualizar</button>
         <button class="btn sm" style="flex:1" onclick="generarPDFContrato('${c.id}')">📄 PDF</button>
         <button class="btn sm danger" onclick="deleteContrato('${c.id}')">✕</button>
       </div>
@@ -392,6 +393,101 @@ function numeroALetras(num) {
     }
   }
   return resultado.trim() + ' GUARANÍES';
+}
+
+// ── PREVISUALIZACIÓN ──────────────────────────────────────────────────
+function previewContrato(id) {
+  const c = state.contratos.find(x => x.id === id);
+  if (!c) return;
+  const proj = c.projectId ? (state.projects || []).find(p => p.id === c.projectId) : null;
+  const profile = state.profile || {};
+  const clausulas = c.tipo === 'cliente' ? CLAUSULAS_PREDEFINIDAS.client : CLAUSULAS_PREDEFINIDAS.contractor;
+  const montoLetras = numeroALetras(c.monto || 0);
+  const direccion = proj ? (proj.address || proj.location?.address || '—') : '—';
+  const inicioFmt = formatDatePY(c.fechaFirma);
+  const finFmt = formatDatePY(c.fin);
+  const especialidad = c.tipo === 'contratista' ? (state.contractors.find(con => con.id === c.contratistaId)?.specialty || 'construcción') : 'construcción';
+
+  const hoy = new Date();
+  const fechaHoy = hoy.getDate() + " de " + ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"][hoy.getMonth()] + " de " + hoy.getFullYear();
+
+  let html = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:700px; max-height:90vh; overflow-y:auto">
+    <div class="modal-title">Vista Previa: ${escapeHtml(c.titulo)}<button class="delbtn" onclick="closeModal()">✕</button></div>
+    <div style="background:white; color:#1e293b; padding:30px 25px; font-family:serif; line-height:1.6; border-radius:var(--rad)">
+      <div style="text-align:center; margin-bottom:20px">
+        <div style="font-size:16px; font-weight:bold; color:#0f3478">CONTRATO DE ${c.tipo === 'cliente' ? 'CONSTRUCCIÓN' : 'PRESTACIÓN DE SERVICIOS'}</div>
+        <div style="font-size:11px; color:#666; margin-top:4px">Código: ${c.id} | Fecha: ${fechaHoy}</div>
+        <hr style="margin:12px 0; border:none; border-top:2px solid #0f3478">
+      </div>
+
+      <div style="font-size:12px; text-align:justify">
+        <p><strong>COMPARECENCIA</strong></p>
+        <p>Comparecen, por una parte, <strong>${escapeHtml(profile.professional || 'El Profesional')}</strong>, con registro ${profile.matricula || '—'}, en adelante denominado <strong>"EL CONTRATANTE"</strong>, y por otra parte, <strong>${c.tipo === 'cliente' ? escapeHtml(c.clienteNombre || 'El Cliente') : escapeHtml(c.contratistaNombre || 'El Contratista')}</strong>, en adelante denominado <strong>"${c.tipo === 'cliente' ? 'EL COMITENTE' : 'EL CONTRATISTA'}"</strong>. Ambas partes, capaces para contratar y obligarse, convienen en celebrar el presente contrato sujeto a las siguientes cláusulas:</p>
+        <hr style="margin:10px 0; border:none; border-top:1px solid #ccc">
+      </div>`;
+
+  clausulas.forEach((cla, idx) => {
+    let texto = cla.texto
+      .replace('{total}', fmt(c.monto || 0))
+      .replace('{totalLetras}', montoLetras)
+      .replace('{anticipo}', c.anticipoPct)
+      .replace('{anticipoMonto}', fmt(c.anticipoMonto || 0))
+      .replace('{plazo}', c.plazo || 120)
+      .replace('{inicio}', inicioFmt)
+      .replace('{fin}', finFmt)
+      .replace('{direccion}', direccion)
+      .replace('{cronograma}', c.cronograma || '—')
+      .replace('{especialidad}', especialidad);
+
+    html += `<div style="font-size:12px; text-align:justify; margin-top:10px">
+      <p><strong>CLÁUSULA ${idx + 1}: ${cla.titulo}</strong></p>
+      <p>${texto}</p>
+    </div>`;
+  });
+
+  if (c.clausulasCustom) {
+    html += `<hr style="margin:10px 0; border:none; border-top:1px solid #ccc">
+      <div style="font-size:12px; text-align:justify">
+        <p><strong>CLÁUSULAS ADICIONALES</strong></p>
+        <p>${escapeHtml(c.clausulasCustom)}</p>
+      </div>`;
+  }
+
+  html += `<hr style="margin:10px 0; border:none; border-top:2px solid #0f3478">
+    <div style="font-size:11px">
+      <p><strong>DATOS DE LAS PARTES</strong></p>
+      <p><strong>CONTRATANTE:</strong> ${escapeHtml(profile.professional || '—')} | RUC: ${profile.ruc || '—'} | Tel: ${profile.phone || '—'}</p>
+      <p><strong>${c.tipo === 'cliente' ? 'COMITENTE' : 'CONTRATISTA'}:</strong> ${c.tipo === 'cliente' ? escapeHtml(c.clienteNombre || '—') : escapeHtml(c.contratistaNombre || '—')}</p>
+      <p><strong>PROYECTO:</strong> ${proj ? escapeHtml(proj.name) : '—'} | Dirección: ${direccion}</p>
+    </div>
+
+    <hr style="margin:10px 0; border:none; border-top:2px solid #0f3478">
+    <div style="font-size:12px; margin-top:20px; text-align:center">
+      <p><strong>FIRMAS</strong></p>
+      <p style="font-size:10px; color:#666">En señal de conformidad, en la ciudad de San Lorenzo, a los ${fechaHoy}.</p>
+      <div style="display:flex; justify-content:space-between; margin-top:30px; padding:0 20px">
+        <div style="text-align:center">
+          <div style="border-top:1px solid #333; width:200px; padding-top:4px">${escapeHtml(profile.professional || 'CONTRATANTE')}</div>
+          <div style="font-size:9px; color:#666">Firma y aclaración</div>
+        </div>
+        <div style="text-align:center">
+          <div style="border-top:1px solid #333; width:200px; padding-top:4px">${c.tipo === 'cliente' ? escapeHtml(c.clienteNombre || 'COMITENTE') : escapeHtml(c.contratistaNombre || 'CONTRATISTA')}</div>
+          <div style="font-size:9px; color:#666">Firma y aclaración</div>
+        </div>
+      </div>
+      <div style="text-align:center; margin-top:25px">
+        <div style="border-top:1px solid #333; width:200px; padding-top:4px; margin:0 auto">TESTIGO</div>
+        <div style="font-size:9px; color:#666">Firma y aclaración</div>
+      </div>
+    </div>
+    </div>
+    <div class="modal-acts" style="margin-top:15px">
+      <button class="btn" onclick="closeModal()">Cerrar</button>
+      <button class="btn primary" onclick="closeModal(); generarPDFContrato('${c.id}')">📄 Generar PDF</button>
+    </div>
+  </div></div>`;
+
+  document.getElementById("modal-area").innerHTML = html;
 }
 
 // ── GENERAR PDF ──────────────────────────────────────────────────────
