@@ -1941,6 +1941,47 @@ function exportXLS() {
   toast("Archivo exportado ✓"); closeModal();
 }
 
+// ── EXPORT FINANZAS CSV ──────────────────────────────────────────────
+function exportFinancesCSV() {
+  const p = getActiveProject();
+  if (!p || !p.execution || !p.execution.finances) return toast("Sin datos financieros", false);
+  const finances = p.execution.finances;
+  const BOM = "\uFEFF", nl = "\r\n", q = v => `"${String(v).replace(/"/g, '""')}"`;
+  let csv = BOM;
+  csv += q("Fecha") + "," + q("Tipo") + "," + q("Concepto") + "," + q("Monto") + nl;
+  [...(finances.income || []).map(i => ({ ...i, tipo: "Ingreso" })), ...(finances.expenses || []).map(e => ({ ...e, tipo: "Egreso" }))]
+    .sort((a,b) => (a.date || "").localeCompare(b.date || "")).forEach(m => {
+      csv += q(m.date) + "," + q(m.tipo) + "," + q(m.note || "") + "," + q(m.amount || 0) + nl;
+    });
+  csv += nl + q("Total Ingresos") + ",,," + q((finances.income || []).reduce((s, i) => s + i.amount, 0)) + nl;
+  csv += q("Total Egresos") + ",,," + q((finances.expenses || []).reduce((s, e) => s + e.amount, 0)) + nl;
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `Finanzas_${(p.name || "proyecto").replace(/\s+/g, "_")}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+  toast("Finanzas exportadas ✓");
+}
+
+// ── EXPORT JORNALEROS CSV ────────────────────────────────────────────
+function exportJornalerosCSV() {
+  if (!state.jornaleros || state.jornaleros.length === 0) return toast("Sin jornaleros registrados", false);
+  const BOM = "\uFEFF", nl = "\r\n", q = v => `"${String(v).replace(/"/g, '""')}"`;
+  let csv = BOM;
+  csv += q("Nombre") + "," + q("Apellido") + "," + q("Cédula") + "," + q("Rol") + "," + q("Jornal Diario") + "," + q("Activo") + "," + q("IPS") + "," + q("Total Jornadas") + "," + q("Total Devengado") + nl;
+  state.jornaleros.forEach(j => {
+    const totalJornadas = (j.jornadas || []).length;
+    const totalDevengado = (j.jornadas || []).reduce((s, jd) => s + (jd.monto || 0), 0);
+    csv += q(j.name || "") + "," + q(j.surname || "") + "," + q(j.idNumber || "") + "," + q(j.role || "") + "," + q(j.dailyWage || "") + "," + q(j.isActive !== false ? "Si" : "No") + "," + q(j.hasIPS ? "Si" : "No") + "," + q(totalJornadas) + "," + q(totalDevengado) + nl;
+  });
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `Jornaleros_${todayISO()}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+  toast("Jornaleros exportados ✓");
+}
+
 // ── EXPORT GOOGLE SHEETS (.xlsx XML Spreadsheet) ─────────────────────
 function exportToGoogleSheets() {
   const p = getActiveProject();

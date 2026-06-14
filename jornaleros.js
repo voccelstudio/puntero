@@ -23,6 +23,7 @@ function renderJornaleros() {
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap">
                 <button class="btn sm" onclick="showJornalConfigModal()">⚙️ Jornales</button>
+                <button class="btn sm" onclick="exportJornalerosCSV()">📥 CSV</button>
                 <button class="btn primary" onclick="showAddJornaleroModal()">+ Nuevo Jornalero</button>
             </div>
         </div>`;

@@ -48,6 +48,7 @@ function renderFinances() {
             <div style="display:flex; gap:10px">
                 <button class="btn" onclick="showModal('add_income')">+ Cobro Cliente</button>
                 <button class="btn primary" onclick="showModal('add_expense')">+ Gasto General</button>
+                <button class="btn sm" onclick="exportFinancesCSV()">📥 CSV</button>
             </div>
         </div>
 

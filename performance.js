@@ -47,6 +47,12 @@ function renderPerformance() {
     const ordersDelivered = orders.filter(o => o.status === 'delivered').length;
     const ordersPct = orders.length > 0 ? Math.round(ordersDelivered / orders.length * 100) : 0;
 
+    // Estadísticas de Jornaleros
+    const jornaleros = state.jornaleros || [];
+    const totalJorActivos = jornaleros.filter(j => j.isActive !== false).length;
+    const totalJornadas = jornaleros.reduce((s, j) => s + (j.jornadas || []).length, 0);
+    const totalJornalesDevengado = jornaleros.reduce((s, j) => s + (j.jornadas || []).reduce((ss, jd) => ss + (jd.monto || 0), 0), 0);
+
     el.innerHTML = `
     <div class="prices-wrap">
         <h2 class="sec-lbl">Indicadores Clave de Desempeño (KPIs)</h2>
@@ -83,6 +89,28 @@ function renderPerformance() {
 
                 <div class="info-box" style="margin-top:25px; background:rgba(96,165,250,0.1)">
                     <p style="font-size:0.85rem"><strong>Tip:</strong> El equilibrio ideal es que el progreso físico (${totalProgress}%) sea ligeramente superior a la ejecución financiera para mantener un flujo de caja saludable.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top:20px">
+            <h3 class="sec-lbl">👷 Mano de Obra - Jornaleros</h3>
+            <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px; margin-top:12px">
+                <div style="background:var(--sur2); padding:14px; border-radius:var(--rad); text-align:center">
+                    <div style="font-size:1.3rem; font-weight:800; color:var(--acc)">${totalJorActivos}</div>
+                    <div style="font-size:0.7rem; color:var(--tx3)">Jornaleros Activos</div>
+                </div>
+                <div style="background:var(--sur2); padding:14px; border-radius:var(--rad); text-align:center">
+                    <div style="font-size:1.3rem; font-weight:800; color:var(--acc)">${totalJornadas}</div>
+                    <div style="font-size:0.7rem; color:var(--tx3)">Jornadas Registradas</div>
+                </div>
+                <div style="background:var(--sur2); padding:14px; border-radius:var(--rad); text-align:center">
+                    <div style="font-size:1.1rem; font-weight:800; color:var(--err)">${fmt(totalJornalesDevengado)}</div>
+                    <div style="font-size:0.7rem; color:var(--tx3)">Total Devengado</div>
+                </div>
+                <div style="background:var(--sur2); padding:14px; border-radius:var(--rad); text-align:center">
+                    <div style="font-size:1.1rem; font-weight:800">${totalJornadas > 0 ? fmt(Math.round(totalJornalesDevengado / totalJornadas)) : '—'}</div>
+                    <div style="font-size:0.7rem; color:var(--tx3)">Promedio por Jornada</div>
                 </div>
             </div>
         </div>
