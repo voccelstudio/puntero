@@ -873,6 +873,7 @@ function setSection(s) {
     documents: "Planos y Galería",
     suppliers: "Directorio de Proveedores",
     jornaleros: "Jornaleros y Jornales",
+    contratos: "Contratos Legales",
     resources: "Biblioteca y Recursos",
     projects: "Gestión de Proyectos",
     cloud: "☁️ Cloud"
@@ -880,7 +881,7 @@ function setSection(s) {
   const vtitle = document.getElementById("view-title");
   if (vtitle) vtitle.textContent = titles[s] || "Puntero";
 
-  ["global_dashboard", "budget", "schedule", "contractors", "jornaleros", "prices", "dashboard", "themes", "logs", "materials", "finances", "performance", "documents", "suppliers", "resources", "projects", "aftercare", "computo", "cloud"].forEach(x => {
+  ["global_dashboard", "budget", "schedule", "contractors", "jornaleros", "contratos", "prices", "dashboard", "themes", "logs", "materials", "finances", "performance", "documents", "suppliers", "resources", "projects", "aftercare", "computo", "cloud"].forEach(x => {
     const el = document.getElementById("section-" + x);
     if (el) el.style.display = s === x ? "" : "none";
     const b = document.getElementById("btn-" + x);
@@ -897,6 +898,7 @@ function setSection(s) {
   if (s === "schedule") renderSchedule();
   if (s === "contractors") renderContractors();
   if (s === "jornaleros") renderJornaleros();
+  if (s === "contratos") renderContratos();
   if (s === "logs") renderLogs();
   if (s === "materials") renderMaterials();
   if (s === "finances") renderFinances();
