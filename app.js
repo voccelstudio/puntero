@@ -1048,15 +1048,15 @@ function renderDashboard() {
                 ${nextMilestones.map(i => {
                     const s = (p.execution.schedules && p.execution.schedules[i.id]) || {};
                     const con = s.contractorId ? state.contractors.find(c => c.id === s.contractorId) : null;
-                    return \`
+                    return `
                         <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; background:var(--sur2); border-radius:var(--rad)">
                             <div>
-                                <div style="font-weight:700; font-size:0.9rem">\${escapeHtml(i.name)}</div>
-                                <div style="font-size:0.75rem; color:var(--tx3)">Inicia: \${formatDatePY(s.start) || 'S/D'}\${con ? ' · ' + escapeHtml(con.name) : ''}</div>
+                                <div style="font-weight:700; font-size:0.9rem">${escapeHtml(i.name)}</div>
+                                <div style="font-size:0.75rem; color:var(--tx3)">Inicia: ${formatDatePY(s.start) || 'S/D'}${con ? ' · ' + escapeHtml(con.name) : ''}</div>
                             </div>
-                            <div class="iva-badge" style="background:\${s.status === 'progress' ? 'var(--ok)' : 'var(--sur)'}; color:\${s.status === 'progress' ? 'white' : 'var(--tx2)'}">\${s.status === 'progress' ? 'EN CURSO' : 'PENDIENTE'}</div>
+                            <div class="iva-badge" style="background:${s.status === 'progress' ? 'var(--ok)' : 'var(--sur)'}; color:${s.status === 'progress' ? 'white' : 'var(--tx2)'}">${s.status === 'progress' ? 'EN CURSO' : 'PENDIENTE'}</div>
                         </div>
-                    \`;
+                    `;
                 }).join("") || '<p style="color:var(--tx3); font-size:0.85rem">No hay tareas pendientes.</p>'}
             </div>
             <button class="btn sm full" style="margin-top:10px" onclick="setSection('schedule')">📅 Ver Cronograma Completo</button>
@@ -1065,13 +1065,13 @@ function renderDashboard() {
         <div class="card">
             <h3 class="sec-lbl">📔 Últimos Partes</h3>
             <div style="display:flex; flex-direction:column; gap:8px; margin-top:10px; max-height:250px; overflow-y:auto">
-                \${(p.execution.dailyLogs || []).slice().sort((a,b) => parseDate(b.date) - parseDate(a.date)).slice(0, 4).map(log => \`
+                ${(p.execution.dailyLogs || []).slice().sort((a,b) => parseDate(b.date) - parseDate(a.date)).slice(0, 4).map(log => `
                     <div style="padding:8px; background:var(--sur2); border-radius:var(--rad); border-left:3px solid var(--acc)">
-                        <div style="font-size:0.8rem; font-weight:700">\${formatDatePY(log.date)}</div>
-                        <div style="font-size:0.75rem; color:var(--tx3); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden">\${escapeHtml(log.workDone || 'Sin descripción')}</div>
-                        <div style="font-size:0.65rem; color:var(--tx3); margin-top:2px">\${(log.attendance || []).filter(a => a.present).length} presentes</div>
+                        <div style="font-size:0.8rem; font-weight:700">${formatDatePY(log.date)}</div>
+                        <div style="font-size:0.75rem; color:var(--tx3); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden">${escapeHtml(log.workDone || 'Sin descripción')}</div>
+                        <div style="font-size:0.65rem; color:var(--tx3); margin-top:2px">${(log.attendance || []).filter(a => a.present).length} presentes</div>
                     </div>
-                \`).join("") || '<p style="color:var(--tx3); font-size:0.85rem">Sin partes registrados.</p>'}
+                `).join("") || '<p style="color:var(--tx3); font-size:0.85rem">Sin partes registrados.</p>'}
             </div>
             <button class="btn sm full" style="margin-top:10px" onclick="setSection('logs')">📔 Ir al Libro de Obra</button>
         </div>
@@ -1080,9 +1080,9 @@ function renderDashboard() {
     <div class="card" style="margin-top:16px">
         <h3 class="sec-lbl">🖼️ Últimas Fotos de Obra</h3>
         <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap:8px; margin-top:10px">
-            \${(p.execution.dailyLogs || []).flatMap(l => l.photos || []).slice(-6).map(ph => \`
-                <div style="aspect-ratio:1; background:url(\${ph}) center/cover; border-radius:4px; border:1px solid var(--bor); cursor:pointer" onclick="previewImage('\${ph.replace(/'/g, "\\\\'")}')"></div>
-            \`).join("") || '<div style="grid-column: 1/-1; text-align:center; padding:20px; color:var(--tx3); font-size:0.85rem">Sin fotos registradas aún.</div>'}
+            ${(p.execution.dailyLogs || []).flatMap(l => l.photos || []).slice(-6).map(ph => `
+                <div style="aspect-ratio:1; background:url(${ph}) center/cover; border-radius:4px; border:1px solid var(--bor); cursor:pointer" onclick="previewImage('${ph.replace(/'/g, "\\'")}')"></div>
+            `).join("") || '<div style="grid-column: 1/-1; text-align:center; padding:20px; color:var(--tx3); font-size:0.85rem">Sin fotos registradas aún.</div>'}
         </div>
         <button class="btn sm full" style="margin-top:10px" onclick="setSection('documents')">Ver Galería Completa</button>
     </div>
