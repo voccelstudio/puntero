@@ -99,10 +99,11 @@ self.addEventListener('fetch', event => {
         }
         return response;
       }).catch(() => {
-        // Si falla todo, devolver una respuesta genérica para imágenes
+        // Si falla todo, devolver fallback genérico
         if (event.request.destination === 'image') {
           return new Response('', { status: 200, headers: { 'Content-Type': 'image/png' } });
         }
+        return new Response('', { status: 503, statusText: 'Offline' });
       });
     })
   );

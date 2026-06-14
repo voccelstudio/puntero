@@ -311,6 +311,16 @@ function registerJornada(jorId) {
     if (!j.jornadas) j.jornadas = [];
     const proj = getActiveProject();
     j.jornadas.push({ id: Date.now(), date, horas, monto, projectId: proj ? proj.id : null });
+    // Integración Jornaleros → Finanzas: registrar como egreso automático
+    if (proj && proj.execution) {
+        if (!proj.execution.finances) proj.execution.finances = { income: [], expenses: [] };
+        proj.execution.finances.expenses.push({
+            id: Date.now() + 1,
+            amount: monto,
+            date: date,
+            note: "Jornal: " + (j.name || '') + " " + (j.surname || '') + " (" + (j.role || '') + ")"
+        });
+    }
     save(); showJornadaModal(jorId); renderJornaleros();
     toast("Jornada registrada ✓");
 }

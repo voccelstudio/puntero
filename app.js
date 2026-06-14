@@ -959,7 +959,7 @@ function renderDashboard() {
                 <button class="btn sm" onclick="showProjectLocationModal()" style="margin-left:5px">📍 Ubicación de Obra</button>
             </div>
         </div>
-        <div class="db-badge">${p.name}</div>
+        <div class="db-badge">${escapeHtml(p.name)}</div>
     </div>
     
     <div class="dash-grid">
@@ -971,9 +971,9 @@ function renderDashboard() {
             </div>
         </div>
         <div class="dash-card">
-            <div class="dash-num">${fmt(totalPaid)}</div>
+            <div class="dash-num" style="color:var(--err)">${fmt(totalPaid)}</div>
             <div class="dash-lbl">Inversión Realizada</div>
-            <div style="font-size:0.8rem; color:var(--tx3); margin-top:5px">Ejecución: ${financialProgress}%</div>
+            <div style="font-size:0.8rem; color:var(--tx3); margin-top:5px">Ejecución: ${financialProgress}% del presupuesto</div>
         </div>
         <div class="dash-card">
             <div class="dash-num">${deliveredOrders}/${orders.length}</div>
@@ -981,42 +981,110 @@ function renderDashboard() {
             <div style="font-size:0.8rem; color:var(--tx3); margin-top:5px">${orders.length - deliveredOrders} pendientes</div>
         </div>
         <div class="dash-card">
-            <div class="dash-num">${fmt(incomeTotal - totalPaid)}</div>
+            <div class="dash-num" style="color:${(incomeTotal - totalPaid) >= 0 ? 'var(--ok)' : 'var(--err)'}">${fmt(incomeTotal - totalPaid)}</div>
             <div class="dash-lbl">Saldo de Caja</div>
-            <div style="font-size:0.8rem; color:${(incomeTotal - totalPaid) >= 0 ? 'var(--ok)' : 'var(--err)'}; margin-top:5px">
-                Cobrado: ${fmt(incomeTotal)}
+            <div style="font-size:0.8rem; color:var(--tx3); margin-top:5px">
+                Cobrado: ${fmt(incomeTotal)} · Gastado: ${fmt(totalPaid)}
             </div>
         </div>
     </div>
 
-    <div class="grid2">
+    <div class="grid2" style="margin-top:16px">
         <div class="card">
-            <h3 class="sec-lbl">Próximos Hitos</h3>
-            <div style="display:flex; flex-direction:column; gap:12px; margin-top:10px">
-                ${nextMilestones.map(i => {
-                    const s = (p.execution.schedules && p.execution.schedules[i.id]) || {};
-                    return `
-                        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; background:var(--sur2); border-radius:var(--rad)">
-                            <div>
-                                <div style="font-weight:700; font-size:0.9rem">${i.name}</div>
-                                <div style="font-size:0.75rem; color:var(--tx3)">Inicia: ${formatDatePY(s.start) || 'S/D'}</div>
-                            </div>
-                            <div class="iva-badge" style="background:var(--sur); color:var(--tx2)">${s.status === 'progress' ? 'EN CURSO' : 'PENDIENTE'}</div>
-                        </div>
-                    `;
-                }).join("") || '<p style="color:var(--tx3); font-size:0.85rem">No hay tareas pendientes.</p>'}
+            <h3 class="sec-lbl">💰 Flujo Financiero</h3>
+            <div style="margin-top:10px; display:flex; gap:12px; align-items:flex-end">
+                <div style="flex:1">
+                    <div style="font-size:0.75rem; color:var(--ok); font-weight:700">Ingresos</div>
+                    <div style="background:var(--sur2); height:24px; border-radius:6px; margin-top:4px; overflow:hidden">
+                        <div style="background:var(--ok); height:100%; width:${Math.min(100, total > 0 ? (incomeTotal / total) * 100 : 0)}%; border-radius:6px"></div>
+                    </div>
+                    <div style="font-size:0.8rem; font-weight:700; margin-top:2px">${fmt(incomeTotal)}</div>
+                </div>
+                <div style="flex:1">
+                    <div style="font-size:0.75rem; color:var(--err); font-weight:700">Egresos</div>
+                    <div style="background:var(--sur2); height:24px; border-radius:6px; margin-top:4px; overflow:hidden">
+                        <div style="background:var(--err); height:100%; width:${Math.min(100, total > 0 ? (totalPaid / total) * 100 : 0)}%; border-radius:6px"></div>
+                    </div>
+                    <div style="font-size:0.8rem; font-weight:700; margin-top:2px">${fmt(totalPaid)}</div>
+                </div>
+                <div style="flex:1">
+                    <div style="font-size:0.75rem; color:var(--tx3); font-weight:700">Meta</div>
+                    <div style="background:var(--sur2); height:24px; border-radius:6px; margin-top:4px; overflow:hidden">
+                        <div style="background:var(--tx3); height:100%; width:100%; border-radius:6px; opacity:0.3"></div>
+                    </div>
+                    <div style="font-size:0.8rem; font-weight:700; margin-top:2px">${fmt(total)}</div>
+                </div>
             </div>
         </div>
 
         <div class="card">
-            <h3 class="sec-lbl">Últimas Fotos de Obra</h3>
-            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-top:10px">
-                ${(p.execution.dailyLogs || []).flatMap(l => l.photos || []).slice(-6).map(ph => `
-                    <div style="aspect-ratio:1; background:url(${ph}) center/cover; border-radius:4px; border:1px solid var(--bor)"></div>
-                `).join("") || '<div style="grid-column: span 3; text-align:center; padding:20px; color:var(--tx3); font-size:0.85rem">Sin fotos registradas aún.</div>'}
+            <h3 class="sec-lbl">👷 Personal en Obra</h3>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px">
+                <div style="background:var(--sur2); padding:10px; border-radius:var(--rad); text-align:center">
+                    <div style="font-size:1.3rem; font-weight:800; color:var(--acc)">${state.jornaleros ? state.jornaleros.filter(j => j.isActive !== false).length : 0}</div>
+                    <div style="font-size:0.7rem; color:var(--tx3)">Jornaleros Activos</div>
+                </div>
+                <div style="background:var(--sur2); padding:10px; border-radius:var(--rad); text-align:center">
+                    <div style="font-size:1.3rem; font-weight:800; color:var(--acc)">${(state.contractors || []).length}</div>
+                    <div style="font-size:0.7rem; color:var(--tx3)">Contratistas</div>
+                </div>
+                <div style="background:var(--sur2); padding:10px; border-radius:var(--rad); text-align:center">
+                    <div style="font-size:1.3rem; font-weight:800; color:var(--acc)">${(p.execution.dailyLogs || []).length}</div>
+                    <div style="font-size:0.7rem; color:var(--tx3)">Partes Diarios</div>
+                </div>
+                <div style="background:var(--sur2); padding:10px; border-radius:var(--rad); text-align:center">
+                    <div style="font-size:1.3rem; font-weight:800; color:${(p.execution.aftercare || []).filter(a => a.status !== 'resolved').length > 0 ? 'var(--err)' : 'var(--ok)'}">${(p.execution.aftercare || []).filter(a => a.status !== 'resolved').length}</div>
+                    <div style="font-size:0.7rem; color:var(--tx3)">Garantías Pendientes</div>
+                </div>
             </div>
-            <button class="btn sm full" style="margin-top:15px" onclick="setSection('documents')">Ver Galería Completa</button>
+            <button class="btn sm full" style="margin-top:10px" onclick="setSection('contractors')">👷 Gestionar Personal</button>
         </div>
+    </div>
+
+    <div class="grid2" style="margin-top:16px">
+        <div class="card">
+            <h3 class="sec-lbl">📅 Próximos Hitos</h3>
+            <div style="display:flex; flex-direction:column; gap:12px; margin-top:10px">
+                ${nextMilestones.map(i => {
+                    const s = (p.execution.schedules && p.execution.schedules[i.id]) || {};
+                    const con = s.contractorId ? state.contractors.find(c => c.id === s.contractorId) : null;
+                    return \`
+                        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; background:var(--sur2); border-radius:var(--rad)">
+                            <div>
+                                <div style="font-weight:700; font-size:0.9rem">\${escapeHtml(i.name)}</div>
+                                <div style="font-size:0.75rem; color:var(--tx3)">Inicia: \${formatDatePY(s.start) || 'S/D'}\${con ? ' · ' + escapeHtml(con.name) : ''}</div>
+                            </div>
+                            <div class="iva-badge" style="background:\${s.status === 'progress' ? 'var(--ok)' : 'var(--sur)'}; color:\${s.status === 'progress' ? 'white' : 'var(--tx2)'}">\${s.status === 'progress' ? 'EN CURSO' : 'PENDIENTE'}</div>
+                        </div>
+                    \`;
+                }).join("") || '<p style="color:var(--tx3); font-size:0.85rem">No hay tareas pendientes.</p>'}
+            </div>
+            <button class="btn sm full" style="margin-top:10px" onclick="setSection('schedule')">📅 Ver Cronograma Completo</button>
+        </div>
+
+        <div class="card">
+            <h3 class="sec-lbl">📔 Últimos Partes</h3>
+            <div style="display:flex; flex-direction:column; gap:8px; margin-top:10px; max-height:250px; overflow-y:auto">
+                \${(p.execution.dailyLogs || []).slice().sort((a,b) => parseDate(b.date) - parseDate(a.date)).slice(0, 4).map(log => \`
+                    <div style="padding:8px; background:var(--sur2); border-radius:var(--rad); border-left:3px solid var(--acc)">
+                        <div style="font-size:0.8rem; font-weight:700">\${formatDatePY(log.date)}</div>
+                        <div style="font-size:0.75rem; color:var(--tx3); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden">\${escapeHtml(log.workDone || 'Sin descripción')}</div>
+                        <div style="font-size:0.65rem; color:var(--tx3); margin-top:2px">\${(log.attendance || []).filter(a => a.present).length} presentes</div>
+                    </div>
+                \`).join("") || '<p style="color:var(--tx3); font-size:0.85rem">Sin partes registrados.</p>'}
+            </div>
+            <button class="btn sm full" style="margin-top:10px" onclick="setSection('logs')">📔 Ir al Libro de Obra</button>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+        <h3 class="sec-lbl">🖼️ Últimas Fotos de Obra</h3>
+        <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap:8px; margin-top:10px">
+            \${(p.execution.dailyLogs || []).flatMap(l => l.photos || []).slice(-6).map(ph => \`
+                <div style="aspect-ratio:1; background:url(\${ph}) center/cover; border-radius:4px; border:1px solid var(--bor); cursor:pointer" onclick="previewImage('\${ph.replace(/'/g, "\\\\'")}')"></div>
+            \`).join("") || '<div style="grid-column: 1/-1; text-align:center; padding:20px; color:var(--tx3); font-size:0.85rem">Sin fotos registradas aún.</div>'}
+        </div>
+        <button class="btn sm full" style="margin-top:10px" onclick="setSection('documents')">Ver Galería Completa</button>
     </div>
   </div>`;
 }
@@ -3009,7 +3077,7 @@ function renderGlobalStats() {
     ? `<p style="font-size:.875rem;color:var(--tx3)">Sin alertas próximas.</p>`
     : alerts.map(b => `<div class="alert-row ${b.diff <= 3 ? "warn" : "ok"}">
         <div class="alert-dot ${b.diff <= 3 ? "warn" : "ok"}"></div>
-        <div class="alert-txt"><strong>${b.projectName}</strong> (${b.name})</div>
+        <div class="alert-txt"><strong>${escapeHtml(b.projectName)}</strong> (${escapeHtml(b.name)})</div>
         <div class="alert-date">${b.diff <= 0 ? "VENCIDO" : b.diff + " días"}</div>
       </div>`).join("");
 
@@ -3018,10 +3086,12 @@ function renderGlobalStats() {
     : activeProjects.map(p => {
         const adenda = p.budgets.find(b => b.id === (p.activeAdendaId || 'main')) || p.budgets[0];
         const total = adenda ? adenda.items.reduce((s, i) => s + (i.unitPrice || 0) * i.qty, 0) : 0;
-        return `<div class="modal-row" style="background:var(--sur); border:1px solid var(--bor); margin-bottom:10px; padding:15px; cursor:pointer" onclick="state.activeProjectId='${p.id}'; state.activeAdendaId='${p.activeAdendaId}'; save(); setSection('budget');">
+        const pid = p.id.replace(/'/g, "\\'");
+        const paid = (p.activeAdendaId || 'main').replace(/'/g, "\\'");
+        return `<div class="modal-row" style="background:var(--sur); border:1px solid var(--bor); margin-bottom:10px; padding:15px; cursor:pointer" onclick="state.activeProjectId='${pid}'; state.activeAdendaId='${paid}'; save(); setSection('budget');">
             <div style="flex:1">
-                <div style="font-weight:700; font-size:1.05rem; color:var(--acc)">${p.name}</div>
-                <div style="font-size:0.85rem; color:var(--tx3); margin-top:4px">👤 ${p.client || 'Sin cliente'} · 📍 ${p.address || 'Sin dirección'}</div>
+                <div style="font-weight:700; font-size:1.05rem; color:var(--acc)">${escapeHtml(p.name)}</div>
+                <div style="font-size:0.85rem; color:var(--tx3); margin-top:4px">👤 ${escapeHtml(p.client || 'Sin cliente')} · 📍 ${escapeHtml(p.address || 'Sin dirección')}</div>
                 <div style="display:flex; gap:12px; margin-top:8px">
                     <span class="ichip mat" style="font-size:0.75rem">📦 ${adenda ? adenda.items.length : 0} items</span>
                     <span class="ichip lab" style="font-size:0.75rem">₲ ${fmt(total)}</span>
@@ -3299,11 +3369,11 @@ function renderCurrencyArea() {
     const el = document.getElementById("currency-area");
     if (!el) return;
     el.innerHTML = `
-        <select id="global-currency" style="width:100px; font-weight:700; background:var(--sur); border:1px solid var(--bor); border-radius:var(--rad); padding:4px" onchange="state.currency=this.value; save(); location.reload()">
+        <select id="global-currency" style="width:100px; font-weight:700; background:var(--sur); border:1px solid var(--bor); border-radius:var(--rad); padding:4px" onchange="state.currency=this.value; save(); renderCurrencyArea(); setSection(state.section)">
             <option value="PYG" ${state.currency === 'PYG' ? 'selected' : ''}>₲ PYG</option>
             <option value="USD" ${state.currency === 'USD' ? 'selected' : ''}>$ USD</option>
         </select>
-        ${state.currency === 'USD' ? `<input id="global-exrate" type="number" value="${state.exchangeRate}" style="width:80px; padding:4px; border-radius:var(--rad); border:1px solid var(--bor)" title="Cotización 1 USD" onblur="state.exchangeRate=parseFloat(this.value)||7500; save(); location.reload()">` : ''}
+        ${state.currency === 'USD' ? `<input id="global-exrate" type="number" value="${state.exchangeRate}" style="width:80px; padding:4px; border-radius:var(--rad); border:1px solid var(--bor)" title="Cotización 1 USD" onblur="state.exchangeRate=parseFloat(this.value)||7500; save(); renderCurrencyArea(); setSection(state.section)">` : ''}
     `;
 }
 

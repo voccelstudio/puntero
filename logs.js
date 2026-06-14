@@ -126,6 +126,10 @@ function showDailyLogModal() {
     state.ownTeam.forEach(function (m) { if (ownIds.has(m.id)) allStaff.push({ id: m.id, name: m.name + " " + m.surname, origin: "Equipo Propio" }); });
     var dayIds = new Set(Object.values(p.execution.schedules || {}).filter(function (s) { return s.executionMode === "day_workers"; }).flatMap(function (s) { return s.assignedStaff || []; }));
     (p.execution.dayWorkers || []).forEach(function (m) { if (dayIds.has(m.id)) allStaff.push({ id: m.id, name: m.name + " " + m.surname, origin: "Jornalero" }); });
+    // Integración: agregar jornaleros globales a la lista de asistencia
+    (state.jornaleros || []).filter(function (j) { return j.isActive !== false; }).forEach(function (j) {
+        allStaff.push({ id: j.id, name: (j.name || '') + " " + (j.surname || ''), origin: "Jornalero Global" });
+    });
 
     var attendanceHtml = allStaff.map(function (s) {
         return '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--bor)">' +

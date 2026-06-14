@@ -185,6 +185,17 @@ function addPayment(conId) {
     if (con) {
         if (!con.payments) con.payments = [];
         con.payments.push({ amount: amt, date, note, id: Date.now() });
+        // Integración Contratistas → Finanzas: registrar como egreso automático
+        const proj = getActiveProject();
+        if (proj && proj.execution) {
+            if (!proj.execution.finances) proj.execution.finances = { income: [], expenses: [] };
+            proj.execution.finances.expenses.push({
+                id: Date.now() + 1,
+                amount: amt,
+                date: date,
+                note: "Pago a contratista: " + con.name + " - " + note
+            });
+        }
         save(); showPaymentModal(conId); renderContractors();
         toast("Pago registrado ✓");
     }

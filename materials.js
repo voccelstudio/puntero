@@ -10,6 +10,15 @@ function renderMaterials() {
 
     const materialsNeeded = calcMaterials();
     const orders = p.execution.materialOrders || [];
+    const adenda = getActiveAdenda();
+    // Calcular presupuesto de materiales vs gastado
+    let budgetMatCost = 0;
+    if (adenda) {
+        budgetMatCost = adenda.items.reduce((s, i) => s + (i.matCost || 0) * (i.qty || 0), 0);
+    }
+    const spentMatCost = orders.filter(o => o.status === 'delivered' || o.isPaid).reduce((s, o) => s + (o.total || 0), 0);
+    const pendingOrders = orders.filter(o => o.status !== 'delivered').reduce((s, o) => s + (o.total || 0), 0);
+    const budgetAlert = spentMatCost > budgetMatCost ? 'danger' : (spentMatCost + pendingOrders > budgetMatCost ? 'warn' : '');
 
     el.innerHTML = `
     <div class="prices-wrap">
@@ -35,6 +44,14 @@ function renderMaterials() {
                 <div class="dash-lbl">Entregas Completadas</div>
             </div>
         </div>
+
+        ${budgetAlert ? `<div class="alert-row ${budgetAlert}" style="margin:12px 0; padding:10px 14px; border-radius:var(--rad); background:${budgetAlert === 'danger' ? 'rgba(248,113,113,0.1)' : 'rgba(251,191,36,0.1)'}; border:1px solid ${budgetAlert === 'danger' ? 'var(--err)' : '#fbbf24'}; display:flex; align-items:center; gap:10px">
+            <span style="font-size:1.2rem">${budgetAlert === 'danger' ? '🚨' : '⚠️'}</span>
+            <div style="flex:1; font-size:0.85rem">
+                <strong>${budgetAlert === 'danger' ? 'Presupuesto de materiales superado' : 'Pedidos pendientes cerca del límite'}</strong><br>
+                <span style="color:var(--tx3)">Presupuestado: ${fmt(budgetMatCost)} · Gastado: ${fmt(spentMatCost)} ${pendingOrders > 0 ? '· Pendiente: ' + fmt(pendingOrders) : ''}</span>
+            </div>
+        </div>` : ''}
 
         <div class="grid2" style="margin-top:20px">
             <div class="card">
