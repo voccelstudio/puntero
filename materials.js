@@ -255,6 +255,7 @@ function removeOrder(id) {
 function createOrder() {
     const p = getActiveProject();
     if (!p) return toast("Seleccioná un proyecto", false);
+    const supplier = document.getElementById("mo-supplier").value;
     const total = parseFloat(document.getElementById("mo-total").value) || 0;
     const date = document.getElementById("mo-date").value;
     const items = [];

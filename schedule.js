@@ -54,7 +54,7 @@ function renderSchedule() {
         '<span style="font-size:0.8rem;font-weight:600;color:var(--tx2)">🔍 Filtrar:</span>' +
         '<button class="btn sm ' + (!filter ? "primary" : "") + '" onclick="setSchFilter(\'\')" style="font-size:0.75rem">Todos</button>';
     for (var ci = 0; ci < catKeys.length; ci++) {
-        h += '<button class="btn sm ' + (filter === catKeys[ci] ? "primary" : "") + '" onclick="setSchFilter(\'' + catKeys[ci].replace(/'/g, "\\'") + '\')" style="font-size:0.75rem">' + escapeHtml(catKeys[ci]) + ' (' + cats[catKeys[ci]] + ')</button>';
+        h += '<button class="btn sm ' + (filter === catKeys[ci] ? "primary" : "") + '" onclick="setSchFilter(\'' + escapeHtml(catKeys[ci]).replace(/'/g, "\\'") + '\')" style="font-size:0.75rem">' + escapeHtml(catKeys[ci]) + ' (' + cats[catKeys[ci]] + ')</button>';
     }
     h += '</div>';
 
