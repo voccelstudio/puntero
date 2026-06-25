@@ -187,6 +187,7 @@ function fallbackPhotoUpload(file, preview) {
 
 function confirmDelivery(orderId) {
     const p = getActiveProject();
+    if (!p) return toast("Seleccioná un proyecto", false);
     const order = p.execution.materialOrders.find(o => o.id == orderId);
     const date = document.getElementById("del-date").value;
     
@@ -218,6 +219,7 @@ function previewImage(src) {
 function payOrder(id) {
     const p = getActiveProject();
     if (!p) return;
+    if (!p.execution) p.execution = {};
     if (!p.execution.materialOrders) p.execution.materialOrders = [];
     const o = p.execution.materialOrders.find(x => x.id == id);
     if (!o) return;
@@ -242,7 +244,9 @@ function payOrder(id) {
 
 function removeOrder(id) {
     const p = getActiveProject();
+    if (!p) return;
     if (!confirm("¿Eliminar esta orden de compra?")) return;
+    if (!p.execution.materialOrders) p.execution.materialOrders = [];
     p.execution.materialOrders = p.execution.materialOrders.filter(o => o.id != id);
     save();
     renderMaterials();
@@ -250,7 +254,7 @@ function removeOrder(id) {
 
 function createOrder() {
     const p = getActiveProject();
-    const supplier = document.getElementById("mo-supplier").value;
+    if (!p) return toast("Seleccioná un proyecto", false);
     const total = parseFloat(document.getElementById("mo-total").value) || 0;
     const date = document.getElementById("mo-date").value;
     const items = [];
@@ -269,6 +273,7 @@ function createOrder() {
         supplier, total, date, items, status: 'pending', isPaid: false
     };
 
+    if (!p.execution) p.execution = {};
     if (!p.execution.materialOrders) p.execution.materialOrders = [];
     p.execution.materialOrders.push(newOrder);
     save();

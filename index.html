@@ -58,6 +58,7 @@
         <button id="btn-global-dashboard" class="nbtn on" onclick="setSection('global_dashboard')">🚀 Panel General</button>
         <button id="btn-projects" class="nbtn" onclick="setSection('projects')">🏢 Mis Proyectos</button>
         <button id="btn-budget" class="nbtn" onclick="setSection('budget')">📋 Presupuesto</button>
+        <button id="btn-ot" class="nbtn" onclick="setSection('ot')">📄 Orden de Trabajo</button>
         <button id="btn-computo" class="nbtn" onclick="setSection('computo')">🧱 Cómputo de Materiales</button>
         <button id="btn-prices" class="nbtn" onclick="setSection('prices')">💰 Base de Precios</button>
       </div>
@@ -72,6 +73,7 @@
         <button id="btn-contractors" class="nbtn" onclick="setSection('contractors')">👷 Personal y Contratistas</button>
         <button id="btn-jornaleros" class="nbtn" onclick="setSection('jornaleros')">👤 Jornaleros</button>
         <button id="btn-contratos" class="nbtn" onclick="setSection('contratos')">📝 Contratos</button>
+        <button id="btn-areas" class="nbtn" onclick="setSection('areas')">📐 Áreas</button>
       </div>
 
       <div class="nav-group">
@@ -103,6 +105,7 @@
       </div>
       </div>
     </div>
+    <div id="section-ot" class="view" style="display:none"></div>
     <div id="section-budget" class="view" style="display:none">
         <div style="display:flex; justify-content:flex-end; gap:10px; margin-bottom:10px; flex-wrap:wrap">
             <button class="btn sm" onclick="exportToGoogleSheets()" style="background:rgba(15,157,88,.12);border-color:rgba(15,157,88,.4);color:#34d399">
@@ -125,6 +128,7 @@
     <div id="section-contractors" class="view" style="display:none"></div>
     <div id="section-jornaleros" class="view" style="display:none"></div>
     <div id="section-contratos" class="view" style="display:none"></div>
+    <div id="section-areas" class="view" style="display:none"></div>
     <div id="section-finances" class="view" style="display:none"></div>
     <div id="section-performance" class="view" style="display:none"></div>
     <div id="section-dashboard" class="view" style="display:none"></div>
@@ -173,6 +177,7 @@
 <script src="firebase-init.js"></script>
 <script src="db_precios.js"></script>
 <script src="app.js"></script>
+<script src="ot.js"></script>
 <script src="schedule.js"></script>
 <script src="logs.js"></script>
 <script src="contractors.js"></script>
@@ -183,6 +188,7 @@
 <script src="suppliers.js"></script>
 <script src="jornaleros.js"></script>
 <script src="contracts.js"></script>
+<script src="areas.js"></script>
 <script src="resources.js"></script>
 
 <!-- PWA: Service Worker -->

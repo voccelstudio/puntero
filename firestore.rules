@@ -13,6 +13,18 @@ service cloud.firestore {
       }
     }
 
+    // Workspace compartido: solo miembros pueden leer/escribir
+    match /workspaces/{wsId} {
+      allow read: if request.auth != null
+                  && request.auth.uid in resource.data.members;
+      allow create: if request.auth != null
+                    && request.resource.data.members[0] == request.auth.uid;
+      allow update: if request.auth != null
+                    && request.auth.uid in resource.data.members;
+      allow delete: if request.auth != null
+                    && resource.data.owner == request.auth.uid;
+    }
+
     // Denegar todo lo demas
     match /{document=**} {
       allow read, write: if false;

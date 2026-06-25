@@ -162,8 +162,8 @@ function datePYRefreshAll() {
 const waLink = p => {
   if (!p) return "";
   let clean = p.replace(/\D/g, "");
-  if (clean.startsWith("0")) clean = "595" + clean.substring(1);
-  if (!clean.startsWith("595") && (clean.length === 9)) clean = "595" + clean;
+  if (clean.startsWith("0") && clean.length === 10) clean = "595" + clean.substring(1);
+  else if (clean.length === 9) clean = "595" + clean;
   return `https://wa.me/${clean}`;
 };
 
@@ -617,6 +617,7 @@ function getActiveProject() {
 function getActiveAdenda() {
     const p = getActiveProject();
     if (!p) return null;
+    if (!p.budgets || p.budgets.length === 0) return null;
     if (!state.activeAdendaId) state.activeAdendaId = p.budgets[0].id;
     return p.budgets.find(b => b.id === state.activeAdendaId);
 }
@@ -814,8 +815,18 @@ function dexieLoad(callback) {
 
 // ── CORE LOGIC ────────────────────────────────────────────────────────
 var _saveTimer = null;
+var _wsApplyingRemote = false;
 
 function save() {
+  if (_wsApplyingRemote) {
+    // Remote workspace changes: save locally but don't write back
+    try {
+      localStorage.setItem("ppy_v5", JSON.stringify(state));
+      localStorage.setItem("ppy_db5", JSON.stringify(DB));
+    } catch (e) { }
+    dexieSave();
+    return;
+  }
   try {
     localStorage.setItem("ppy_v5", JSON.stringify(state));
     localStorage.setItem("ppy_db5", JSON.stringify(DB));
@@ -835,8 +846,157 @@ function firestoreSync() {
         appState: JSON.parse(JSON.stringify(state)),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
+      // Sync workspace data if in a shared workspace
+      if (state._workspaceId && window._workspaceRef) {
+        window._workspaceRef.update({
+          data: extractWorkspaceData(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedBy: window._currentUser.uid
+        }).catch(function (e) { console.warn("Workspace write error:", e); });
+      }
     } catch (e) { console.warn("Firestore sync error:", e); }
-  }, 500);
+  }, 100);
+}
+
+// Flush pending Firestore writes on tab close
+window.addEventListener("beforeunload", function () {
+  if (_saveTimer) {
+    clearTimeout(_saveTimer);
+    try {
+      if (window._currentUser && state._cloudSyncEnabled !== false) {
+        state._lastCloudSync = new Date().toISOString();
+        window._FIRESTORE.collection("users").doc(window._currentUser.uid).set({
+          appState: JSON.parse(JSON.stringify(state)),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        if (state._workspaceId && window._workspaceRef) {
+          window._workspaceRef.update({
+            data: extractWorkspaceData(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedBy: window._currentUser.uid
+          }).catch(function () {});
+        }
+      }
+    } catch (e) {}
+  }
+});
+
+// ── WORKSPACE / COLLABORATION ──────────────────────────────────────────
+var _workspaceListenerUnsub = null;
+var WORKSPACE_FIELDS = ['projects','contractors','suppliers','jornaleros','roles','contratos'];
+
+function extractWorkspaceData() {
+  var data = {};
+  WORKSPACE_FIELDS.forEach(function (f) {
+    if (state[f] !== undefined) data[f] = JSON.parse(JSON.stringify(state[f]));
+  });
+  return data;
+}
+
+function applyWorkspaceData(data) {
+  if (!data) return;
+  WORKSPACE_FIELDS.forEach(function (f) {
+    if (data[f] !== undefined) state[f] = data[f];
+  });
+}
+
+function generateWorkspaceCode() {
+  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  var code = 'PUN-';
+  for (var i = 0; i < 4; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+  return code;
+}
+
+async function createWorkspace() {
+  if (!window._currentUser) return toast("Iniciá sesión primero", false);
+  var code = generateWorkspaceCode();
+  var wsData = {
+    owner: window._currentUser.uid,
+    members: [window._currentUser.uid],
+    data: extractWorkspaceData(),
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedBy: window._currentUser.uid,
+    code: code
+  };
+  try {
+    var ref = await window._FIRESTORE.collection("workspaces").add(wsData);
+    state._workspaceId = ref.id;
+    state._workspaceCode = code;
+    window._workspaceRef = ref;
+    startWorkspaceListener(ref.id);
+    save();
+    toast("Workspace creado ✓ Código: " + code);
+    renderCloudSettings();
+  } catch (e) { toast("Error: " + e.message, false); }
+}
+
+async function joinWorkspace() {
+  if (!window._currentUser) return toast("Iniciá sesión primero", false);
+  var inp = document.getElementById("ws-join-code");
+  if (!inp) return;
+  var code = inp.value.trim().toUpperCase();
+  if (!code) return toast("Ingresá el código del workspace", false);
+  try {
+    var snap = await window._FIRESTORE.collection("workspaces")
+      .where("code", "==", code).get();
+    if (snap.empty) return toast("Código inválido", false);
+    var doc = snap.docs[0];
+    var ws = doc.data();
+    if (ws.members.indexOf(window._currentUser.uid) !== -1) {
+      toast("Ya estás en este workspace", false);
+      return;
+    }
+    await doc.ref.update({
+      members: firebase.firestore.FieldValue.arrayUnion(window._currentUser.uid),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    if (ws.data) applyWorkspaceData(ws.data);
+    state._workspaceId = doc.id;
+    state._workspaceCode = code;
+    window._workspaceRef = doc.ref;
+    localStorage.setItem("ppy_v5", JSON.stringify(state));
+    startWorkspaceListener(doc.id);
+    toast("¡Unido al workspace! ✓");
+    renderCloudSettings();
+    if (typeof setSection === "function") setSection(state.section);
+  } catch (e) { toast("Error: " + e.message, false); }
+}
+
+function leaveWorkspace() {
+  if (!state._workspaceId) return;
+  stopWorkspaceListener();
+  delete state._workspaceId;
+  delete state._workspaceCode;
+  delete window._workspaceRef;
+  save();
+  toast("Saliste del workspace");
+  renderCloudSettings();
+}
+
+function startWorkspaceListener(wsId) {
+  stopWorkspaceListener();
+  window._workspaceRef = window._FIRESTORE.collection("workspaces").doc(wsId);
+  _workspaceListenerUnsub = window._workspaceRef
+    .onSnapshot(function (snap) {
+      if (!snap.exists) return;
+      var ws = snap.data();
+      if (!ws.data) return;
+      if (ws.updatedBy === window._currentUser.uid) return;
+      _wsApplyingRemote = true;
+      applyWorkspaceData(ws.data);
+      localStorage.setItem("ppy_v5", JSON.stringify(state));
+      _wsApplyingRemote = false;
+      if (typeof setSection === "function") setSection(state.section);
+      toast("🔄 Sincronizado con el workspace", true);
+    }, function (err) { console.warn("Workspace listener error:", err); });
+}
+
+function stopWorkspaceListener() {
+  if (_workspaceListenerUnsub) {
+    _workspaceListenerUnsub();
+    _workspaceListenerUnsub = null;
+  }
 }
 
 function applyTheme(t) {
@@ -861,6 +1021,7 @@ function setSection(s) {
   if (typeof closeSidebar === 'function') closeSidebar();
   const titles = { 
     budget: "Presupuesto de Obra", 
+    ot: "Orden de Trabajo", 
     schedule: "Cronograma de Ejecución", 
     contractors: "Directorio de Contratistas", 
     prices: "Base de Datos de Precios", 
@@ -874,6 +1035,7 @@ function setSection(s) {
     suppliers: "Directorio de Proveedores",
     jornaleros: "Jornaleros y Jornales",
     contratos: "Contratos Legales",
+    areas: "Áreas y Planos",
     resources: "Biblioteca y Recursos",
     projects: "Gestión de Proyectos",
     cloud: "☁️ Cloud"
@@ -881,7 +1043,7 @@ function setSection(s) {
   const vtitle = document.getElementById("view-title");
   if (vtitle) vtitle.textContent = titles[s] || "Puntero";
 
-  ["global_dashboard", "budget", "schedule", "contractors", "jornaleros", "contratos", "prices", "dashboard", "themes", "logs", "materials", "finances", "performance", "documents", "suppliers", "resources", "projects", "aftercare", "computo", "cloud"].forEach(x => {
+  ["global_dashboard", "budget", "ot", "schedule", "contractors", "jornaleros", "contratos", "areas", "prices", "dashboard", "themes", "logs", "materials", "finances", "performance", "documents", "suppliers", "resources", "projects", "aftercare", "computo", "cloud"].forEach(x => {
     const el = document.getElementById("section-" + x);
     if (el) el.style.display = s === x ? "" : "none";
     const b = document.getElementById("btn-" + x);
@@ -890,6 +1052,7 @@ function setSection(s) {
   if (s === "global_dashboard") renderGlobalDashboard();
   if (s === "projects") renderProjects();
   if (s === "budget") renderBudget();
+  if (s === "ot") renderOT();
   if (s === "computo") renderComputoSection();
   if (s === "aftercare") renderAftercare();
   if (s === "prices") renderPrices();
@@ -899,6 +1062,7 @@ function setSection(s) {
   if (s === "contractors") renderContractors();
   if (s === "jornaleros") renderJornaleros();
   if (s === "contratos") renderContratos();
+  if (s === "areas") renderAreas();
   if (s === "logs") renderLogs();
   if (s === "materials") renderMaterials();
   if (s === "finances") renderFinances();
@@ -1081,10 +1245,16 @@ function renderDashboard() {
 
     <div class="card" style="margin-top:16px">
         <h3 class="sec-lbl">🖼️ Últimas Fotos de Obra</h3>
-        <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap:8px; margin-top:10px">
-            ${(p.execution.dailyLogs || []).flatMap(l => l.photos || []).slice(-6).map(ph => `
-                <div style="aspect-ratio:1; background:url(${ph}) center/cover; border-radius:4px; border:1px solid var(--bor); cursor:pointer" onclick="previewImage('${ph.replace(/'/g, "\\'")}')"></div>
-            `).join("") || '<div style="grid-column: 1/-1; text-align:center; padding:20px; color:var(--tx3); font-size:0.85rem">Sin fotos registradas aún.</div>'}
+        <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap:8px; margin-top:10px">
+            ${(p.execution.dailyLogs || []).flatMap(l => l.photos || []).slice(-6).map(ph => {
+                const photoUrl = typeof ph === 'string' ? ph : (ph.url || '');
+                const areaId = typeof ph === 'object' ? (ph.areaId || '') : '';
+                const areaName = areaId && typeof getAreaName === 'function' ? getAreaName(areaId) : '';
+                return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+                    <div style="aspect-ratio:1;width:100%;background:url(${photoUrl}) center/cover;border-radius:4px;border:1px solid var(--bor);cursor:pointer" onclick="previewImage('${photoUrl.replace(/'/g, "\\'")}')"></div>
+                    ${areaName ? `<span style="font-size:0.55rem;padding:0 4px;border-radius:6px;background:var(--sur2);color:var(--tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;text-align:center">${areaName}</span>` : ''}
+                </div>`;
+            }).join("") || '<div style="grid-column: 1/-1; text-align:center; padding:20px; color:var(--tx3); font-size:0.85rem">Sin fotos registradas aún.</div>'}
         </div>
         <button class="btn sm full" style="margin-top:10px" onclick="setSection('documents')">Ver Galería Completa</button>
     </div>
@@ -1192,9 +1362,22 @@ async function exportDailyPDF(logId) {
     let px = margin;
     let py = 30;
     for (let i = 0; i < log.photos.length; i++) {
-        doc.addImage(log.photos[i], 'JPEG', px, py, 80, 60);
+        const ph = log.photos[i];
+        const photoUrl = typeof ph === 'string' ? ph : (ph.url || '');
+        const areaId = typeof ph === 'object' ? (ph.areaId || '') : '';
+        let areaName = '';
+        if (areaId && typeof getAreaName === 'function') areaName = getAreaName(areaId);
+        try {
+            doc.addImage(photoUrl, 'JPEG', px, py, 80, 60);
+            if (areaName) {
+                doc.setFontSize(7);
+                doc.setFont("helvetica", "normal");
+                doc.setTextColor("#666666");
+                doc.text(areaName, px + 40, py + 66, { align: 'center' });
+            }
+        } catch(e) {}
         px += 90;
-        if (px > 150) { px = margin; py += 70; }
+        if (px > 150) { px = margin; py += 75; }
         if (py > 250 && i < log.photos.length - 1) { doc.addPage(); px = margin; py = 20; }
     }
   }
@@ -1269,6 +1452,50 @@ async function exportWeeklyReport() {
      if (y > 270) { doc.addPage(); y = 30; }
   });
 
+  // 4. MEMORIA FOTOGRÁFICA (agrupada por área)
+  doc.addPage();
+  doc.setFontSize(14);
+  doc.text("4. MEMORIA FOTOGRÁFICA", margin, 30);
+  const allWeeklyPhotos = [];
+  lastLogs.forEach(log => {
+     (log.photos || []).forEach(ph => allWeeklyPhotos.push({ ...(typeof ph === 'object' ? ph : { url: ph, areaId: '' }), logDate: log.date }));
+  });
+  if (allWeeklyPhotos.length > 0) {
+    const areas = (typeof getAreas === 'function' ? getAreas() : []) || [];
+    const grouped = {};
+    areas.forEach(a => { grouped[a.id] = { name: a.name, color: a.color || '#888', photos: [] }; });
+    grouped[''] = { name: 'Sin área', color: '#999', photos: [] };
+    allWeeklyPhotos.forEach(ph => {
+      const key = ph.areaId || '';
+      if (!grouped[key]) grouped[key] = { name: 'Sin área', color: '#999', photos: [] };
+      grouped[key].photos.push(ph);
+    });
+    let py = 45;
+    Object.keys(grouped).forEach(key => {
+      if (grouped[key].photos.length === 0) return;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(grouped[key].color);
+      doc.text(`${grouped[key].name} (${grouped[key].photos.length} fotos)`, margin, py);
+      doc.setTextColor("#333333");
+      py += 8;
+      let px = margin;
+      grouped[key].photos.forEach(ph => {
+        try {
+          doc.addImage(ph.url, 'JPEG', px, py, 40, 30);
+        } catch(e) {}
+        px += 45;
+        if (px > 170) { px = margin; py += 35; }
+        if (py > 260) { doc.addPage(); py = 30; px = margin; }
+      });
+      py += 35;
+    });
+  } else {
+    doc.setFontSize(10);
+    doc.setTextColor("#999999");
+    doc.text("No hay fotos registradas en este período.", margin, 50);
+  }
+
   doc.save(`Informe_Semanal_${(proj.name || 'proyecto').replace(/\s+/g,'_')}.pdf`);
   toast("Informe Semanal generado ✓");
 }
@@ -1303,9 +1530,12 @@ function addItem(cat, name) {
   const adenda = getActiveAdenda();
   const p = getActiveProject();
   if (!adenda || !p) { toast("Seleccioná un proyecto", false); return; }
+  if (!p.execution) p.execution = {};
   if (!p.execution.schedules) p.execution.schedules = {};
 
+  if (!DB[cat]) { toast("Categoría no encontrada", false); return; }
   const data = DB[cat][name];
+  if (!data) { toast("Ítem no encontrado en la base de precios", false); return; }
   const ex = adenda.items.find(i => i.cat === cat && i.name === name && !i.custom);
   if (ex) { ex.qty++; renderTable(); save(); return; }
 
@@ -3430,7 +3660,16 @@ function initFirebaseAuth() {
     if (btn) {
       btn.textContent = user ? "👤 " + user.email : "🔐 Iniciar Sesión";
     }
-    if (user) loadFromFirestore();
+    if (user) {
+      loadFromFirestore().then(function () {
+        if (state._workspaceId) startWorkspaceListener(state._workspaceId);
+      });
+    } else {
+      stopWorkspaceListener();
+      delete state._workspaceId;
+      delete state._workspaceCode;
+      delete window._workspaceRef;
+    }
   });
 }
 
@@ -3514,6 +3753,10 @@ async function register() {
 }
 
 async function logout() {
+  stopWorkspaceListener();
+  delete state._workspaceId;
+  delete state._workspaceCode;
+  delete window._workspaceRef;
   try {
     await window._AUTH.signOut();
     closeModal();
@@ -3531,16 +3774,42 @@ function renderCloudSettings() {
   var dataSizeStr = dataSize > 1024 ? (dataSize / 1024).toFixed(1) + " KB" : dataSize + " B";
   var lastSync = state._lastCloudSync || null;
   var syncLabel = lastSync ? formatDatePY(lastSync) + " " + (lastSync.split("T")[1] || "").slice(0, 5) : "—";
+  var wsId = state._workspaceId;
+  var wsCode = state._workspaceCode;
 
   el.innerHTML =
     '<div class="prices-wrap">' +
-    '<div style="margin-bottom:20px"><h2 class="sec-lbl" style="margin-bottom:4px">☁️ Cloud</h2><p style="color:var(--tx3);font-size:0.9rem">Sincronización y gestión de datos en la nube.</p></div>' +
+    '<div style="margin-bottom:20px"><h2 class="sec-lbl" style="margin-bottom:4px">☁️ Cloud</h2><p style="color:var(--tx3);font-size:0.9rem">Sincronización, backup y colaboración en vivo.</p></div>' +
 
     '<div class="card"><h3 class="sec-lbl">Estado de Conexión</h3><div style="margin-top:12px">' +
     '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bor)"><span>Cuenta</span><span style="font-weight:600">' + (user ? user.email : "No conectado") + '</span></div>' +
     '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bor)"><span>Estado</span><span style="font-weight:600;color:' + (user ? "var(--ok)" : "var(--tx3)") + '">' + (user ? "🟢 Conectado" : "⚪ Sin sesión") + '</span></div>' +
     '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bor)"><span>Última sincronización</span><span style="font-weight:600">' + syncLabel + '</span></div>' +
     '<div style="display:flex;justify-content:space-between;padding:8px 0"><span>Tamaño de datos</span><span style="font-weight:600">' + dataSizeStr + '</span></div>' +
+    '</div></div>' +
+
+    // ── WORKSPACE ──────────────────────────────────────────────────
+    '<div class="card" style="margin-top:16px">' +
+    '<h3 class="sec-lbl">👥 Colaboración en Vivo</h3>' +
+    '<div style="margin-top:12px">' +
+    (wsId ? (
+      '<div style="background:var(--sur2);padding:14px;border-radius:var(--rad);margin-bottom:12px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center">' +
+      '<div><span style="font-weight:700;font-size:1rem">Workspace Activo</span>' +
+      '<div style="font-size:0.85rem;color:var(--acc);font-weight:700;margin-top:4px">Código: <strong>' + wsCode + '</strong></div></div>' +
+      '<span class="iva-badge" style="background:var(--ok);color:white">🟢 EN VIVO</span></div>' +
+      '<p style="font-size:0.8rem;color:var(--tx3);margin-top:8px">Los cambios se sincronizan en tiempo real con los miembros del workspace. Cuando otro usuario modifica datos, ves los cambios automáticamente.</p>' +
+      '<button class="btn sm danger" style="margin-top:10px" onclick="leaveWorkspace()">Salir del Workspace</button>' +
+      '</div>'
+    ) : (
+      '<div style="background:var(--sur2);padding:14px;border-radius:var(--rad);margin-bottom:12px">' +
+      '<p style="font-size:0.85rem;color:var(--tx3);margin-bottom:10px">Trabajá en tiempo real con otro usuario. Los proyectos, contratistas, proveedores, jornaleros y contratos se comparten al instante.</p>' +
+      '<div style="display:flex;flex-direction:column;gap:8px">' +
+      '<button class="btn primary full" onclick="createWorkspace()">➕ Crear Workspace</button>' +
+      '<div style="display:flex;gap:8px">' +
+      '<input id="ws-join-code" placeholder="Código (ej: PUN-X7K2)" style="flex:1;text-transform:uppercase;font-weight:700">' +
+      '<button class="btn full" onclick="joinWorkspace()">Unirse</button></div></div></div>'
+    )) +
     '</div></div>' +
 
     '<div class="card" style="margin-top:16px"><h3 class="sec-lbl">Sincronización</h3><div style="margin-top:12px">' +

@@ -342,7 +342,7 @@ function exportContratosBulk() {
   (state.contratos || []).forEach((c, i) => {
     setTimeout(() => generarPDFContrato(c.id), i * 500);
   });
-  toast("Generando ${state.contratos.length} PDFs...");
+  toast("Generando " + state.contratos.length + " PDFs...");
 }
 
 // ── HELPER ─────────────────────────────────────────────────────────────

@@ -214,6 +214,16 @@ function saveEditJornalero(id) {
 function deleteJornalero(id) {
     if (!confirm("¿Eliminar este jornalero? Se perderán sus jornadas registradas.")) return;
     state.jornaleros = state.jornaleros.filter(j => j.id !== id);
+    (state.projects || []).forEach(function (p) {
+        if (p.execution && p.execution.schedules) {
+            Object.keys(p.execution.schedules).forEach(function (k) {
+                var sch = p.execution.schedules[k];
+                if (sch.assignedStaff) {
+                    sch.assignedStaff = sch.assignedStaff.filter(function (sid) { return sid !== id; });
+                }
+            });
+        }
+    });
     save(); renderJornaleros();
 }
 
@@ -329,7 +339,16 @@ function registerJornada(jorId) {
 function deleteJornada(jorId, idx) {
     const j = state.jornaleros.find(x => x.id === jorId);
     if (j && j.jornadas) {
+        const removed = j.jornadas[idx];
         j.jornadas.splice(idx, 1);
+        if (removed) {
+            const proj = getActiveProject();
+            if (proj && proj.execution && proj.execution.finances) {
+                proj.execution.finances.expenses = proj.execution.finances.expenses.filter(function (e) {
+                    return !(e.amount === removed.monto && e.date === removed.date && e.note && e.note.indexOf("Jornal: " + (j.name || '') + " " + (j.surname || '')) === 0);
+                });
+            }
+        }
         save(); showJornadaModal(jorId); renderJornaleros();
     }
 }

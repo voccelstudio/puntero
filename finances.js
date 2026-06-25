@@ -7,6 +7,7 @@ function renderFinances() {
     if (!el) return;
     const p = getActiveProject();
     if (!p) { el.innerHTML = "<div class='empty'>Seleccioná un proyecto para ver sus finanzas.</div>"; return; }
+    if (!p.execution) p.execution = {};
     if (!p.execution.finances) p.execution.finances = { income: [], expenses: [] };
 
     const finances = p.execution.finances;
@@ -27,10 +28,10 @@ function renderFinances() {
                 // Buscar el jornal correspondiente
                 let rate = 0;
                 if (att.origin === 'Equipo Propio') {
-                    const m = state.ownTeam.find(o => `${o.name} ${o.surname}` === att.name);
+                    const m = (state.ownTeam || []).find(o => `${o.name} ${o.surname}` === att.name);
                     if (m) rate = m.dailyRate;
                 } else if (att.origin === 'Jornalero') {
-                    const m = p.execution.dayWorkers.find(d => `${d.name} ${d.surname}` === att.name);
+                    const m = (p.execution.dayWorkers || []).find(d => `${d.name} ${d.surname}` === att.name);
                     if (m) rate = m.dailyRate;
                 }
                 laborCostTotal += rate;
@@ -83,7 +84,7 @@ function renderFinances() {
                 <thead><tr><th>Fecha</th><th>Tipo</th><th>Concepto</th><th style="text-align:right">Monto</th></tr></thead>
                 <tbody>
                     ${[...(finances.income || []).map(i => ({...i, t: 'in', c: 'Ingreso'})), ...(finances.expenses || []).map(e => ({...e, t: 'ex', c: 'Gasto'}))]
-                        .sort((a,b) => parseDate(b.date) - parseDate(a.date)).slice(0, 10).map(m => `
+                        .sort((a,b) => (parseDate(b.date) || 0) - (parseDate(a.date) || 0)).slice(0, 10).map(m => `
                         <tr>
                             <td>${formatDatePY(m.date)}</td>
                             <td><span class="iva-badge" style="background:${m.t==='in'?'var(--ok)':'var(--bor)'}; color:white">${m.c}</span></td>

@@ -9,8 +9,10 @@ function renderResources() {
 
     // Historial de precios (usando los datos de state.priceHistory)
     const histHtml = (state.priceHistory || []).map(h => {
-        const diff = h.mar26 - h.aug25;
-        const pct = Math.round((diff / h.aug25) * 100);
+        const mar26 = h.mar26 || 0;
+        const aug25 = h.aug25 || 0;
+        const diff = mar26 - aug25;
+        const pct = aug25 > 0 ? Math.round((diff / aug25) * 100) : 0;
         return `
             <div class="hist-row">
                 <div class="hist-name">${h.name}</div>

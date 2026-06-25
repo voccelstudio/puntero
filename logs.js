@@ -63,8 +63,17 @@ function renderLogs() {
         if (fotoCount > 0) {
             h += '<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:12px">';
             for (var fi = 0; fi < log.photos.length; fi++) {
-                var photoUrl = log.photos[fi].replace(/'/g, "\\'");
-                h += '<div onclick="previewImage(\'' + photoUrl + '\')" style="min-width:80px;height:80px;border-radius:6px;background:url(' + photoUrl + ') center/cover;border:1px solid var(--bor);cursor:pointer"></div>';
+                var ph = log.photos[fi];
+                var photoUrl = typeof ph === 'string' ? ph : (ph.url || '');
+                var areaId = typeof ph === 'object' ? (ph.areaId || '') : '';
+                var areaName = '';
+                var areaColor = '';
+                if (areaId && typeof getAreaName === 'function') { areaName = getAreaName(areaId); areaColor = getAreaColor(areaId); }
+                var escapedUrl = photoUrl.replace(/'/g, "\\'");
+                h += '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0">' +
+                    '<div onclick="previewImage(\'' + escapedUrl + '\')" style="min-width:72px;height:72px;border-radius:6px;background:url(' + escapedUrl + ') center/cover;border:1px solid var(--bor);cursor:pointer"></div>' +
+                    (areaName ? '<span style="font-size:0.6rem;padding:1px 6px;border-radius:8px;background:' + areaColor + '30;color:' + areaColor + ';font-weight:600;white-space:nowrap">' + escapeHtml(areaName) + '</span>' : '') +
+                '</div>';
             }
             h += '</div>';
         }
@@ -117,13 +126,13 @@ function showDailyLogModal() {
 
     var allStaff = [];
     var assignedConIds = new Set(Object.values(p.execution.schedules || {}).map(function (s) { return s.contractorId; }).filter(Boolean));
-    state.contractors.forEach(function (con) {
+    (state.contractors || []).forEach(function (con) {
         if (assignedConIds.has(con.id)) {
             (con.staff || []).forEach(function (s) { allStaff.push({ id: s.id, name: s.name + " " + s.surname, origin: "Contratista: " + con.name }); });
         }
     });
     var ownIds = new Set(Object.values(p.execution.schedules || {}).filter(function (s) { return s.executionMode === "own_team"; }).flatMap(function (s) { return s.assignedStaff || []; }));
-    state.ownTeam.forEach(function (m) { if (ownIds.has(m.id)) allStaff.push({ id: m.id, name: m.name + " " + m.surname, origin: "Equipo Propio" }); });
+    (state.ownTeam || []).forEach(function (m) { if (ownIds.has(m.id)) allStaff.push({ id: m.id, name: m.name + " " + m.surname, origin: "Equipo Propio" }); });
     var dayIds = new Set(Object.values(p.execution.schedules || {}).filter(function (s) { return s.executionMode === "day_workers"; }).flatMap(function (s) { return s.assignedStaff || []; }));
     (p.execution.dayWorkers || []).forEach(function (m) { if (dayIds.has(m.id)) allStaff.push({ id: m.id, name: m.name + " " + m.surname, origin: "Jornalero" }); });
     // Integración: agregar jornaleros globales a la lista de asistencia
@@ -198,29 +207,79 @@ function addWalkthroughPhoto(input) {
     var preview = document.getElementById("walk-photos-preview");
     if (!preview) return;
     var idx = _walkPhotos.length;
+    var areaOpts = getAreaSelectorHtml('');
+
+    var photoEntry = { url: '', areaId: '', uploading: true };
 
     if (window._STORAGE && window._currentUser) {
         var ref = window._STORAGE.ref("users/" + window._currentUser.uid + "/walkthrough/" + Date.now() + "_" + file.name);
         ref.put(file).then(function (s) { return s.ref.getDownloadURL(); }).then(function (url) {
-            _walkPhotos.push(url);
-            preview.innerHTML += '<div style="min-width:72px;height:72px;border-radius:6px;background:url(' + url + ') center/cover;border:1px solid var(--bor);flex-shrink:0"></div>';
+            photoEntry.url = url;
+            photoEntry.uploading = false;
+            updateWalkthroughPreview();
             toast("Foto agregada ✓");
         }).catch(function () {
-            fallbackWalkthroughPhoto(file, preview, idx);
+            fallbackWalkthroughPhoto(file, idx);
         });
     } else {
-        fallbackWalkthroughPhoto(file, preview, idx);
+        fallbackWalkthroughPhoto(file, idx);
     }
+
+    _walkPhotos.push(photoEntry);
+    updateWalkthroughPreview();
+
+    function updateWalkthroughPreview() {
+        preview.innerHTML = _walkPhotos.map(function (p, i) {
+            var imgHtml = p.url ? '<div style="min-width:72px;height:72px;border-radius:6px;background:url(' + p.url + ') center/cover;border:1px solid var(--bor);flex-shrink:0"></div>' : '<div style="min-width:72px;height:72px;border-radius:6px;background:var(--sur2);border:1px dashed var(--bor);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--tx3)">Subiendo...</div>';
+            return '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;position:relative">' +
+                imgHtml +
+                '<select class="walk-area-sel" data-idx="' + i + '" style="width:80px;font-size:0.6rem;padding:1px 2px;border:1px solid var(--bor);border-radius:3px;background:var(--sur);color:var(--tx2)">' +
+                '<option value="">Sin área</option>' +
+                (typeof getAreas === 'function' ? (getAreas() || []).map(function(a) {
+                    return '<option value="' + a.id + '"' + (p.areaId === a.id ? ' selected' : '') + '>' + escapeHtml(a.name) + '</option>';
+                }).join("") : '') +
+                '</select>' +
+                '<button class="delbtn sm" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;font-size:0.6rem" onclick="removeWalkthroughPhoto(' + i + ')">✕</button>' +
+                '</div>';
+        }).join("");
+    }
+
     input.value = "";
 }
 
-function fallbackWalkthroughPhoto(file, preview, idx) {
+function fallbackWalkthroughPhoto(file, idx) {
     var reader = new FileReader();
     reader.onload = function (e) {
-        _walkPhotos.push(e.target.result);
-        preview.innerHTML += '<div style="min-width:72px;height:72px;border-radius:6px;background:url(' + e.target.result + ') center/cover;border:1px solid var(--bor);flex-shrink:0"></div>';
+        if (_walkPhotos[idx]) {
+            _walkPhotos[idx].url = e.target.result;
+            _walkPhotos[idx].uploading = false;
+            updateWalkthroughPreviewUI();
+        }
     };
     reader.readAsDataURL(file);
+}
+
+function removeWalkthroughPhoto(idx) {
+    _walkPhotos.splice(idx, 1);
+    updateWalkthroughPreviewUI();
+}
+
+function updateWalkthroughPreviewUI() {
+    var preview = document.getElementById("walk-photos-preview");
+    if (!preview) return;
+    preview.innerHTML = _walkPhotos.map(function (p, i) {
+        var imgHtml = p.url ? '<div style="min-width:72px;height:72px;border-radius:6px;background:url(' + p.url + ') center/cover;border:1px solid var(--bor);flex-shrink:0"></div>' : '<div style="min-width:72px;height:72px;border-radius:6px;background:var(--sur2);border:1px dashed var(--bor);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--tx3)">Subiendo...</div>';
+        return '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;position:relative">' +
+            imgHtml +
+            '<select class="walk-area-sel" data-idx="' + i + '" style="width:80px;font-size:0.6rem;padding:1px 2px;border:1px solid var(--bor);border-radius:3px;background:var(--sur);color:var(--tx2)">' +
+            '<option value="">Sin área</option>' +
+            (typeof getAreas === 'function' ? (getAreas() || []).map(function(a) {
+                return '<option value="' + a.id + '"' + (p.areaId === a.id ? ' selected' : '') + '>' + escapeHtml(a.name) + '</option>';
+            }).join("") : '') +
+            '</select>' +
+            '<button class="delbtn sm" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;font-size:0.6rem" onclick="removeWalkthroughPhoto(' + i + ')">✕</button>' +
+            '</div>';
+    }).join("");
 }
 
 function getWalkthroughLocation() {
@@ -249,6 +308,12 @@ function saveWalkthrough() {
     var locationEl = document.getElementById("walk-location");
     var location = locationEl && locationEl.dataset.lat ? { lat: parseFloat(locationEl.dataset.lat), lng: parseFloat(locationEl.dataset.lng) } : null;
 
+    // Leer áreas seleccionadas de cada foto
+    document.querySelectorAll(".walk-area-sel").forEach(function(sel) {
+        var idx = parseInt(sel.dataset.idx);
+        if (_walkPhotos[idx]) _walkPhotos[idx].areaId = sel.value;
+    });
+
     var newLog = {
         id: "log_" + Date.now(),
         date: document.getElementById("walk-date")?.value || todayISO(),
@@ -260,6 +325,10 @@ function saveWalkthrough() {
     if (!p.execution.dailyLogs) p.execution.dailyLogs = [];
     p.execution.dailyLogs.push(newLog);
     _walkPhotos = [];
+
+    // Actualizar contadores de fotos por área
+    if (typeof updateAreaFotoCounts === 'function') updateAreaFotoCounts();
+
     save();
     closeModal();
     renderLogs();

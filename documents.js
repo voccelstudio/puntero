@@ -13,12 +13,14 @@ function renderDocuments() {
 
     // Combinar fotos de la bitácora con los documentos subidos
     const logPhotos = dailyLogs.flatMap(l => (l.photos || []).map(p => ({
-        id: 'log-' + l.id,
+        id: 'log-' + l.id + '-' + Math.random(),
         type: 'photo',
         category: 'Bitácora',
         name: `Foto ${formatDatePY(l.date)}`,
         date: l.date,
-        url: p
+        url: typeof p === 'string' ? p : (p.url || ''),
+        areaId: typeof p === 'object' ? (p.areaId || '') : '',
+        ...(l.isWalkthrough ? { walkthrough: true } : {})
     })));
 
     const allDocs = [...proj.execution.documents, ...logPhotos].sort((a, b) => parseDate(b.date) - parseDate(a.date));
@@ -54,8 +56,9 @@ function renderDocuments() {
                     </div>
                     <div class="doc-info">
                         <div class="doc-name">${d.name}</div>
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px; flex-wrap:wrap; gap:2px">
                             <span class="iva-badge" style="font-size:0.7rem">${d.category}</span>
+                            ${d.areaId && typeof getAreaName === 'function' ? `<span style="font-size:0.6rem;padding:1px 5px;border-radius:4px;background:var(--sur2);color:var(--tx2)">${escapeHtml(getAreaName(d.areaId))}</span>` : ''}
                             <span style="font-size:0.7rem; color:var(--tx3)">${formatDatePY(d.date)}</span>
                         </div>
                     </div>
@@ -96,8 +99,9 @@ function uploadDocument(input) {
     let loaded = 0;
     files.forEach(file => {
         const reader = new FileReader();
+        const fileType = file.type || '';
         reader.onload = e => {
-            const isImg = file.type.startsWith('image/');
+            const isImg = fileType.startsWith('image/');
             const category = isImg ? 'Fotos' : 'Planos';
 
             proj.execution.documents.push({
@@ -117,7 +121,7 @@ function uploadDocument(input) {
             }
         };
 
-        if (file.type.startsWith('image/')) {
+        if (fileType.startsWith('image/')) {
             reader.readAsDataURL(file);
         } else {
             reader.readAsText(file.slice(0, 100));
@@ -143,7 +147,7 @@ function viewDocument(id) {
     if (!proj) return;
     const dailyLogs = proj.execution.dailyLogs || [];
     const docs = proj.execution.documents || [];
-    const doc = [...docs, ...dailyLogs.flatMap(l => (l.photos || []).map(p => ({ id: 'log-' + l.id, url: p, name: `Foto ${formatDatePY(l.date)}`, category: 'Bitácora' })))].find(d => d.id == id);
+    const doc = [...docs, ...dailyLogs.flatMap(l => (l.photos || []).map((p, pi) => ({ id: 'log-' + l.id + '-' + pi, url: p, name: `Foto ${formatDatePY(l.date)}`, category: 'Bitácora' })))].find(d => d.id == id);
 
     if (!doc) return;
 

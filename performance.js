@@ -9,6 +9,7 @@ function renderPerformance() {
     const p = getActiveProject();
     const adenda = getActiveAdenda();
     if (!p || !adenda) { el.innerHTML = "<div class='empty'>Seleccioná un proyecto.</div>"; return; }
+    if (!p.execution) p.execution = {};
     if (!p.execution.schedules) p.execution.schedules = {};
 
     const { totalProgress } = calcOverallProgress();

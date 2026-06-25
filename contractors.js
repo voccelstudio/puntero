@@ -149,6 +149,15 @@ function addContractor() {
 function deleteContractor(id) {
     if (!confirm("¿Eliminar este contratista?")) return;
     state.contractors = state.contractors.filter(c => c.id !== id);
+    (state.projects || []).forEach(function (p) {
+        if (p.execution && p.execution.schedules) {
+            Object.keys(p.execution.schedules).forEach(function (k) {
+                if (p.execution.schedules[k].contractorId === id) {
+                    delete p.execution.schedules[k].contractorId;
+                }
+            });
+        }
+    });
     save(); renderContractors();
 }
 
@@ -203,7 +212,18 @@ function addPayment(conId) {
 
 function deletePayment(conId, idx) {
     const con = state.contractors.find(c => c.id === conId);
-    if (con) { con.payments.splice(idx, 1); save(); showPaymentModal(conId); renderContractors(); }
+    if (con) {
+        const removed = con.payments.splice(idx, 1)[0];
+        if (removed) {
+            const proj = getActiveProject();
+            if (proj && proj.execution && proj.execution.finances) {
+                proj.execution.finances.expenses = proj.execution.finances.expenses.filter(function (e) {
+                    return !(e.amount === removed.amount && e.date === removed.date && e.note && e.note.indexOf("Pago a contratista: " + con.name) === 0);
+                });
+            }
+        }
+        save(); showPaymentModal(conId); renderContractors();
+    }
 }
 
 function showAssignItemsModal(conId) {
