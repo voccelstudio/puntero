@@ -352,22 +352,28 @@ function migrateToV8() {
 /**
  * GESTIÓN DE MULTI-PROYECTOS Y ADENDAS
  */
+function openProjectSection(id, section) {
+    state.activeProjectId = id;
+    const p = getActiveProject();
+    if (p && p.budgets[0]) state.activeAdendaId = p.budgets[0].id;
+    save();
+    setSection(section);
+}
+
 function renderGlobalDashboard() {
     const el = document.getElementById("section-global_dashboard");
     if (!el) return;
 
     let urgentItems = [];
     const today = new Date();
+    const activeProjects = state.projects.filter(p => !p.archived);
 
     state.projects.forEach(p => {
-        // 1. Pagos pendientes (Materiales)
         (p.execution.materialOrders || []).forEach(o => {
             if (!o.isPaid) {
                 urgentItems.push({ project: p.name, type: '💰 Pago Materiales', desc: `Proveedor: ${o.supplier}`, amount: o.total, date: o.date, color: 'var(--err)' });
             }
         });
-
-        // 2. Retrasos en Cronograma
         Object.entries(p.execution.schedules || {}).forEach(([itemId, sch]) => {
             if (sch.status !== 'done' && sch.end && new Date(sch.end) < today) {
                 const adenda = p.budgets.find(b => b.items.find(i => i.id == itemId));
@@ -375,8 +381,6 @@ function renderGlobalDashboard() {
                 urgentItems.push({ project: p.name, type: '⚠️ Retraso Obra', desc: item.name, amount: null, date: sch.end, color: 'var(--lab)' });
             }
         });
-
-        // 3. Reclamos de Garantía Abiertos
         (p.execution.aftercare || []).forEach(claim => {
             if (claim.status !== 'resolved') {
                 urgentItems.push({ project: p.name, type: '🔧 Garantía', desc: claim.title, amount: null, date: claim.date, color: 'var(--acc)' });
@@ -386,20 +390,53 @@ function renderGlobalDashboard() {
 
     let h = `
     <div class="prices-wrap">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px">
             <div>
-                <h2 class="sec-lbl" style="margin:0">PANEL DE CONTROL GENERAL</h2>
-                <p style="color:var(--tx3); font-size:0.9rem">Resumen de urgencias en todas las obras</p>
+                <h2 class="sec-lbl" style="margin:0">PANEL GENERAL</h2>
+                <p style="color:var(--tx3); font-size:0.9rem">${activeProjects.length} proyecto(s) activo(s)</p>
             </div>
-            <div class="db-badge" style="background:var(--sur2); color:var(--tx)">Total: ${state.projects.length} Obras</div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap">
+                <button class="btn primary" onclick="showModal('new_project')">+ Nuevo Proyecto</button>
+                <button class="btn" onclick="setSection('projects')">📋 Gestionar</button>
+            </div>
         </div>
 
-        <div class="dash-grid">
+        <div class="proj-dash-grid">
+            ${activeProjects.map(p => {
+                const total = p.budgets.reduce((s, b) => s + b.items.reduce((ss, i) => ss + (i.unitPrice * i.qty), 0), 0);
+                const pid = p.id.replace(/'/g, "\\'");
+                const itemsCount = p.budgets.reduce((s, b) => s + b.items.length, 0);
+                return `
+                <div class="proj-dash-card" onclick="openProjectSection('${pid}','dashboard')">
+                    <div class="proj-dash-hdr">
+                        <div class="proj-dash-name">${escapeHtml(p.name)}</div>
+                        <div class="proj-dash-client">👤 ${escapeHtml(p.client || 'Sin cliente')} · 📍 ${escapeHtml(p.address || '')}</div>
+                    </div>
+                    <div class="proj-dash-meta">
+                        <span class="ichip mat">📦 ${itemsCount} items</span>
+                        <span class="proj-dash-total">${fmt(total)}</span>
+                    </div>
+                    <div class="proj-dash-actions">
+                        <button class="btn sm" onclick="event.stopPropagation(); openProjectSection('${pid}','budget')">📋 Presupuesto</button>
+                        <button class="btn sm" onclick="event.stopPropagation(); openProjectSection('${pid}','schedule')">📅 Cronograma</button>
+                        <button class="btn sm" onclick="event.stopPropagation(); openProjectSection('${pid}','ot')">📄 OT</button>
+                        <button class="btn sm" onclick="event.stopPropagation(); openProjectSection('${pid}','contractors')">👷 Contratistas</button>
+                        <button class="btn sm" onclick="event.stopPropagation(); openProjectSection('${pid}','documents')">📁 Documentos</button>
+                        <button class="btn sm" onclick="event.stopPropagation(); openProjectSection('${pid}','materials')">🧱 Materiales</button>
+                        <button class="btn sm" onclick="event.stopPropagation(); openProjectSection('${pid}','finances')">💰 Finanzas</button>
+                        <button class="btn sm" onclick="event.stopPropagation(); openProjectSection('${pid}','logs')">📔 Libro</button>
+                        <button class="btn sm" onclick="event.stopPropagation(); openProjectSection('${pid}','jornaleros')">👤 Jornaleros</button>
+                    </div>
+                </div>`;
+            }).join("") || '<div class="empty" style="padding:40px; text-align:center">No hay proyectos activos. <button class="btn sm primary" onclick="showModal(\'new_project\')">+ Crear proyecto</button></div>'}
+        </div>
+
+        <div class="dash-grid" style="margin-top:24px">
             <div class="dash-card" style="border-top:4px solid var(--err)">
                 <div class="dash-num">${urgentItems.filter(i => i.type.includes('💰')).length}</div>
                 <div class="dash-lbl">Pagos Pendientes</div>
             </div>
-            <div class="dash-card" style="border-top:4px solid var(--warn)">
+            <div class="dash-card" style="border-top:4px solid var(--lab)">
                 <div class="dash-num">${urgentItems.filter(i => i.type.includes('⚠️')).length}</div>
                 <div class="dash-lbl">Retrasos Detectados</div>
             </div>
@@ -411,7 +448,7 @@ function renderGlobalDashboard() {
 
         <div class="card" style="margin-top:20px">
             <h3 class="sec-lbl">📋 Acciones Urgentes / Prioridad</h3>
-            <div class="scroll-area" style="max-height:600px">
+            <div class="scroll-area" style="max-height:400px">
                 <table class="tbl">
                     <thead>
                         <tr>
