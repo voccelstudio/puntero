@@ -53,7 +53,7 @@ function renderOT() {
             </div>
 
             <table class="tbl ot-tbl" id="ot-table">
-                <thead><tr><th style="width:50px">N°</th><th>Rubro / Subrubro</th></tr></thead>
+                <thead><tr><th style="width:50px">N°</th><th>Rubro</th><th style="width:80px">Metraje</th></tr></thead>
                 <tbody id="ot-body"></tbody>
             </table>
 
@@ -72,20 +72,16 @@ function renderOTBody() {
     const tbody = document.getElementById("ot-body");
     if (!tbody) return;
     const ot = buildOTData();
-    if (!ot) { tbody.innerHTML = '<tr><td colspan="2" class="empty">Sin rubros</td></tr>'; return; }
+    if (!ot) { tbody.innerHTML = '<tr><td colspan="3" class="empty">Sin rubros</td></tr>'; return; }
 
     let itemCounter = 0;
     const fragments = [];
     for (const [cat, items] of Object.entries(ot.groups)) {
-        fragments.push('<tr class="tbl-cat cat-row"><td colspan="2"><strong>', escapeHtml(cat), '</strong></td></tr>');
+        fragments.push('<tr class="tbl-cat cat-row"><td colspan="3"><strong>', escapeHtml(cat), '</strong></td></tr>');
         for (const item of items) {
             itemCounter++;
-            const mats = item.mats || [];
-            const rs = mats.length > 0 ? mats.length + 1 : 1;
-            fragments.push('<tr class="ot-item-row"><td class="ot-num" rowspan="', rs, '">', itemCounter, '</td><td class="ot-name">', escapeHtml(item.name), '</td></tr>');
-            for (let si = 0; si < mats.length; si++) {
-                fragments.push('<tr class="ot-sub-row"><td class="ot-sub-num">', itemCounter, '.', si + 1, '</td><td class="ot-sub-name">', escapeHtml(mats[si].n || ''), '</td></tr>');
-            }
+            const qty = item.qty != null ? fmtD(item.qty) + ' ' + (item.unit || '') : '';
+            fragments.push('<tr class="ot-item-row"><td class="ot-num">', itemCounter, '</td><td class="ot-name">', escapeHtml(item.name), '</td><td class="ot-qty">', qty, '</td></tr>');
         }
     }
     tbody.innerHTML = fragments.join('');
@@ -99,8 +95,7 @@ function printOT() {
     if (!ot) return toast("No hay orden de trabajo generada", false);
 
     const p = getActiveProject();
-    const adenda = getActiveAdenda();
-    if (!p || !adenda) return toast("Sin proyecto activo", false);
+    if (!p) return toast("Sin proyecto activo", false);
 
     const rows = renderOTPrintRows(ot);
 
@@ -122,9 +117,8 @@ function printOT() {
     win.document.write('th{background:#f1f5f9;font-weight:700;font-size:.8rem;text-transform:uppercase;letter-spacing:.04em}');
     win.document.write('.cat-row td{background:#e2e8f0;font-weight:800;text-transform:uppercase;font-size:.8rem;padding:6px 10px}');
     win.document.write('.ot-item-row td{font-weight:600}');
-    win.document.write('.ot-sub-row td{padding-left:28px!important;color:#475569}');
     win.document.write('.ot-num{text-align:center;font-weight:700;width:50px;vertical-align:middle}');
-    win.document.write('.ot-sub-num{text-align:center;font-weight:600;color:#64748b;width:50px}');
+    win.document.write('.ot-qty{text-align:center;font-weight:700;width:80px}');
     win.document.write('.ot-sign{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-top:40px;padding-top:24px;border-top:2px dashed #94a3b8}');
     win.document.write('.ot-sign-box{text-align:center}');
     win.document.write('.ot-sign-line{margin-bottom:48px;border-bottom:1px solid #1e293b}');
@@ -135,7 +129,7 @@ function printOT() {
     win.document.write('<div class="ot-print">');
     win.document.write('<div class="ot-hdr"><h1>Orden de Trabajo</h1><span class="ot-num">N° ' + ot.number + '</span></div>');
     win.document.write('<div class="ot-info"><div><strong>Proyecto:</strong> ' + escapeHtml(p.name) + '</div><div><strong>Cliente:</strong> ' + escapeHtml(p.client || '—') + '</div><div><strong>Presupuesto:</strong> ' + escapeHtml(ot.budget) + '</div><div><strong>Fecha Emisión:</strong> ' + ot.date + '</div></div>');
-    win.document.write('<table><thead><tr><th style="width:50px">N°</th><th>Rubro / Subrubro</th></tr></thead><tbody>' + rows + '</tbody></table>');
+    win.document.write('<table><thead><tr><th style="width:50px">N°</th><th>Rubro</th><th style="width:80px">Metraje</th></tr></thead><tbody>' + rows + '</tbody></table>');
     win.document.write('<div class="ot-sign"><div class="ot-sign-box"><div class="ot-sign-line"></div><strong>Encargado</strong></div><div class="ot-sign-box"><div class="ot-sign-line"></div><strong>Contratista</strong></div><div class="ot-sign-box"><div class="ot-sign-line"></div><strong>Supervisor</strong></div></div>');
     win.document.write('<div class="ot-foot">Documento generado por Puntero — ' + ot.date + '</div>');
     win.document.write('</div>');
@@ -148,15 +142,11 @@ function renderOTPrintRows(ot) {
     let itemCounter = 0;
     const frag = [];
     for (const [cat, items] of Object.entries(ot.groups)) {
-        frag.push('<tr class="cat-row"><td colspan="2">', escapeHtml(cat), '</td></tr>');
+        frag.push('<tr class="cat-row"><td colspan="3">', escapeHtml(cat), '</td></tr>');
         for (const item of items) {
             itemCounter++;
-            const mats = item.mats || [];
-            const rs = mats.length > 0 ? mats.length + 1 : 1;
-            frag.push('<tr class="ot-item-row"><td class="ot-num" rowspan="', rs, '">', itemCounter, '</td><td>', escapeHtml(item.name), '</td></tr>');
-            for (let si = 0; si < mats.length; si++) {
-                frag.push('<tr class="ot-sub-row"><td class="ot-sub-num">', itemCounter, '.', si + 1, '</td><td>', escapeHtml(mats[si].n || ''), '</td></tr>');
-            }
+            const qty = item.qty != null ? fmtD(item.qty) + ' ' + (item.unit || '') : '';
+            frag.push('<tr class="ot-item-row"><td class="ot-num">', itemCounter, '</td><td>', escapeHtml(item.name), '</td><td class="ot-qty">', qty, '</td></tr>');
         }
     }
     return frag.join('');
