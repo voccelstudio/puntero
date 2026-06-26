@@ -534,12 +534,16 @@ function renderComputoSection() {
     
     let h = `
     <div class="prices-wrap">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px">
             <div>
                 <h2 class="sec-lbl" style="margin:0">CÓMPUTO MÉTRICO DE MATERIALES</h2>
                 <p style="color:var(--tx3); font-size:0.9rem">Cantidades totales necesarias para la obra: <strong>${p.name}</strong></p>
             </div>
-            <button class="btn sm" onclick="setSection('budget')">← Volver al Presupuesto</button>
+            <div style="display:flex; gap:8px; flex-wrap:wrap">
+                <button class="btn sm" onclick="printComputo()">🖨️ PDF</button>
+                <button class="btn sm" onclick="exportComputoCSV()">📄 CSV</button>
+                <button class="btn sm" onclick="setSection('budget')">← Volver</button>
+            </div>
         </div>
 
         <div class="info-box" style="margin-bottom:20px">
@@ -562,6 +566,74 @@ function renderComputoSection() {
     </div>`;
 
     el.innerHTML = h;
+}
+
+function printComputo() {
+    const p = getActiveProject();
+    if (!p) return toast("Sin proyecto activo", false);
+    const mats = calcMaterials();
+    if (mats.length === 0) return toast("No hay materiales calculados", false);
+
+    const totalQty = mats.reduce((s, m) => s + m.qty, 0);
+
+    let rows = '';
+    mats.forEach((m, i) => {
+        const qty = Number.isInteger(m.qty) ? m.qty : fmtD(m.qty, 2);
+        rows += `<tr><td style="text-align:center;width:40px">${i + 1}</td><td>${escapeHtml(m.name)}</td><td style="text-align:center;width:80px">${qty}</td><td style="text-align:center;width:80px">${escapeHtml(m.unit)}</td></tr>`;
+    });
+
+    const win = window.open("", "_blank");
+    if (!win) { toast("Permití ventanas emergentes para imprimir", false); return; }
+
+    const date = formatDatePY(new Date());
+    win.document.write('<!DOCTYPE html><html><head><title>Cómputo de Materiales - ' + escapeHtml(p.name) + '</title>');
+    win.document.write('<style>');
+    win.document.write('@page{size:A4 landscape;margin:12mm}');
+    win.document.write('*{box-sizing:border-box}');
+    win.document.write('body{font-family:"Barlow","Segoe UI",sans-serif;color:#1e293b;padding:0;margin:0;background:#fff}');
+    win.document.write('.wrap{max-width:100%;margin:0 auto;padding:20px}');
+    win.document.write('.hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;border-bottom:3px solid #1e293b;padding-bottom:12px}');
+    win.document.write('.hdr h1{font-size:1.3rem;font-weight:800;text-transform:uppercase;margin:0}');
+    win.document.write('.info{display:grid;grid-template-columns:1fr 1fr;gap:6px 30px;margin-bottom:16px;font-size:.85rem;color:#475569;padding:10px 14px;background:#f8fafc;border-radius:6px;border:1px solid #e2e8f0}');
+    win.document.write('table{width:100%;border-collapse:collapse;font-size:.8rem}');
+    win.document.write('th,td{border:1px solid #cbd5e1;padding:6px 8px;text-align:left}');
+    win.document.write('th{background:#f1f5f9;font-weight:700;font-size:.75rem;text-transform:uppercase;letter-spacing:.04em}');
+    win.document.write('.tot-row td{background:#e2e8f0;font-weight:800;font-size:.85rem}');
+    win.document.write('.foot{text-align:center;margin-top:20px;font-size:.7rem;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:10px}');
+    win.document.write('@media print{body{padding:0}.wrap{padding:0}}');
+    win.document.write('</style></head><body>');
+    win.document.write('<div class="wrap">');
+    win.document.write('<div class="hdr"><h1>Cómputo de Materiales</h1><span style="font-weight:700;color:#475569">' + escapeHtml(p.name) + '</span></div>');
+    win.document.write('<div class="info"><div><strong>Proyecto:</strong> ' + escapeHtml(p.name) + '</div><div><strong>Cliente:</strong> ' + escapeHtml(p.client || '—') + '</div><div><strong>Materiales:</strong> ' + mats.length + ' ítems</div><div><strong>Emisión:</strong> ' + date + '</div></div>');
+    win.document.write('<table><thead><tr><th style="width:40px">N°</th><th>Material</th><th style="width:80px">Cantidad</th><th style="width:80px">Unidad</th></tr></thead><tbody>' + rows + '</tbody></table>');
+    win.document.write('<div class="foot">Documento generado por Puntero — ' + date + '</div>');
+    win.document.write('</div>');
+    win.document.write('<script>window.onload=function(){setTimeout(function(){window.print();window.close()},300)}<\/script>');
+    win.document.write('</body></html>');
+    win.document.close();
+}
+
+function exportComputoCSV() {
+    const p = getActiveProject();
+    if (!p) return toast("Sin proyecto activo", false);
+    const mats = calcMaterials();
+    if (mats.length === 0) return toast("No hay materiales calculados", false);
+
+    let csv = 'Material,Cantidad,Unidad\r\n';
+    mats.forEach(m => {
+        const qty = Number.isInteger(m.qty) ? m.qty : fmtD(m.qty, 2);
+        csv += '"' + m.name.replace(/"/g, '""') + '",' + qty + ',"' + m.unit + '"\r\n';
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'computo_' + p.name.replace(/[^a-zA-Z0-9]/g, '_') + '.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+    toast('CSV descargado ✓');
 }
 
 window.modals = window.modals || {};
