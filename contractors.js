@@ -235,19 +235,22 @@ function showAssignItemsModal(conId) {
     let itemsHtml = adenda.items.map(item => {
         const isAssigned = p.execution.schedules[item.id]?.contractorId === conId;
         return `<tr>
-            <td style="width:40px; text-align:center"><input type="checkbox" ${isAssigned ? 'checked' : ''} onchange="assignItemToContractor('${item.id}', this.checked ? '${conId}' : null)"></td>
-            <td style="padding:6px 4px"><div style="font-size:0.9rem; font-weight:600; word-break:break-word">${escapeHtml(item.name)}</div></td>
-            <td style="width:100px; text-align:right; white-space:nowrap; color:var(--tx3); font-size:0.8rem">MO: ${fmt(item.laborCost * item.qty)}</td>
+            <td style="width:36px; text-align:center; padding:7px 4px"><input type="checkbox" ${isAssigned ? 'checked' : ''} onchange="assignItemToContractor('${item.id}', this.checked ? '${conId}' : null)"></td>
+            <td style="padding:7px 6px"><div style="font-weight:600; word-break:break-word">${escapeHtml(item.name)}</div></td>
+            <td style="width:95px; text-align:right; white-space:nowrap; padding:7px 6px; color:var(--tx3); font-size:0.8rem">${fmt(item.laborCost * item.qty)}</td>
         </tr>`;
     }).join("");
 
     const el = document.getElementById("modal-area");
     el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:520px">
         <div class="modal-title">Asignar a ${escapeHtml(con.name)}<button class="delbtn" onclick="closeModal()">✕</button></div>
-        <table class="tbl" style="margin:0">
-            <thead><tr><th style="width:40px; text-align:center">✓</th><th>Rubro</th><th style="width:100px; text-align:right">Mano de Obra</th></tr></thead>
-            <tbody>${itemsHtml}</tbody>
-        </table>
+        <div style="overflow-x:auto">
+            <table class="tbl" style="margin:0; table-layout:fixed">
+                <colgroup><col style="width:36px"><col><col style="width:95px"></colgroup>
+                <thead><tr><th style="text-align:center; padding:6px 4px">✓</th><th style="padding:6px 6px">Rubro</th><th style="text-align:right; padding:6px 6px">MO</th></tr></thead>
+                <tbody>${itemsHtml}</tbody>
+            </table>
+        </div>
         <div class="modal-acts"><button class="btn primary" onclick="closeModal(); renderContractors()">Listo ✓</button></div>
     </div></div>`;
 }
