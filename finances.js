@@ -47,8 +47,6 @@ function renderFinances() {
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
             <h2 class="sec-lbl" style="margin:0">FLUJO DE CAJA: ${p.name}</h2>
             <div style="display:flex; gap:10px">
-                <button class="btn" onclick="showModal('add_income')">+ Cobro Cliente</button>
-                <button class="btn primary" onclick="showModal('add_expense')">+ Gasto General</button>
                 <button class="btn sm" onclick="exportFinancesCSV()">📥 CSV</button>
             </div>
         </div>
@@ -98,18 +96,4 @@ function renderFinances() {
     </div>`;
 }
 
-function saveFinance(type) {
-    const p = getActiveProject();
-    if (!p || !p.execution) return toast("Sin proyecto activo", false);
-    const pre = type === 'income' ? 'fi' : 'fe';
-    const amount = parseFloat(document.getElementById(`${pre}-amount`).value);
-    const date = document.getElementById(`${pre}-date`).value;
-    const note = document.getElementById(`${pre}-note`).value;
-    if (!amount || !note) return toast("Datos incompletos", false);
-    if (!p.execution.finances) p.execution.finances = { income: [], expenses: [] };
-    const list = type === 'income' ? p.execution.finances.income : p.execution.finances.expenses;
-    list.push({ id: Date.now(), amount, date, note });
-    save(); closeModal(); renderFinances(); toast("Movimiento registrado ✓");
-}
 
-// Reutilizar modales de add_income y add_expense que están definidos globalmente o en app.js

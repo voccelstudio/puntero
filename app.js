@@ -28,7 +28,6 @@ const fmt = n => {
   }
   return symbol + new Intl.NumberFormat("es-PY", { minimumFractionDigits: dec, maximumFractionDigits: dec }).format(val);
 };
-const fmtRaw = (n, d = 0) => new Intl.NumberFormat("es-PY", { minimumFractionDigits: d, maximumFractionDigits: d }).format(n);
 const fmtD = (n, d = 2) => +n.toFixed(d);
 
 // ── HELPERS DE FECHAS (todo PY: dd/mm/yyyy) ──────────────────────────────
@@ -1180,13 +1179,6 @@ function setSection(s) {
   if (s === "cloud") renderCloudSettings();
 }
 
-/**
- * GESTIÓN DE PAGOS Y COBROS (DEPRACTED: Replaced by finances.js)
- */
-function renderPayments() {
-    setSection('finances');
-}
-
 function renderDashboard() {
   const el = document.getElementById("section-dashboard");
   if (!el) return;
@@ -1621,17 +1613,6 @@ function calcIVA(matCost, laborCost, qty = 1) {
   return { ivaMat, ivaLab, ivaTotal: ivaMat + ivaLab };
 }
 
-function calcIVATotals() {
-  const adenda = getActiveAdenda();
-  if (!adenda) return { ivaMat: 0, ivaLab: 0, ivaTotal: 0 };
-  let ivaMat = 0, ivaLab = 0;
-  for (const i of adenda.items) {
-    ivaMat += Math.round((i.matCost || 0) * i.qty * IVA_MAT);
-    ivaLab += Math.round((i.laborCost || 0) * i.qty * IVA_LAB);
-  }
-  return { ivaMat, ivaLab, ivaTotal: ivaMat + ivaLab };
-}
-
 // ── ITEM ACTIONS ──────────────────────────────────────────────────────
 function addItem(cat, name) {
   const adenda = getActiveAdenda();
@@ -1711,7 +1692,6 @@ function updateQty(id, val) {
   }
 }
 function updateDisc(id, v) { const adenda = getActiveAdenda(); if (!adenda) return; const i = adenda.items.find(x => x.id == id); if (i) { i.disc = Math.max(0, Math.min(100, parseFloat(v) || 0)); renderTotals(); save(); } }
-function updateNote(id, v) { const adenda = getActiveAdenda(); if (!adenda) return; const i = adenda.items.find(x => x.id == id); if (i) { i.note = v; save(); } }
 function removeItem(id) {
   const adenda = getActiveAdenda();
   const p = getActiveProject();
@@ -1719,20 +1699,6 @@ function removeItem(id) {
   adenda.items = adenda.items.filter(i => i.id != id);
   if (p && p.execution.schedules) delete p.execution.schedules[id];
   renderTable(); save();
-}
-
-function dupBudget() {
-  const proj = getActiveProject();
-  const adenda = getActiveAdenda();
-  if (!proj || !adenda) return toast("Sin adenda activa", false);
-  const nb = JSON.parse(JSON.stringify(adenda));
-  nb.id = 'ad_' + Date.now();
-  nb.name = adenda.name + " (copia)";
-  proj.budgets.push(nb);
-  state.activeAdendaId = nb.id;
-  save();
-  renderBudget();
-  toast("Adenda duplicada ✓");
 }
 
 function newBudget() {
@@ -2701,7 +2667,7 @@ function generarPDF() {
   ];
   let y = 0;
   // ── TOP ACCENT BAR ──
-  doc.setFillColor(...C.accentBg); doc.rect(0, 0, W, 3, "F");
+  doc.setFillColor(...C.accentBg); doc.rect(0, 0, W, 1.5, "F");
   // ── HEADER ──
   doc.setFillColor(...C.hdrBg); doc.rect(0, 3, W, 36, "F");
   if (state.logoDataUrl) {
@@ -2745,9 +2711,9 @@ function generarPDF() {
   // Client card
   doc.setFillColor(...C.altRow); doc.roundedRect(M, y, colW, cardH, 3, 3, "F");
   doc.setDrawColor(...C.borderC); doc.setLineWidth(0.3); doc.roundedRect(M, y, colW, cardH, 3, 3, "S");
-  doc.setFillColor(...C.accentBg); doc.roundedRect(M, y, 4, cardH, 1.5, 0, "F");
+  doc.setFillColor(...C.accentBg); doc.roundedRect(M, y, 2, cardH, 1, 0, "F");
   doc.setFontSize(6.5); doc.setFont("helvetica", "bold"); doc.setTextColor(...C.accentBg);
-  doc.text("CLIENTE", M + 8, y + 6);
+  doc.text("CLIENTE", M + 6, y + 6);
   doc.setFont("helvetica", "normal"); doc.setTextColor(...C.bodyTx); doc.setFontSize(9);
   doc.text(pdfTxt(clientName) || "-", M + 8, y + 13, { maxWidth: colW - 14 });
   doc.setFontSize(7); doc.setTextColor(...C.mutedTx);
@@ -2759,9 +2725,9 @@ function generarPDF() {
   const c2 = M + colW + 6;
   doc.setFillColor(...C.altRow); doc.roundedRect(c2, y, colW, cardH, 3, 3, "F");
   doc.setDrawColor(...C.borderC); doc.setLineWidth(0.3); doc.roundedRect(c2, y, colW, cardH, 3, 3, "S");
-  doc.setFillColor(...C.totalBg); doc.roundedRect(c2, y, 4, cardH, 1.5, 0, "F");
+  doc.setFillColor(...C.totalBg); doc.roundedRect(c2, y, 2, cardH, 1, 0, "F");
   doc.setFontSize(6.5); doc.setFont("helvetica", "bold"); doc.setTextColor(...C.accentBg);
-  doc.text("PROYECTO / OBRA", c2 + 8, y + 6);
+  doc.text("PROYECTO / OBRA", c2 + 6, y + 6);
   doc.setFont("helvetica", "normal"); doc.setTextColor(...C.bodyTx); doc.setFontSize(9);
   doc.text(pdfTxt(projectName) || "-", c2 + 8, y + 13, { maxWidth: colW - 14 });
   doc.setFontSize(7); doc.setTextColor(...C.mutedTx);
@@ -2772,21 +2738,23 @@ function generarPDF() {
   const stripMsg = ivaEnabled
     ? "Precios unitarios incluyen materiales y mano de obra  |  IVA incluido (10% mat / 5% MO)  |  Valores en Guaran\u00EDes (Gs.)"
     : "Precios unitarios incluyen materiales y mano de obra  |  Valores en Guaran\u00EDes (Gs.)";
-  doc.setFillColor(...C.catBg); doc.roundedRect(M, y, W - M * 2, 6.5, 1.5, 1.5, "F");
+  doc.setFillColor(...C.catBg); doc.roundedRect(M, y, W - M * 2, 5, 1.5, 1.5, "F");
   doc.setFontSize(6.5); doc.setFont("helvetica", "normal"); doc.setTextColor(...C.catTx);
   doc.text("  " + stripMsg, M + 3, y + 4.4);
   y += 10.5;
   // ── ITEMS TABLE ──
-  const rows = []; let rowNum = 1;
+  const rows = []; let catNum = 0;
   for (const [cat, ci] of Object.entries(grouped)) {
+    catNum++;
     rows.push([{ content: pdfTxt(cat), colSpan: 6, styles: { fillColor: C.catBg, textColor: C.catTx, fontStyle: "bold", fontSize: 7.5, cellPadding: { top: 3.5, bottom: 3.5, left: 5, right: 4 } } }]);
-    let catSubtotal = 0;
+    let catSubtotal = 0; let itemNum = 0;
     for (const item of ci) {
+      itemNum++;
       const { ivaTotal: ivaItem } = calcIVA(item.matCost, item.laborCost, item.qty);
       const totalItem = item.unitPrice * item.qty + (ivaEnabled ? ivaItem : 0);
       catSubtotal += totalItem;
       rows.push([
-        { content: String(rowNum++), styles: { halign: "center", fontSize: 7.5, textColor: C.mutedTx } },
+        { content: catNum + "." + itemNum, styles: { halign: "center", fontSize: 7.5, textColor: C.mutedTx } },
         { content: pdfTxt(item.name), styles: { fontSize: 8 } },
         { content: pdfTxt(item.unit), styles: { halign: "center", fontSize: 8 } },
         { content: String(item.qty), styles: { halign: "center", fontSize: 8 } },
@@ -2837,7 +2805,7 @@ function generarPDF() {
     doc.setTextColor(22, 163, 74); doc.setFont("helvetica", "bold"); doc.text("Gs. " + fmt(profitAmt), W - M, y + 4, { align: "right" }); y += 6;
   }
   // Total separator
-  doc.setDrawColor(...C.accentBg); doc.setLineWidth(0.5); doc.line(totX, y, W - M, y); y += 3;
+  doc.setDrawColor(...C.accentBg); doc.setLineWidth(0.3); doc.line(totX, y, W - M, y); y += 3;
   doc.setFillColor(...C.totalBg); doc.roundedRect(totX, y, totW, 14, 2, 2, "F");
   doc.setTextColor(...C.totalTx); doc.setFont("helvetica", "bold"); doc.setFontSize(8);
   doc.text("TOTAL" + (ivaEnabled ? " (IVA inc.)" : "") + ":", totX + 5, y + 8.5);
@@ -2845,7 +2813,7 @@ function generarPDF() {
   // ── NOTES ──
   if (notes && notes.trim()) {
     if (y + 20 > 275) { doc.addPage(); y = M; }
-    doc.setFillColor(...C.altRow); doc.roundedRect(M, y, W - M * 2, 2, 1, 1, "F");
+    doc.setFillColor(...C.altRow); doc.roundedRect(M, y, W - M * 2, 1, 1, 1, "F");
     y += 4;
     doc.setFontSize(7); doc.setFont("helvetica", "bold"); doc.setTextColor(...C.accentBg); doc.text("NOTAS Y CONDICIONES", M, y); y += 5;
     doc.setFont("helvetica", "normal"); doc.setTextColor(...C.mutedTx);
@@ -3439,193 +3407,37 @@ function updateBadge() {
 }
 
 // ── GLOBAL STATS (FORMERLY DASHBOARD) ─────────────────────────────────────────
-function renderGlobalStats() {
-  const el = document.getElementById("section-dashboard");
-  if (!el) return;
-
-  const projects = state.projects || [];
-  const activeProjects = projects.filter(p => p.status === 'active');
-  const totalVal = projects.reduce((s, p) => {
-    const mainAdenda = p.budgets.find(b => b.id === (p.activeAdendaId || 'main')) || p.budgets[0];
-    const sub = mainAdenda ? mainAdenda.items.reduce((ss, i) => ss + (i.unitPrice || 0) * i.qty, 0) : 0;
-    return s + sub;
-  }, 0);
-  const avg = projects.length ? totalVal / projects.length : 0;
-  
-  const thisMonth = projects.filter(p => {
-    try { 
-        const d = p.date ? new Date(p.date.split('/').reverse().join('-')) : null;
-        return d && d.getMonth() === new Date().getMonth(); 
-    } catch (e) { return false; }
-  }).length;
-
-  const rubros = {};
-  for (const p of projects) {
-    const mainAdenda = p.budgets.find(b => b.id === (p.activeAdendaId || 'main')) || p.budgets[0];
-    if (mainAdenda) for (const i of mainAdenda.items) { rubros[i.cat] = (rubros[i.cat] || 0) + 1; }
-  }
-  const topRubros = Object.entries(rubros).sort((a, b) => b[1] - a[1]).slice(0, 5);
-  const today = new Date();
-  
-  const alertList = projects.flatMap(p => p.budgets.map(b => ({...b, projectName: p.name, clientName: p.client})));
-  const alerts = alertList.map(b => {
-    try {
-      const emision = b.date ? new Date(b.date.split('/').reverse().join('-')) : today;
-      const vence = new Date(emision.getTime() + (b.validDays || 30) * 86400000);
-      const diff = Math.ceil((vence - today) / 86400000);
-      return { ...b, diff, vence };
-    } catch (e) { return { ...b, diff: 999 }; }
-  }).filter(b => b.diff < 15).sort((a, b) => a.diff - b.diff);
-
-  let alertHtml = alerts.length === 0
-    ? `<p style="font-size:.875rem;color:var(--tx3)">Sin alertas próximas.</p>`
-    : alerts.map(b => `<div class="alert-row ${b.diff <= 3 ? "warn" : "ok"}">
-        <div class="alert-dot ${b.diff <= 3 ? "warn" : "ok"}"></div>
-        <div class="alert-txt"><strong>${escapeHtml(b.projectName)}</strong> (${escapeHtml(b.name)})</div>
-        <div class="alert-date">${b.diff <= 0 ? "VENCIDO" : b.diff + " días"}</div>
-      </div>`).join("");
-
-  let projectsHtml = activeProjects.length === 0
-    ? `<div class="empty" style="padding:24px"><p>No hay proyectos activos.</p><button class="btn sm primary" onclick="showModal('new_project')">+ Nuevo Proyecto</button></div>`
-    : activeProjects.map(p => {
-        const adenda = p.budgets.find(b => b.id === (p.activeAdendaId || 'main')) || p.budgets[0];
-        const total = adenda ? adenda.items.reduce((s, i) => s + (i.unitPrice || 0) * i.qty, 0) : 0;
-        const pid = p.id.replace(/'/g, "\\'");
-        const paid = (p.activeAdendaId || 'main').replace(/'/g, "\\'");
-        return `<div class="modal-row" style="background:var(--sur); border:1px solid var(--bor); margin-bottom:10px; padding:15px; cursor:pointer" onclick="state.activeProjectId='${pid}'; state.activeAdendaId='${paid}'; save(); setSection('budget');">
-            <div style="flex:1">
-                <div style="font-weight:700; font-size:1.05rem; color:var(--acc)">${escapeHtml(p.name)}</div>
-                <div style="font-size:0.85rem; color:var(--tx3); margin-top:4px">👤 ${escapeHtml(p.client || 'Sin cliente')} · 📍 ${escapeHtml(p.address || 'Sin dirección')}</div>
-                <div style="display:flex; gap:12px; margin-top:8px">
-                    <span class="ichip mat" style="font-size:0.75rem">📦 ${adenda ? adenda.items.length : 0} items</span>
-                    <span class="ichip lab" style="font-size:0.75rem">₲ ${fmt(total)}</span>
-                </div>
-            </div>
-            <button class="btn sm primary">Abrir 📂</button>
-        </div>`;
-    }).join("");
-
-  let histHtml = state.priceHistory.map(p => {
-    const change = Math.round((p.mar26 - p.aug25) / p.aug25 * 100);
-    const dir = change > 0 ? "up" : change < 0 ? "dn" : "";
-    const bar = Math.min(100, Math.abs(change) * 10 + 20);
-    return `<div class="hist-row">
-      <div class="hist-name">${p.name}</div>
-      <div style="font-size:.95rem;color:var(--tx3);width:80px">₲${new Intl.NumberFormat("es-PY").format(p.aug25)}</div>
-      <div class="hist-bar-wrap"><div class="hist-bar" style="width:${bar}%"></div></div>
-      <div style="font-size:.95rem;color:var(--tx3);width:80px">₲${new Intl.NumberFormat("es-PY").format(p.mar26)}</div>
-      <div class="hist-pct ${dir}">${change > 0 ? "+" : ""}${change}%</div>
-    </div>`;
-  }).join("");
-
-  const TEMPLATES = [
-    {
-      icon: "🏠", name: "Casa económica 60m²", desc: "Fundaciones, mampostería 0.15m, techo teja española, revoque, piso calcáreo, pintura cal.", meta: "~₲ 126.000.000", items: [
-        ["FUNDACIONES", "Cimiento PBC con cal (1/2:1:4)", 13.5], ["MAMPOSTERÍA", "Elevación 0.15m ladrillo común", 120],
-        ["MAMPOSTERÍA", "Nivelación 0.30m ladrillo común", 12.5], ["AISLACIÓN", "Horizontal 0.15m con asfalto", 43],
-        ["TECHOS", "Teja española s/ tejuelón c/ madera", 94], ["CONTRAPISOS", "Contrapiso 10cm cascotes", 65],
-        ["REVOQUES", "Revoque 1 capa sin hidrófugo", 226], ["PISOS", "Baldosa calcárea 20x20cm", 61.5],
-        ["PINTURAS", "Pintura a la cal", 226], ["DESAGÜE CLOACAL", "Pozo ciego Ø1.50m h=3.00m", 1],
-      ]
-    },
-    {
-      icon: "🏢", name: "Dúplex 120m²", desc: "H°A° losa, mampostería cerámica, teja francesa, revoque hidrófugo, porcelanato, látex.", meta: "~₲ 280.000.000", items: [
-        ["ESTRUCTURAS", "Zapata fck=18 MPa", 1], ["ESTRUCTURAS", "Columna fck=21 MPa", 0.5],
-        ["ESTRUCTURAS", "Losa Rap h=17cm (12+5)", 35], ["FUNDACIONES", "Cimiento PBC con cal (1/2:1:4)", 17.6],
-        ["MAMPOSTERÍA", "Elevación 0.15m ladrillo cerámico 6 tubos", 240], ["TECHOS", "Teja francesa s/ machimbre", 93],
-        ["CONTRAPISOS", "Contrapiso 10cm cascotes", 101], ["REVOQUES", "Revoque 1 capa hidrófugo 1.5cm", 381],
-        ["PISOS", "Porcelanato 60x60cm", 19], ["PISOS", "Cerámica esmaltada Cecafi 32x57cm", 62],
-        ["PINTURAS", "Látex interior con enduido", 381],
-      ]
-    },
-    {
-      icon: "🏪", name: "Local comercial 100m²", desc: "Estructura H°A°, losa, mampostería hueca, chapa termoacústica, piso hormigón pulido.", meta: "~₲ 220.000.000", items: [
-        ["ESTRUCTURAS", "Zapata fck=18 MPa", 1.5], ["ESTRUCTURAS", "Columna fck=21 MPa", 0.8],
-        ["ESTRUCTURAS", "Losa fck=21MPa", 12.4], ["FUNDACIONES", "Cimiento PBC sin cal (1:12)", 21.8],
-        ["MAMPOSTERÍA", "Elevación 0.20m ladrillo cerámico hueco", 200], ["TECHOS", "Techo metálico chapa trapezoidal", 120],
-        ["CONTRAPISOS", "Contrapiso 10cm cascotes", 107], ["REVOQUES", "Revoque 1 capa hidrófugo 1.5cm", 480],
-        ["PISOS", "Mosaico granítico gris 30x30cm", 42], ["PINTURAS", "Látex exterior con enduido", 480],
-      ]
-    },
-    {
-      icon: "🏗️", name: "Ampliación 30m²", desc: "Cimiento, mampostería, techo chapa, revoque, piso calcáreo. Sin instalaciones.", meta: "~₲ 45.000.000", items: [
-        ["FUNDACIONES", "Cimiento PBC con cal (1/2:1:4)", 4], ["MAMPOSTERÍA", "Elevación 0.15m ladrillo común", 55],
-        ["TECHOS", "Chapa Nº28 s/ caños metálicos", 35], ["CONTRAPISOS", "Contrapiso 7cm cascotes", 30],
-        ["REVOQUES", "Revoque 1 capa sin hidrófugo", 110], ["PISOS", "Baldosa calcárea 20x20cm", 30],
-        ["PINTURAS", "Pintura a la cal", 110],
-      ]
-    },
-  ];
-  const tmplCards = TEMPLATES.map((t, idx) => `<div class="tmpl-card" onclick="applyTemplate(${idx})">
-    <div class="tmpl-icon">${t.icon}</div>
-    <div class="tmpl-name">${t.name}</div>
-    <div class="tmpl-desc">${t.desc}</div>
-    <div class="tmpl-meta">${t.meta}</div>
-  </div>`).join("");
-  window._TEMPLATES = TEMPLATES;
-
-  el.innerHTML = `<div class="prices-wrap">
-    <div style="margin-bottom:24px">
-        <h2 style="font-family:var(--font-display); font-weight:800; margin-bottom:6px">PANEL GENERAL</h2>
-        <p style="color:var(--tx3)">Resumen de actividad y proyectos activos.</p>
-    </div>
-
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:24px">
-      <div class="dash-card"><div class="dash-num">${projects.length}</div><div class="dash-lbl">Proyectos</div><div class="dash-sub">Total registrados</div></div>
-      <div class="dash-card"><div class="dash-num" style="font-size:1.1rem">₲ ${new Intl.NumberFormat("es-PY").format(Math.round(totalVal / 1000000))}M</div><div class="dash-lbl">Valor Cartera</div><div class="dash-sub">Total presupuestado</div></div>
-      <div class="dash-card"><div class="dash-num" style="font-size:1.1rem">₲ ${new Intl.NumberFormat("es-PY").format(Math.round(avg / 1000000))}M</div><div class="dash-lbl">Promedio</div><div class="dash-sub">Por proyecto</div></div>
-      <div class="dash-card"><div class="dash-num">${activeProjects.length}</div><div class="dash-lbl">Activos</div><div class="dash-sub">En ejecución</div></div>
-    </div>
-
-    <div style="display:grid; grid-template-columns: 1.5fr 1fr; gap:20px; align-items:start">
-        <div class="card" style="padding:0; overflow:hidden">
-            <div style="padding:15px; border-bottom:1px solid var(--bor); background:var(--sur2); display:flex; justify-content:space-between; align-items:center">
-                <h3 style="font-size:0.9rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em">🚀 Proyectos Activos</h3>
-                <button class="btn sm primary" onclick="showModal('new_project')">+ Nuevo</button>
-            </div>
-            <div style="padding:15px; max-height:500px; overflow-y:auto">
-                ${projectsHtml}
-            </div>
-        </div>
-
-        <div style="display:flex; flex-direction:column; gap:20px">
-            <div class="card">
-                <div class="sec-lbl">Alertas de Vencimiento</div>
-                ${alertHtml}
-            </div>
-            <div class="card">
-                <div class="sec-lbl" style="margin-bottom:8px">Rubros Frecuentes</div>
-                ${topRubros.length ? topRubros.map(([r, n]) => `<div class="hist-row"><div class="hist-name">${r}</div><div class="hist-bar-wrap"><div class="hist-bar" style="width:${Math.min(100, n * 20)}%"></div></div><div class="hist-pct" style="color:var(--tx2)">${n}x</div></div>`).join("") : `<p style="font-size:.875rem;color:var(--tx3)">Sin datos aún.</p>`}
-            </div>
-        </div>
-    </div>
-
-    <div class="card" style="margin-top:24px; margin-bottom:24px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <div class="sec-lbl">Historial Comparativo de Precios Mercado PY</div>
-        <span style="font-size:0.85rem;color:var(--tx3)">Ago-2025 → Actualidad</span>
-      </div>
-      ${histHtml}
-    </div>
-
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <div class="sec-lbl">Plantillas de Obra</div>
-        <span style="font-size:.95rem;color:var(--tx3)">Hacé clic para cargar en el presupuesto</span>
-      </div>
-      <div class="tmpl-grid">${tmplCards}</div>
-    </div>
-    <div class="card" style="margin-top:12px">
-      <div class="sec-lbl" style="margin-bottom:8px">Gestión de Base de Datos</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn" onclick="exportDB()">📥 Exportar DB (JSON)</button>
-        <button class="btn" onclick="importDB()">📤 Importar DB</button>
-        <span style="font-size:.95rem;color:var(--tx3);align-self:center">Guardá tu base de precios personalizada para restaurarla cuando quieras.</span>
-      </div>
-    </div>
-  </div>`;
-}
-
+const _TEMPLATES_DATA = [
+  { icon: "🏠", name: "Casa económica 60m²", desc: "Fundaciones, mampostería 0.15m, techo teja española, revoque, piso calcáreo, pintura cal.", meta: "~₲ 126.000.000", items: [
+    ["FUNDACIONES", "Cimiento PBC con cal (1/2:1:4)", 13.5], ["MAMPOSTERÍA", "Elevación 0.15m ladrillo común", 120],
+    ["MAMPOSTERÍA", "Nivelación 0.30m ladrillo común", 12.5], ["AISLACIÓN", "Horizontal 0.15m con asfalto", 43],
+    ["TECHOS", "Teja española s/ tejuelón c/ madera", 94], ["CONTRAPISOS", "Contrapiso 10cm cascotes", 65],
+    ["REVOQUES", "Revoque 1 capa sin hidrófugo", 226], ["PISOS", "Baldosa calcárea 20x20cm", 61.5],
+    ["PINTURAS", "Pintura a la cal", 226], ["DESAGÜE CLOACAL", "Pozo ciego Ø1.50m h=3.00m", 1],
+  ]},
+  { icon: "🏢", name: "Dúplex 120m²", desc: "H°A° losa, mampostería cerámica, teja francesa, revoque hidrófugo, porcelanato, látex.", meta: "~₲ 280.000.000", items: [
+    ["ESTRUCTURAS", "Zapata fck=18 MPa", 1], ["ESTRUCTURAS", "Columna fck=21 MPa", 0.5],
+    ["ESTRUCTURAS", "Losa Rap h=17cm (12+5)", 35], ["FUNDACIONES", "Cimiento PBC con cal (1/2:1:4)", 17.6],
+    ["MAMPOSTERÍA", "Elevación 0.15m ladrillo cerámico 6 tubos", 240], ["TECHOS", "Teja francesa s/ machimbre", 93],
+    ["CONTRAPISOS", "Contrapiso 10cm cascotes", 101], ["REVOQUES", "Revoque 1 capa hidrófugo 1.5cm", 381],
+    ["PISOS", "Porcelanato 60x60cm", 19], ["PISOS", "Cerámica esmaltada Cecafi 32x57cm", 62],
+    ["PINTURAS", "Látex interior con enduido", 381],
+  ]},
+  { icon: "🏪", name: "Local comercial 100m²", desc: "Estructura H°A°, losa, mampostería hueca, chapa termoacústica, piso hormigón pulido.", meta: "~₲ 220.000.000", items: [
+    ["ESTRUCTURAS", "Zapata fck=18 MPa", 1.5], ["ESTRUCTURAS", "Columna fck=21 MPa", 0.8],
+    ["ESTRUCTURAS", "Losa fck=21MPa", 12.4], ["FUNDACIONES", "Cimiento PBC sin cal (1:12)", 21.8],
+    ["MAMPOSTERÍA", "Elevación 0.20m ladrillo cerámico hueco", 200], ["TECHOS", "Techo metálico chapa trapezoidal", 120],
+    ["CONTRAPISOS", "Contrapiso 10cm cascotes", 107], ["REVOQUES", "Revoque 1 capa hidrófugo 1.5cm", 480],
+    ["PISOS", "Mosaico granítico gris 30x30cm", 42], ["PINTURAS", "Látex exterior con enduido", 480],
+  ]},
+  { icon: "🏗️", name: "Ampliación 30m²", desc: "Cimiento, mampostería, techo chapa, revoque, piso calcáreo. Sin instalaciones.", meta: "~₲ 45.000.000", items: [
+    ["FUNDACIONES", "Cimiento PBC con cal (1/2:1:4)", 4], ["MAMPOSTERÍA", "Elevación 0.15m ladrillo común", 55],
+    ["TECHOS", "Chapa Nº28 s/ caños metálicos", 35], ["CONTRAPISOS", "Contrapiso 7cm cascotes", 30],
+    ["REVOQUES", "Revoque 1 capa sin hidrófugo", 110], ["PISOS", "Baldosa calcárea 20x20cm", 30],
+    ["PINTURAS", "Pintura a la cal", 110],
+  ]},
+];
+window._TEMPLATES = _TEMPLATES_DATA;
 function applyTemplate(idx) {
   const adenda = getActiveAdenda();
   const proj = getActiveProject();
