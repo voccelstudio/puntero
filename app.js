@@ -2702,68 +2702,86 @@ function generarPDF() {
     Math.round(C.hdrTx[2] * 0.75 + C.hdrBg[2] * 0.25),
   ];
   let y = 0;
-  // Header
-  doc.setFillColor(...C.hdrBg); doc.rect(0, 0, W, 36, "F");
+  // ── TOP ACCENT BAR ──
+  doc.setFillColor(...C.accentBg); doc.rect(0, 0, W, 3, "F");
+  // ── HEADER ──
+  doc.setFillColor(...C.hdrBg); doc.rect(0, 3, W, 36, "F");
   if (state.logoDataUrl) {
-    try { doc.addImage(state.logoDataUrl, "PNG", M, 8, 24, 16); } catch (e) {
-      drawPunteroLogo(doc, M + 10, 18, 9);
+    try { doc.addImage(state.logoDataUrl, "PNG", M, 9, 24, 16); } catch (e) {
+      drawPunteroLogo(doc, M + 10, 19, 9);
     }
   } else {
-    // Logo Puntero por defecto: sello con casco + llana
-    drawPunteroLogo(doc, M + 10, 18, 9);
+    drawPunteroLogo(doc, M + 10, 19, 9);
   }
   const tX = M + 24;
   doc.setTextColor(...C.hdrTx);
-  doc.setFontSize(13); doc.setFont("helvetica", "bold");
-  doc.text(pdfTxt(p.company || p.professional || "Puntero"), tX, 13);
-  doc.setFontSize(7.5); doc.setFont("helvetica", "normal");
+  doc.setFontSize(14); doc.setFont("helvetica", "bold");
+  doc.text(pdfTxt(p.company || p.professional || "Puntero"), tX, 14);
+  doc.setFontSize(7); doc.setFont("helvetica", "normal");
   doc.setTextColor(...C.hdrTx2);
   const lines = [];
   if (p.professional) lines.push(pdfTxt(p.professional + (p.matricula ? " - " + p.matricula : "")));
   if (p.ruc) lines.push("RUC: " + pdfTxt(p.ruc));
-  if (p.phone || p.email) lines.push([p.phone, p.email].filter(Boolean).join("   -   "));
+  if (p.phone || p.email) lines.push([p.phone, p.email].filter(Boolean).join("  |  "));
   if (p.address) lines.push(pdfTxt(p.address));
-  const social = [p.instagram, p.whatsapp, p.website].filter(Boolean).join("   -   ");
+  const social = [p.instagram, p.whatsapp, p.website].filter(Boolean).join("  |  ");
   if (social) lines.push(pdfTxt(social));
-  lines.forEach((l, i) => doc.text(l, tX, 19 + i * 4.5));
+  lines.forEach((l, i) => doc.text(l, tX, 20 + i * 4.2));
+  // Right side: document type + number
+  doc.setFontSize(7); doc.setFont("helvetica", "bold"); doc.setTextColor(...C.accentTx);
+  doc.setFillColor(...C.accentBg);
+  const labelW = 42;
+  doc.roundedRect(W - M - labelW, 7, labelW, 5, 1, 1, "F");
+  doc.text("PRESUPUESTO", W - M, 10.5, { align: "right" });
   doc.setTextColor(...C.hdrTx);
-  doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.text("PRESUPUESTO", W - M, 11, { align: "right" });
-  doc.setFontSize(18); doc.text("N\u00BA " + String(budgetNum).padStart(4, "0"), W - M, 21, { align: "right" });
-  doc.setFontSize(7.5); doc.setFont("helvetica", "normal");
+  doc.setFontSize(20); doc.setFont("helvetica", "bold");
+  doc.text("N\u00BA " + String(budgetNum).padStart(4, "0"), W - M, 22, { align: "right" });
+  doc.setFontSize(7); doc.setFont("helvetica", "normal");
   doc.setTextColor(...C.hdrTx2);
-  doc.text(today, W - M, 27, { align: "right" });
-  // Reset al body
+  doc.text(today, W - M, 28, { align: "right" });
   doc.setTextColor(...C.bodyTx);
-  y = 42;
-  // Client & Project boxes
-  const colW = (W - M * 2 - 5) / 2;
-  doc.setFillColor(...C.catBg); doc.roundedRect(M, y, colW, 26, 2, 2, "F");
-  doc.setDrawColor(...C.borderC); doc.setLineWidth(0.3); doc.roundedRect(M, y, colW, 26, 2, 2, "S");
-  doc.setFontSize(6.5); doc.setFont("helvetica", "bold"); doc.setTextColor(...C.accentBg); doc.text("CLIENTE", M + 3, y + 5.5);
-  doc.setFont("helvetica", "normal"); doc.setTextColor(...C.bodyTx); doc.setFontSize(9.5); doc.text(pdfTxt(clientName) || "-", M + 3, y + 12, { maxWidth: colW - 6 });
-  doc.setFontSize(7.5); doc.setTextColor(...C.mutedTx);
-  if (clientAddress) doc.text(clientAddress, M + 3, y + 18, { maxWidth: colW - 6 });
-  if (clientPhone) doc.text("Tel: " + clientPhone, M + 3, y + 23, { maxWidth: colW - 6 });
-  const c2 = M + colW + 5;
-  doc.setFillColor(248, 250, 252); doc.roundedRect(c2, y, colW, 26, 2, 2, "F"); doc.setDrawColor(...C.borderC); doc.roundedRect(c2, y, colW, 26, 2, 2, "S");
-  doc.setFontSize(6.5); doc.setFont("helvetica", "bold"); doc.setTextColor(...C.accentBg); doc.text("PROYECTO / OBRA", c2 + 3, y + 5.5);
-  doc.setFont("helvetica", "normal"); doc.setTextColor(...C.bodyTx); doc.setFontSize(9.5); doc.text(pdfTxt(projectName) || "-", c2 + 3, y + 12, { maxWidth: colW - 6 });
-  doc.setFontSize(7.5); doc.setTextColor(...C.mutedTx);
-  doc.text("Validez: " + validDays + " dias desde emision", c2 + 3, y + 18, { maxWidth: colW - 6 });
-  doc.text("Adenda: " + (adenda.name || "-"), c2 + 3, y + 23, { maxWidth: colW - 6 });
-  y += 32;
-  // Info strip
+  y = 45;
+  // ── CLIENT & PROJECT CARDS ──
+  const colW = (W - M * 2 - 6) / 2;
+  const cardH = 28;
+  // Client card
+  doc.setFillColor(...C.altRow); doc.roundedRect(M, y, colW, cardH, 3, 3, "F");
+  doc.setDrawColor(...C.borderC); doc.setLineWidth(0.3); doc.roundedRect(M, y, colW, cardH, 3, 3, "S");
+  doc.setFillColor(...C.accentBg); doc.roundedRect(M, y, 4, cardH, 1.5, 0, "F");
+  doc.setFontSize(6.5); doc.setFont("helvetica", "bold"); doc.setTextColor(...C.accentBg);
+  doc.text("CLIENTE", M + 8, y + 6);
+  doc.setFont("helvetica", "normal"); doc.setTextColor(...C.bodyTx); doc.setFontSize(9);
+  doc.text(pdfTxt(clientName) || "-", M + 8, y + 13, { maxWidth: colW - 14 });
+  doc.setFontSize(7); doc.setTextColor(...C.mutedTx);
+  const clientExtra = [];
+  if (clientAddress) clientExtra.push(clientAddress);
+  if (clientPhone) clientExtra.push("Tel: " + clientPhone);
+  clientExtra.forEach((txt, i) => doc.text(txt, M + 8, y + 19 + i * 4.2, { maxWidth: colW - 14 }));
+  // Project card
+  const c2 = M + colW + 6;
+  doc.setFillColor(...C.altRow); doc.roundedRect(c2, y, colW, cardH, 3, 3, "F");
+  doc.setDrawColor(...C.borderC); doc.setLineWidth(0.3); doc.roundedRect(c2, y, colW, cardH, 3, 3, "S");
+  doc.setFillColor(...C.totalBg); doc.roundedRect(c2, y, 4, cardH, 1.5, 0, "F");
+  doc.setFontSize(6.5); doc.setFont("helvetica", "bold"); doc.setTextColor(...C.accentBg);
+  doc.text("PROYECTO / OBRA", c2 + 8, y + 6);
+  doc.setFont("helvetica", "normal"); doc.setTextColor(...C.bodyTx); doc.setFontSize(9);
+  doc.text(pdfTxt(projectName) || "-", c2 + 8, y + 13, { maxWidth: colW - 14 });
+  doc.setFontSize(7); doc.setTextColor(...C.mutedTx);
+  doc.text("Validez: " + validDays + " dias desde emision", c2 + 8, y + 19, { maxWidth: colW - 14 });
+  doc.text("Adenda: " + (adenda.name || "-"), c2 + 8, y + 23.2, { maxWidth: colW - 14 });
+  y += cardH + 8;
+  // ── INFO STRIP ──
   const stripMsg = ivaEnabled
-    ? "Precios unitarios incluyen materiales y mano de obra - IVA incluido (10% mat / 5% MO) - Valores en Guaranies (Gs.)"
-    : "Precios unitarios incluyen materiales y mano de obra - Valores en Guaranies (Gs.) paraguayos";
-  doc.setFillColor(254, 243, 199); doc.rect(M, y, W - M * 2, 6, "F");
-  doc.setFontSize(6.5); doc.setFont("helvetica", "italic"); doc.setTextColor(146, 64, 14);
-  doc.text("  " + stripMsg, M + 2, y + 4.2);
-  y += 10;
-  // Items table
+    ? "Precios unitarios incluyen materiales y mano de obra  |  IVA incluido (10% mat / 5% MO)  |  Valores en Guaran\u00EDes (Gs.)"
+    : "Precios unitarios incluyen materiales y mano de obra  |  Valores en Guaran\u00EDes (Gs.)";
+  doc.setFillColor(...C.catBg); doc.roundedRect(M, y, W - M * 2, 6.5, 1.5, 1.5, "F");
+  doc.setFontSize(6.5); doc.setFont("helvetica", "normal"); doc.setTextColor(...C.catTx);
+  doc.text("  " + stripMsg, M + 3, y + 4.4);
+  y += 10.5;
+  // ── ITEMS TABLE ──
   const rows = []; let rowNum = 1;
   for (const [cat, ci] of Object.entries(grouped)) {
-    rows.push([{ content: pdfTxt(cat), colSpan: 6, styles: { fillColor: C.catBg, textColor: C.catTx, fontStyle: "bold", fontSize: 7.5, cellPadding: { top: 3, bottom: 3, left: 4, right: 4 } } }]);
+    rows.push([{ content: pdfTxt(cat), colSpan: 6, styles: { fillColor: C.catBg, textColor: C.catTx, fontStyle: "bold", fontSize: 7.5, cellPadding: { top: 3.5, bottom: 3.5, left: 5, right: 4 } } }]);
     let catSubtotal = 0;
     for (const item of ci) {
       const { ivaTotal: ivaItem } = calcIVA(item.matCost, item.laborCost, item.qty);
@@ -2778,7 +2796,7 @@ function generarPDF() {
         { content: "Gs. " + fmt(totalItem), styles: { halign: "right", fontStyle: "bold", fontSize: 7.5 } },
       ]);
     }
-    // Banda destacada de subtotal por categoría
+    // Subtotal row per category
     rows.push([
       { content: "Subtotal " + pdfTxt(cat), colSpan: 5, styles: { halign: "right", fontStyle: "bold", fontSize: 8, fillColor: C.accentBg, textColor: C.accentTx, cellPadding: { top: 4, bottom: 4, left: 4, right: 4 } } },
       { content: "Gs. " + fmt(catSubtotal), styles: { halign: "right", fontStyle: "bold", fontSize: 9, fillColor: C.accentBg, textColor: C.accentTx, cellPadding: { top: 4, bottom: 4, left: 4, right: 4 } } },
@@ -2786,61 +2804,67 @@ function generarPDF() {
   }
   doc.autoTable({
     startY: y,
-    head: [[{ content: "#", styles: { halign: "center" } }, { content: "DESCRIPCIÓN / RUBRO" }, { content: "UNID.", styles: { halign: "center" } }, { content: "CANT.", styles: { halign: "center" } }, { content: "PRECIO UNIT.", styles: { halign: "right" } }, { content: "TOTAL", styles: { halign: "right" } }]],
+    head: [[{ content: "#", styles: { halign: "center" } }, { content: "DESCRIPCI\u00D3N / RUBRO" }, { content: "UNID.", styles: { halign: "center" } }, { content: "CANT.", styles: { halign: "center" } }, { content: "PRECIO UNIT.", styles: { halign: "right" } }, { content: "TOTAL", styles: { halign: "right" } }]],
     body: rows, theme: "plain",
-    styles: { font: "helvetica", fontSize: 8, cellPadding: { top: 3, bottom: 3, left: 2.5, right: 2.5 }, lineColor: C.borderC, lineWidth: 0.2, textColor: C.bodyTx },
-    headStyles: { fillColor: C.accentBg, textColor: C.accentTx, fontStyle: "bold", fontSize: 7, cellPadding: { top: 4, bottom: 4, left: 3, right: 3 } },
+    styles: { font: "helvetica", fontSize: 8, cellPadding: { top: 3, bottom: 3, left: 3, right: 3 }, lineColor: C.borderC, lineWidth: 0.2, textColor: C.bodyTx },
+    headStyles: { fillColor: C.hdrBg, textColor: C.hdrTx, fontStyle: "bold", fontSize: 7, cellPadding: { top: 4.5, bottom: 4.5, left: 3, right: 3 } },
     alternateRowStyles: { fillColor: C.altRow },
-    columnStyles: { 0: { cellWidth: 7, halign: "center" }, 1: { cellWidth: "auto" }, 2: { cellWidth: 12, halign: "center" }, 3: { cellWidth: 17, halign: "center" }, 4: { cellWidth: 33, halign: "right" }, 5: { cellWidth: 40, halign: "right" } },
+    columnStyles: { 0: { cellWidth: 8, halign: "center" }, 1: { cellWidth: "auto" }, 2: { cellWidth: 14, halign: "center" }, 3: { cellWidth: 18, halign: "center" }, 4: { cellWidth: 35, halign: "right" }, 5: { cellWidth: 42, halign: "right" } },
     margin: { left: M, right: M },
     tableWidth: "wrap",
     didParseCell: data => {
-      // Categoría
       if (data.row.raw?.[0]?.colSpan === 6) { data.cell.styles.fillColor = C.catBg; data.cell.styles.textColor = C.catTx; data.cell.styles.fontStyle = "bold"; }
-      // Subtotal (colSpan = 5 en la primera celda)
       if (data.row.raw?.[0]?.colSpan === 5) { data.cell.styles.fillColor = C.accentBg; data.cell.styles.textColor = C.accentTx; data.cell.styles.fontStyle = "bold"; }
     },
   });
-  y = doc.lastAutoTable.finalY + 8;
-  // Totals box
-  const totW = 110; const totX = W - M - totW;
-  if (y + 40 > 275) { doc.addPage(); y = M; }
-  doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(...C.mutedTx);
-  doc.text("Subtotal materiales y mano de obra:", totX, y + 5);
-  doc.setTextColor(...C.bodyTx); doc.setFont("helvetica", "bold"); doc.text("Gs. " + fmt(subtotal), W - M, y + 5, { align: "right" }); y += 8;
+  y = doc.lastAutoTable.finalY + 10;
+  // ── TOTALS ──
+  const totW = 120; const totX = W - M - totW;
+  if (y + 50 > 275) { doc.addPage(); y = M + 10; }
+  // Totals background card
+  doc.setFillColor(...C.altRow); doc.roundedRect(totX - 4, y - 2, totW + 8, 38, 3, 3, "F");
+  doc.setDrawColor(...C.borderC); doc.setLineWidth(0.3); doc.roundedRect(totX - 4, y - 2, totW + 8, 38, 3, 3, "S");
+  doc.setFontSize(7.5); doc.setFont("helvetica", "normal"); doc.setTextColor(...C.mutedTx);
+  doc.text("Subtotal materiales y mano de obra:", totX, y + 4);
+  doc.setTextColor(...C.bodyTx); doc.setFont("helvetica", "bold"); doc.text("Gs. " + fmt(subtotal), W - M, y + 4, { align: "right" }); y += 7;
   if (ivaEnabled) {
     doc.setFont("helvetica", "normal"); doc.setTextColor(...C.mutedTx);
-    doc.text("IVA materiales (10%):", totX, y + 5); doc.setTextColor(79, 70, 229); doc.setFont("helvetica", "bold"); doc.text("Gs. " + fmt(ivaMat), W - M, y + 5, { align: "right" }); y += 7;
+    doc.text("IVA 10% sobre materiales:", totX, y + 4); doc.setTextColor(79, 70, 229); doc.setFont("helvetica", "bold"); doc.text("Gs. " + fmt(ivaMat), W - M, y + 4, { align: "right" }); y += 6;
     doc.setFont("helvetica", "normal"); doc.setTextColor(...C.mutedTx);
-    doc.text("IVA mano de obra (5%):", totX, y + 5); doc.setTextColor(79, 70, 229); doc.setFont("helvetica", "bold"); doc.text("Gs. " + fmt(ivaLab), W - M, y + 5, { align: "right" }); y += 7;
+    doc.text("IVA 5% sobre mano de obra:", totX, y + 4); doc.setTextColor(79, 70, 229); doc.setFont("helvetica", "bold"); doc.text("Gs. " + fmt(ivaLab), W - M, y + 4, { align: "right" }); y += 6;
   }
   if (profitPct > 0) {
     doc.setFont("helvetica", "normal"); doc.setTextColor(...C.mutedTx);
-    doc.text("Honorarios profesionales (" + profitPct + "%):", totX, y + 5);
-    doc.setTextColor(22, 163, 74); doc.setFont("helvetica", "bold"); doc.text("Gs. " + fmt(profitAmt), W - M, y + 5, { align: "right" }); y += 8;
+    doc.text("Honorarios profesionales (" + profitPct + "%):", totX, y + 4);
+    doc.setTextColor(22, 163, 74); doc.setFont("helvetica", "bold"); doc.text("Gs. " + fmt(profitAmt), W - M, y + 4, { align: "right" }); y += 6;
   }
-  doc.setDrawColor(...C.accentBg); doc.setLineWidth(0.6); doc.line(totX, y, W - M, y); y += 2;
-  doc.setFillColor(...C.totalBg); doc.roundedRect(totX, y, totW, 13, 2, 2, "F");
+  // Total separator
+  doc.setDrawColor(...C.accentBg); doc.setLineWidth(0.5); doc.line(totX, y, W - M, y); y += 3;
+  doc.setFillColor(...C.totalBg); doc.roundedRect(totX, y, totW, 14, 2, 2, "F");
   doc.setTextColor(...C.totalTx); doc.setFont("helvetica", "bold"); doc.setFontSize(8);
-  doc.text("TOTAL" + (ivaEnabled ? " (IVA inc.)" : "") + ":", totX + 4, y + 8);
-  doc.setFontSize(10); doc.text("Gs. " + fmt(total), W - M - 3, y + 8, { align: "right" }); y += 19;
-  // Notes
+  doc.text("TOTAL" + (ivaEnabled ? " (IVA inc.)" : "") + ":", totX + 5, y + 8.5);
+  doc.setFontSize(11); doc.text("Gs. " + fmt(total), W - M - 3, y + 8.5, { align: "right" }); y += 22;
+  // ── NOTES ──
   if (notes && notes.trim()) {
     if (y + 20 > 275) { doc.addPage(); y = M; }
-    doc.setFontSize(7.5); doc.setFont("helvetica", "bold"); doc.setTextColor(...C.accentBg); doc.text("NOTAS Y CONDICIONES:", M, y); y += 5;
+    doc.setFillColor(...C.altRow); doc.roundedRect(M, y, W - M * 2, 2, 1, 1, "F");
+    y += 4;
+    doc.setFontSize(7); doc.setFont("helvetica", "bold"); doc.setTextColor(...C.accentBg); doc.text("NOTAS Y CONDICIONES", M, y); y += 5;
     doc.setFont("helvetica", "normal"); doc.setTextColor(...C.mutedTx);
     const nl2 = doc.splitTextToSize(pdfTxt(notes), W - M * 2); doc.text(nl2, M, y);
+    y += nl2.length * 4 + 4;
   }
-  // Signature
+  // ── SIGNATURE ──
   if (state.signDataUrl) {
-    const sigY = y + 2;
-    if (sigY + 22 < 280) {
-      doc.setFontSize(7); doc.setFont("helvetica", "normal"); doc.setTextColor(...C.mutedTx);
-      doc.text("Firma profesional:", M, sigY + 4);
-      try { doc.addImage(state.signDataUrl, "PNG", M, sigY + 6, 50, 14); } catch (e) { }
-      doc.setDrawColor(...C.borderC); doc.setLineWidth(0.3); doc.line(M, sigY + 21, M + 60, sigY + 21);
-      doc.text(pdfTxt(p.professional || p.company || ""), M, sigY + 25);
-    }
+    if (y + 30 > 275) { doc.addPage(); y = M + 10; }
+    doc.setDrawColor(...C.borderC); doc.setLineWidth(0.3); doc.line(M, y, W - M, y); y += 4;
+    doc.setFontSize(7); doc.setFont("helvetica", "normal"); doc.setTextColor(...C.mutedTx);
+    doc.text("Firma profesional:", M, y + 4);
+    try { doc.addImage(state.signDataUrl, "PNG", M, y + 6, 50, 14); } catch (e) { }
+    doc.setDrawColor(...C.borderC); doc.setLineWidth(0.3); doc.line(M, y + 22, M + 60, y + 22);
+    doc.setFontSize(7.5); doc.setFont("helvetica", "bold"); doc.setTextColor(...C.bodyTx);
+    doc.text(pdfTxt(p.professional || p.company || ""), M, y + 26);
+    y += 30;
   }
   // Footer
   const pages = doc.internal.getNumberOfPages();
