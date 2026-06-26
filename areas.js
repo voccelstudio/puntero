@@ -48,7 +48,10 @@ function renderAreas() {
   // Plano con áreas dibujadas
   if (planUrl) {
     h += `<div class="card" style="margin-bottom:18px; padding:15px">
-      <h3 class="sec-lbl" style="margin-bottom:10px">Plano de Obra</h3>
+      <h3 class="sec-lbl" style="margin-bottom:10px; display:flex; justify-content:space-between; align-items:center">
+        Plano de Obra
+        <button class="delbtn" onclick="deletePlanImage()" title="Borrar plano">✕</button>
+      </h3>
       <div style="position:relative; display:inline-block; max-width:100%; border:2px solid var(--bor); border-radius:var(--rad); overflow:hidden">
         ${isPdfDataUrl(planUrl)
           ? `<embed id="plan-canvas-img" src="${planUrl}" type="application/pdf" style="max-width:100%; display:block; min-height:400px">`
@@ -109,13 +112,13 @@ function renderAreas() {
   // Dibujar áreas en canvas después de renderizar
   if (planUrl) {
     if (isPdfDataUrl(planUrl)) {
-      // Para PDF, esperar un tick y dibujar (el embed carga automáticamente)
       setTimeout(function() { drawAreaRects(); initAreaCanvas(); }, 500);
     } else {
       const img = document.getElementById("plan-canvas-img");
+      function onReady() { drawAreaRects(); initAreaCanvas(); }
       if (img) {
-        img.onload = function() { drawAreaRects(); };
-        if (img.complete) drawAreaRects();
+        img.onload = onReady;
+        if (img.complete) onReady();
       }
     }
   }
@@ -302,6 +305,18 @@ function savePlanImage() {
   toast("Plano cargado ✅ — Ahora dibujá áreas sobre él");
 }
 
+function deletePlanImage() {
+  if (!confirm("¿Borrar el plano y todas las áreas dibujadas?")) return;
+  const p = getActiveProject();
+  if (!p) return;
+  if (state._planImage) delete state._planImage[p.id];
+  if (state._planIsPdf) delete state._planIsPdf[p.id];
+  if (state.areas && state.areas[p.id]) { state.areas[p.id] = []; }
+  saveAreas();
+  renderAreas();
+  toast("Plano eliminado");
+}
+
 function showNewAreaModal() {
   const p = getActiveProject();
   if (!p) return toast("Seleccioná un proyecto", false);
@@ -312,7 +327,7 @@ function showNewAreaModal() {
   el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:550px">
     <div class="modal-title">➕ Agregar Área<button class="delbtn" onclick="closeModal()">✕</button></div>
     <p style="font-size:0.85rem; color:var(--tx3); margin-bottom:10px">Dibujá un rectángulo sobre el plano haciendo clic, arrastrando y soltando.</p>
-    <div style="position:relative; border:2px solid var(--bor); border-radius:var(--rad); overflow:hidden; max-height:400px">
+    <div style="position:relative; border:2px solid var(--bor); border-radius:var(--rad)">
       ${isPdfDataUrl(planUrl)
         ? `<embed id="area-draw-img" src="${planUrl}" type="application/pdf" style="max-width:100%; display:block; min-height:300px">`
         : `<img id="area-draw-img" src="${planUrl}" style="max-width:100%; display:block">`
