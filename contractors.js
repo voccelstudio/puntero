@@ -234,10 +234,10 @@ function showAssignItemsModal(conId) {
 
     let itemsHtml = adenda.items.map(item => {
         const isAssigned = p.execution.schedules[item.id]?.contractorId === conId;
-        return `<div style="display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--bor)">
+        return `<div style="display:flex; align-items:center; gap:10px; padding:8px 12px; border-bottom:1px solid var(--bor)">
             <input type="checkbox" ${isAssigned ? 'checked' : ''} onchange="assignItemToContractor('${item.id}', this.checked ? '${conId}' : null)">
-            <div style="flex:1">
-                <div style="font-size:0.9rem; font-weight:600">${item.name}</div>
+            <div style="flex:1; min-width:0">
+                <div style="font-size:0.9rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${escapeHtml(item.name)}</div>
                 <div style="font-size:0.75rem; color:var(--tx3)">MO: ${fmt(item.laborCost * item.qty)}</div>
             </div>
         </div>`;
@@ -245,8 +245,8 @@ function showAssignItemsModal(conId) {
 
     const el = document.getElementById("modal-area");
     el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:500px">
-        <div class="modal-title">Asignar a ${con.name}<button class="delbtn" onclick="closeModal()">✕</button></div>
-        <div style="max-height:400px; overflow-y:auto">${itemsHtml}</div>
+        <div class="modal-title">Asignar a ${escapeHtml(con.name)}<button class="delbtn" onclick="closeModal()">✕</button></div>
+        <div style="max-height:400px; overflow-y:auto; padding:0">${itemsHtml}</div>
         <div class="modal-acts"><button class="btn primary" onclick="closeModal(); renderContractors()">Listo ✓</button></div>
     </div></div>`;
 }
