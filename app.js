@@ -2775,7 +2775,7 @@ function generarPDF() {
     styles: { font: "helvetica", fontSize: 8, cellPadding: { top: 3, bottom: 3, left: 3, right: 3 }, lineColor: C.borderC, lineWidth: 0.2, textColor: C.bodyTx },
     headStyles: { fillColor: C.hdrBg, textColor: C.hdrTx, fontStyle: "bold", fontSize: 7, cellPadding: { top: 4.5, bottom: 4.5, left: 3, right: 3 } },
     alternateRowStyles: { fillColor: C.altRow },
-    columnStyles: { 0: { cellWidth: 8, halign: "center" }, 1: { cellWidth: "auto" }, 2: { cellWidth: 14, halign: "center" }, 3: { cellWidth: 18, halign: "center" }, 4: { cellWidth: 35, halign: "right" }, 5: { cellWidth: 42, halign: "right" } },
+    columnStyles: { 0: { cellWidth: 13, halign: "center" }, 1: { cellWidth: "auto" }, 2: { cellWidth: 14, halign: "center" }, 3: { cellWidth: 18, halign: "center" }, 4: { cellWidth: 35, halign: "right" }, 5: { cellWidth: 42, halign: "right" } },
     margin: { left: M, right: M },
     tableWidth: "wrap",
     didParseCell: data => {
