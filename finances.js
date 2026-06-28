@@ -39,6 +39,8 @@ function renderFinances() {
 
     var incomeTotal = allIncome.reduce(function(s, i) { return s + i.amount; }, 0);
     var expensesTotal = allExpenses.reduce(function(s, e) { return s + e.amount; }, 0);
+    var totals = getTotals ? getTotals() : null;
+    var total = (totals && totals.total) || 0;
 
     // 1. Pagos a Contratistas
     var assignedConIds = new Set(Object.values(p.execution.schedules || {}).map(function(s) { return s.contractorId; }).filter(Boolean));
