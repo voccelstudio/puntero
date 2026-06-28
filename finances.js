@@ -9,6 +9,7 @@ var EXPENSE_CATEGORIES = [
 ];
 var INCOME_SOURCES = ["Cliente", "Anticipo", "Pago parcial", "Pago final", "Otros"];
 var PAYMENT_METHODS = ["Efectivo", "Transferencia", "Cheque", "Tarjeta", "Otro"];
+var FINANCE_CHART_COLORS = ["#3b82f6","#ef4444","#22c55e","#f59e0b","#8b5cf6","#ec4899","#06b6d4","#f97316","#14b8a6","#6366f1","#84cc16"];
 
 function renderFinances() {
     var el = document.getElementById("section-finances");
@@ -75,6 +76,7 @@ function renderFinances() {
             <div style="display:flex; gap:8px; flex-wrap:wrap">
                 <button class="btn sm primary" onclick="showModal('finance_entry',{type:'in'})">+ Ingreso</button>
                 <button class="btn sm danger" onclick="showModal('finance_entry',{type:'ex'})">+ Gasto</button>
+                <button class="btn sm" onclick="exportFinancePDF()">📄 PDF</button>
                 <button class="btn sm" onclick="exportFinancesCSV()">📥 CSV</button>
             </div>
         </div>
@@ -103,7 +105,12 @@ function renderFinances() {
                 </div>
             </div>
             ${catSummary.length > 1 ? '<div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap">' + catSummary.map(function(c) { return '<span class="ichip" style="background:var(--sur2)">' + escapeHtml(c[0]) + ': <strong>' + fmt(c[1]) + '</strong></span>'; }).join("") + '</div>' : ""}
+            ${catSummary.length > 1 ? '<div style="display:flex; flex-wrap:wrap; gap:24px; margin-top:16px; align-items:flex-start"><div><canvas id="fin-chart-pie" width="200" height="200" style="width:200px;height:200px"></canvas></div><div style="flex:1;min-width:160px"><div style="font-size:0.8rem;font-weight:700;color:var(--tx3);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em">Distribución</div>' + catSummary.map(function(c,i) { return '<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:0.85rem"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:' + FINANCE_CHART_COLORS[i % FINANCE_CHART_COLORS.length] + '"></span>' + escapeHtml(c[0]) + ': <strong>' + fmt(c[1]) + '</strong></div>'; }).join("") + '</div></div>' : ""}
         </div>
+
+                <div class="card" style="margin-top:20px"><h3 class="sec-lbl">Flujo Mensual</h3><div style="display:flex;gap:12px;overflow-x:auto;padding:12px 0">${getMonthlyCashFlow().map(function(m) { var bal = m.income - m.expenses; var months = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]; var parts = m.month.split("-"); var label = months[parseInt(parts[1],10)-1]; return '<div style="min-width:100px;padding:12px;background:var(--sur2);border-radius:var(--rad);text-align:center;border-left:3px solid ' + (bal >= 0 ? 'var(--ok)' : 'var(--err)') + '"><div style="font-size:0.7rem;color:var(--tx3);font-weight:700;text-transform:uppercase">' + label + '</div><div style="font-size:0.8rem;color:var(--ok);margin-top:4px">+' + fmt(m.income) + '</div><div style="font-size:0.8rem;color:var(--err)">-' + fmt(m.expenses) + '</div><div style="font-size:0.75rem;font-weight:700;color:' + (bal >= 0 ? 'var(--ok)' : 'var(--err)') + ';margin-top:4px;border-top:1px solid var(--bor);padding-top:4px">' + (bal >= 0 ? '+' : '') + fmt(bal) + '</div></div>'; }).join("") || '<div style="color:var(--tx3);padding:12px">Sin movimientos mensuales</div>'}</div></div>
+
+            ${(incomeTotal > 0 || total > 0) ? '<div class="card" style="margin-top:20px"><h3 class="sec-lbl">Presupuesto vs Real</h3><div class="grid3" style="margin-top:12px"><div style="padding:15px;background:var(--sur2);border-radius:var(--rad)"><div style="font-size:0.75rem;color:var(--tx3)">PRESUPUESTO META</div><div style="font-size:1.3rem;font-weight:800">' + fmt(total) + '</div></div><div style="padding:15px;background:var(--sur2);border-radius:var(--rad)"><div style="font-size:0.75rem;color:var(--tx3)">TOTAL GASTADO</div><div style="font-size:1.3rem;font-weight:800;color:var(--err)">' + fmt(totalSpent) + '</div></div><div style="padding:15px;background:var(--sur2);border-radius:var(--rad)"><div style="font-size:0.75rem;color:var(--tx3)">EJECUCIÓN</div><div style="font-size:1.3rem;font-weight:800;color:' + (totalSpent > total ? 'var(--err)' : 'var(--ok)') + '">' + (total > 0 ? Math.round(totalSpent / total * 100) : 0) + '%</div></div></div>' + (total > 0 ? '<div style="margin-top:8px;height:8px;border-radius:4px;background:var(--bor);overflow:hidden"><div style="height:100%;width:' + Math.min(Math.round(totalSpent / total * 100), 100) + '%;border-radius:4px;background:' + (totalSpent > total ? 'var(--err)' : 'var(--ok)') + ';transition:width .3s"></div></div>' : '') + '</div>' : ''}
 
         <div class="card" style="margin-top:20px">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px">
@@ -138,6 +145,169 @@ function renderFinances() {
             <div style="margin-top:8px; font-size:0.8rem; color:var(--tx3)">${filtered.length} movimiento(s)</div>
         </div>
     </div>`;
+  setTimeout(drawFinanceChart, 50);
+}
+
+// ── Draw expense pie chart on canvas ──
+function drawFinanceChart() {
+  var canvas = document.getElementById("fin-chart-pie");
+  if (!canvas) return;
+  var ctx = canvas.getContext("2d");
+  var p = getActiveProject();
+  if (!p || !p.execution || !p.execution.finances) return;
+  var expenses = p.execution.finances.expenses || [];
+  var catTotals = {};
+  expenses.forEach(function(e) { var c = e.category || "Varios"; catTotals[c] = (catTotals[c] || 0) + e.amount; });
+  var entries = Object.entries(catTotals).sort(function(a,b) { return b[1] - a[1]; });
+  if (entries.length === 0) return;
+  var total = entries.reduce(function(s, e) { return s + e[1]; }, 0);
+  var cx = 100, cy = 100, r = 80, ir = 50;
+  var startAngle = -Math.PI / 2;
+  ctx.clearRect(0, 0, 200, 200);
+  entries.forEach(function(entry, i) {
+    var sliceAngle = (entry[1] / total) * 2 * Math.PI;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, startAngle, startAngle + sliceAngle);
+    ctx.arc(cx, cy, ir, startAngle + sliceAngle, startAngle, true);
+    ctx.closePath();
+    ctx.fillStyle = FINANCE_CHART_COLORS[i % FINANCE_CHART_COLORS.length];
+    ctx.fill();
+    startAngle += sliceAngle;
+  });
+  // Center text
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--tx").trim() || "#1e293b";
+  ctx.font = "bold 20px sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(fmt(total), cx, cy);
+  ctx.font = "10px sans-serif";
+  ctx.fillText("total", cx, cy + 14);
+}
+
+// ── Cash flow by month (mini aggregation) ──
+function getMonthlyCashFlow() {
+  var p = getActiveProject();
+  if (!p || !p.execution || !p.execution.finances) return [];
+  var all = [];
+  (p.execution.finances.income || []).forEach(function(i) { all.push({ date: i.date, amount: i.amount, t: "in" }); });
+  (p.execution.finances.expenses || []).forEach(function(e) { all.push({ date: e.date, amount: -e.amount, t: "ex" }); });
+  var monthly = {};
+  all.forEach(function(m) {
+    if (!m.date) return;
+    var parts = m.date.split("-");
+    if (parts.length < 2) return;
+    var key = parts[0] + "-" + parts[1];
+    if (!monthly[key]) monthly[key] = { income: 0, expenses: 0 };
+    if (m.t === "in") monthly[key].income += m.amount;
+    else monthly[key].expenses += Math.abs(m.amount);
+  });
+  return Object.entries(monthly).sort().map(function(e) { return { month: e[0], income: e[1].income, expenses: e[1].expenses }; });
+}
+
+// ── Export Finance PDF ──
+function exportFinancePDF() {
+  var p = getActiveProject();
+  if (!p || !p.execution || !p.execution.finances) return toast("Sin datos financieros", false);
+  if (typeof window.jspdf === "undefined" && typeof jsPDF === "undefined") { toast("jsPDF cargando, intentá en 2 segundos", false); return; }
+  var JPDF = (window.jspdf || {}).jsPDF || window.jsPDF;
+  var doc = new JPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  var W = 210, M = 14;
+  var profile = state.profile || {};
+  var finances = p.execution.finances;
+  var incomeTotal = (finances.income || []).reduce(function(s, i) { return s + i.amount; }, 0);
+  var expensesTotal = (finances.expenses || []).reduce(function(s, e) { return s + e.amount; }, 0);
+  var monthly = getMonthlyCashFlow();
+  var today = new Date().toLocaleDateString("es-PY", { year: "numeric", month: "long", day: "numeric" });
+
+  // Header
+  doc.setFillColor(30, 58, 138); doc.rect(0, 0, W, 2, "F");
+  doc.setFillColor(248, 250, 252); doc.rect(0, 2, W, 24, "F");
+  doc.setFont("helvetica", "bold"); doc.setFontSize(16);
+  doc.setTextColor(30, 58, 138);
+  doc.text("ESTADO FINANCIERO", M, 14);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(8);
+  doc.setTextColor(71, 85, 105);
+  doc.text(p.name + " | " + today, M, 20);
+  doc.setDrawColor(203, 213, 225); doc.setLineWidth(0.3); doc.line(M, 27, W - M, 27);
+  var y = 34;
+
+  // Summary cards
+  doc.setFillColor(248, 250, 252); doc.roundedRect(M, y, (W - M * 2 - 6) / 3, 20, 2, 2, "F");
+  doc.setTextColor(34, 197, 94); doc.setFontSize(7); doc.setFont("helvetica", "bold");
+  doc.text("INGRESOS", M + 5, y + 6);
+  doc.setTextColor(15, 23, 42); doc.setFontSize(12); doc.setFont("helvetica", "bold");
+  doc.text("Gs. " + fmt(incomeTotal), M + 5, y + 16);
+  var col2 = M + (W - M * 2 - 6) / 3 + 3;
+  doc.setFillColor(248, 250, 252); doc.roundedRect(col2, y, (W - M * 2 - 6) / 3, 20, 2, 2, "F");
+  doc.setTextColor(239, 68, 68); doc.setFontSize(7); doc.setFont("helvetica", "bold");
+  doc.text("EGRESOS", col2 + 5, y + 6);
+  doc.setTextColor(15, 23, 42); doc.setFontSize(12); doc.setFont("helvetica", "bold");
+  doc.text("Gs. " + fmt(expensesTotal), col2 + 5, y + 16);
+  var col3 = M + 2 * (W - M * 2 - 6) / 3 + 6;
+  doc.setFillColor(248, 250, 252); doc.roundedRect(col3, y, (W - M * 2 - 6) / 3, 20, 2, 2, "F");
+  doc.setTextColor(71, 85, 105); doc.setFontSize(7); doc.setFont("helvetica", "bold");
+  doc.text("SALDO", col3 + 5, y + 6);
+  var balance = incomeTotal - expensesTotal;
+  doc.setTextColor(balance >= 0 ? 34 : 239, balance >= 0 ? 197 : 68, balance >= 0 ? 94 : 68);
+  doc.setFontSize(12); doc.setFont("helvetica", "bold");
+  doc.text("Gs. " + fmt(balance), col3 + 5, y + 16);
+  y += 28;
+
+  // Monthly breakdown table
+  if (monthly.length > 0) {
+    doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(30, 58, 138);
+    doc.text("FLUJO MENSUAL", M, y); y += 6;
+    var rows = [["Mes", "Ingresos", "Egresos", "Balance"]];
+    monthly.forEach(function(m) {
+      var months = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+      var parts = m.month.split("-");
+      var label = months[parseInt(parts[1], 10) - 1] + " " + parts[0];
+      rows.push([label, "Gs. " + fmt(m.income), "Gs. " + fmt(m.expenses), "Gs. " + fmt(m.income - m.expenses)]);
+    });
+    doc.autoTable({
+      startY: y, head: [rows[0]], body: rows.slice(1), theme: "plain",
+      headStyles: { fillColor: [30, 58, 138], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 7 },
+      styles: { fontSize: 7, cellPadding: { top: 3, bottom: 3, left: 3, right: 3 }, lineColor: [226, 232, 240], lineWidth: 0.2 },
+      margin: { left: M, right: M },
+      columnStyles: { 0: { cellWidth: 40 }, 1: { cellWidth: 44, halign: "right" }, 2: { cellWidth: 44, halign: "right" }, 3: { cellWidth: 44, halign: "right" } },
+    });
+    y = doc.lastAutoTable.finalY + 10;
+  }
+
+  // Expense breakdown table
+  var expensesByCat = {};
+  (finances.expenses || []).forEach(function(e) { var c = e.category || "Varios"; if (!expensesByCat[c]) expensesByCat[c] = 0; expensesByCat[c] += e.amount; });
+  var catEntries = Object.entries(expensesByCat).sort(function(a,b) { return b[1] - a[1]; });
+  if (catEntries.length > 0) {
+    if (y + 30 > 270) { doc.addPage(); y = 20; }
+    doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(30, 58, 138);
+    doc.text("DETALLE DE EGRESOS POR CATEGORÍA", M, y); y += 6;
+    var catRows = [["Categoría", "Total", "%"]];
+    var grandTotal = catEntries.reduce(function(s, e) { return s + e[1]; }, 0);
+    catEntries.forEach(function(e) {
+      catRows.push([e[0], "Gs. " + fmt(e[1]), Math.round(e[1] / grandTotal * 100) + "%"]);
+    });
+    doc.autoTable({
+      startY: y, head: [catRows[0]], body: catRows.slice(1), theme: "plain",
+      headStyles: { fillColor: [30, 58, 138], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 7 },
+      styles: { fontSize: 7, cellPadding: { top: 3, bottom: 3, left: 3, right: 3 }, lineColor: [226, 232, 240], lineWidth: 0.2 },
+      margin: { left: M, right: M },
+      columnStyles: { 0: { cellWidth: "auto" }, 1: { cellWidth: 50, halign: "right" }, 2: { cellWidth: 30, halign: "center" } },
+    });
+    y = doc.lastAutoTable.finalY + 10;
+  }
+
+  // Footer
+  var pages = doc.internal.getNumberOfPages();
+  for (var i = 1; i <= pages; i++) {
+    doc.setPage(i);
+    doc.setFontSize(6.5); doc.setFont("helvetica", "normal"); doc.setTextColor(148, 163, 184);
+    doc.setDrawColor(226, 232, 240); doc.setLineWidth(0.2); doc.line(M, 287, W - M, 287);
+    doc.text(profile.company || "Puntero" + (profile.ruc ? " - RUC: " + profile.ruc : ""), M, 292);
+    doc.text("Pagina " + i + " de " + pages, W - M, 292, { align: "right" });
+  }
+  doc.save("estado_financiero_" + p.name.replace(/\s+/g, "_") + ".pdf");
+  toast("PDF generado ✓");
 }
 
 // ── Modal: Add/Edit Finance Entry ──
