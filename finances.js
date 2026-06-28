@@ -137,15 +137,17 @@ function renderFinances() {
                 <button class="btn sm danger" onclick="showModal('petty_cash_expense')">Gasto Caja Chica</button>
             </div>
             <table class="tbl sm" style="margin-top:12px">
-                <thead><tr><th>Fecha</th><th>Concepto</th><th style="text-align:right">Monto</th><th>Nota</th><th style="text-align:center">Acción</th></tr></thead>
+                <thead><tr><th>Fecha</th><th>RUC</th><th>Factura N°</th><th>Descripción</th><th>Proveedor</th><th style="text-align:right">Monto</th><th style="text-align:center">Acción</th></tr></thead>
                 <tbody>
-                    ${pc.transactions.length === 0 ? '<tr><td colspan="5" class="empty">Sin movimientos de caja chica.</td></tr>' :
+                    ${pc.transactions.length === 0 ? '<tr><td colspan="7" class="empty">Sin movimientos de caja chica.</td></tr>' :
                     pc.transactions.slice(0, 10).map(function(t) { return `
                         <tr>
                             <td>${formatDatePY(t.date)}</td>
-                            <td>${escapeHtml(t.concept)}</td>
+                            <td style="font-size:0.85rem;color:var(--tx3)">${escapeHtml(t.ruc || '')}</td>
+                            <td style="font-size:0.85rem;color:var(--tx3)">${escapeHtml(t.invoiceNum || '')}</td>
+                            <td>${escapeHtml(t.description || t.concept || '')}</td>
+                            <td style="font-size:0.85rem;color:var(--tx3)">${escapeHtml(t.supplier || '')}</td>
                             <td style="text-align:right;font-weight:700;color:var(--err)">- ${fmt(t.amount)}</td>
-                            <td style="font-size:0.85rem;color:var(--tx3)">${escapeHtml(t.note || '')}</td>
                             <td style="text-align:center"><button class="btn sm danger" onclick="deletePettyCashTransaction(${t.id})">🗑️</button></td>
                         </tr>`;
                     }).join("")}
@@ -468,13 +470,15 @@ window.modals.petty_cash_fund = function(arg) {
 };
 
 window.modals.petty_cash_expense = function(arg) {
-  return '<div class="modal-title">Registrar Gasto de Caja Chica<button class="delbtn" onclick="closeModal()">✕</button></div>' +
+  return '<div class="modal-title">Registrar Gasto de Caja Chica<button class="delbtn" onclick="closeModal()">\u2715</button></div>' +
     '<div style="display:flex; flex-direction:column; gap:12px">' +
       '<div class="grid2">' +
         '<div><label class="stat-lbl">Fecha</label>' + dateInputPY("pc-exp-date", todayISO(), '', 'width:100%') + '</div>' +
         '<div><label class="stat-lbl">Monto (Gs.)</label><input id="pc-exp-amount" type="number" class="inp" placeholder="0"></div>' +
-        '<div class="fullcol"><label class="stat-lbl">Concepto</label><input id="pc-exp-concept" class="inp" placeholder="Ej: Caf\u00e9, vi\u00e1tico"></div>' +
-        '<div class="fullcol"><label class="stat-lbl">Nota (opcional)</label><input id="pc-exp-note" class="inp" placeholder="Detalle adicional"></div>' +
+        '<div><label class="stat-lbl">RUC / CI Proveedor</label><input id="pc-exp-ruc" class="inp" placeholder="Ej: 1234567-0"></div>' +
+        '<div><label class="stat-lbl">N\u00famero de Factura</label><input id="pc-exp-invoice" class="inp" placeholder="Ej: 001-001-0000001"></div>' +
+        '<div class="fullcol"><label class="stat-lbl">Descripci\u00f3n</label><input id="pc-exp-desc" class="inp" placeholder="Ej: Compra de cemento para reparaci\u00f3n ba\u00f1o"></div>' +
+        '<div class="fullcol"><label class="stat-lbl">Proveedor (opcional)</label><input id="pc-exp-supplier" class="inp" placeholder="Nombre del proveedor"></div>' +
       '</div>' +
     '</div>' +
     '<div class="modal-acts">' +
@@ -500,18 +504,22 @@ function savePettyCashExpense() {
   if (!p.execution.finances.pettyCash) p.execution.finances.pettyCash = { fundAmount: 0, transactions: [] };
   var date = document.getElementById("pc-exp-date").value;
   var amount = parseFloat(document.getElementById("pc-exp-amount").value);
-  var concept = document.getElementById("pc-exp-concept").value.trim();
-  var note = document.getElementById("pc-exp-note").value.trim();
+  var ruc = document.getElementById("pc-exp-ruc").value.trim();
+  var invoiceNum = document.getElementById("pc-exp-invoice").value.trim();
+  var desc = document.getElementById("pc-exp-desc").value.trim();
+  var supplier = document.getElementById("pc-exp-supplier").value.trim();
   if (!date) return toast("Fecha requerida", false);
   if (!amount || amount <= 0) return toast("Monto inv\u00e1lido", false);
-  if (!concept) return toast("Concepto requerido", false);
+  if (!desc) return toast("Descripci\u00f3n requerida", false);
   var pc = p.execution.finances.pettyCash;
   pc.transactions.push({
     id: Date.now(),
     date: date,
-    concept: concept,
     amount: amount,
-    note: note
+    ruc: ruc,
+    invoiceNum: invoiceNum,
+    description: desc,
+    supplier: supplier
   });
   pc.transactions.sort(function(a,b) { return parseDate(b.date) - parseDate(a.date); });
   toast("Gasto de caja chica registrado \u2713");
