@@ -91,6 +91,7 @@
       <button id="auth-btn" class="btn full" onclick="showAuthModal()" style="margin-bottom:6px; font-size:0.8rem">🔐 Iniciar Sesión</button>
       <button class="btn ok-btn full" onclick="showModal('export_project')">📤 Enviar Proyecto</button>
       <button class="btn pdf-btn full" onclick="generarPDF()">📄 Generar PDF</button>
+      <button class="btn full" onclick="setSection('documents');setTimeout(function(){var e=document.getElementById('doc-upload');if(e)e.click()},300)" style="margin-top:4px;background:#059669;color:#fff">📁 Cargar Archivo</button>
     </div>
   </aside>
 
