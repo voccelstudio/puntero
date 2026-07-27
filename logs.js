@@ -324,7 +324,14 @@ function saveWalkthrough() {
     };
     if (!p.execution.dailyLogs) p.execution.dailyLogs = [];
     p.execution.dailyLogs.push(newLog);
+
+    // Auto-guardar fotos en la carpeta del proyecto (disco)
+    var photosToSave = _walkPhotos.slice();
     _walkPhotos = [];
+
+    if (photosToSave.length > 0 && p.execution.folderHandle) {
+        savePhotosToProjectFolder(p, photosToSave, newLog.date);
+    }
 
     // Actualizar contadores de fotos por área
     if (typeof updateAreaFotoCounts === 'function') updateAreaFotoCounts();
@@ -333,6 +340,48 @@ function saveWalkthrough() {
     closeModal();
     renderLogs();
     toast("Recorrido guardado ✅");
+}
+
+async function savePhotosToProjectFolder(p, photos, logDate) {
+    if (!p || !p.execution || !p.execution.folderHandle) return;
+    var ok = await verifyFolderPermission(p.execution.folderHandle, true);
+    if (!ok) return;
+
+    var saved = 0;
+    for (var i = 0; i < photos.length; i++) {
+        var ph = photos[i];
+        var photoUrl = typeof ph === 'string' ? ph : (ph.url || '');
+        if (!photoUrl) continue;
+
+        var fileName = 'Foto_' + logDate.replace(/-/g, '') + '_' + (saved + 1) + '.jpg';
+
+        // Si es base64 data URL, escribir directo al disco
+        if (photoUrl.indexOf('data:') === 0) {
+            var parts = photoUrl.split(',');
+            var mime = parts[0].match(/:(.*?);/)[1];
+            var byteStr = atob(parts[1]);
+            var ab = new ArrayBuffer(byteStr.length);
+            var ia = new Uint8Array(ab);
+            for (var j = 0; j < byteStr.length; j++) ia[j] = byteStr.charCodeAt(j);
+            var blob = new Blob([ab], { type: mime });
+            var ok2 = await writeFileToFolder(p.execution.folderHandle, 'Fotos de Avance', fileName, blob, mime);
+            if (ok2) saved++;
+        }
+        // Si es URL de Firebase, descargar y escribir
+        else if (photoUrl.indexOf('http') === 0) {
+            try {
+                var resp = await fetch(photoUrl);
+                var blob2 = await resp.blob();
+                var ok3 = await writeFileToFolder(p.execution.folderHandle, 'Fotos de Avance', fileName, blob2, blob2.type);
+                if (ok3) saved++;
+            } catch (e) {
+                console.warn("[Folder] No se pudo descargar foto:", e);
+            }
+        }
+    }
+    if (saved > 0) {
+        toast(saved + ' foto(s) guardada(s) en carpeta ✓');
+    }
 }
 
 function saveDailyLog() {

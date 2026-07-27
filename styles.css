@@ -582,3 +582,38 @@ table.tbl{width:100%;border-collapse:collapse;font-size:.9rem}
   body{user-select:none;-webkit-user-select:none}
   .modal{padding-bottom:calc(16px + env(safe-area-inset-bottom))!important}
 }
+
+/* ═══════════════════════════════════════════ FOLDER ═══ */
+.folder-layout{display:flex;gap:16px;min-height:500px}
+.folder-sidebar{width:220px;flex-shrink:0;display:flex;flex-direction:column;gap:2px;background:var(--sur);border:1px solid var(--bor);border-radius:var(--rad);padding:8px;overflow-y:auto;max-height:70vh}
+.folder-cat-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;cursor:pointer;font-size:0.85rem;color:var(--tx2);transition:background 0.15s}
+.folder-cat-item:hover{background:var(--sur2)}
+.folder-cat-item.active{background:var(--acc);color:var(--bg);font-weight:700}
+.folder-cat-item.active .folder-cat-count{background:rgba(255,255,255,0.25);color:var(--bg)}
+.folder-cat-icon{font-size:1.1rem;width:24px;text-align:center;flex-shrink:0}
+.folder-cat-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.folder-cat-count{font-size:0.7rem;background:var(--sur2);color:var(--tx3);padding:1px 6px;border-radius:99px;font-weight:600;min-width:20px;text-align:center}
+.folder-grid-area{flex:1;min-width:0}
+.folder-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+.folder-file-card{background:var(--sur);border:1px solid var(--bor);border-radius:var(--rad);overflow:hidden;cursor:pointer;position:relative;transition:transform 0.2s,border-color 0.2s}
+.folder-file-card:hover{transform:translateY(-3px);border-color:var(--acc)}
+.folder-file-card:hover .folder-file-actions{opacity:1}
+.folder-file-preview{height:120px;display:flex;align-items:center;justify-content:center;background:var(--sur2);border-bottom:1px solid var(--bor)}
+.folder-file-thumb{height:120px;background-size:cover;background-position:center;border-bottom:1px solid var(--bor)}
+.folder-file-info{padding:8px 10px}
+.folder-file-name{font-weight:700;font-size:0.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--tx);margin-bottom:4px}
+.folder-file-meta{display:flex;justify-content:space-between;align-items:center;font-size:0.7rem;color:var(--tx3)}
+.folder-file-cat{display:flex;align-items:center;gap:2px}
+.folder-file-actions{position:absolute;top:6px;right:6px;opacity:0;transition:opacity 0.2s;z-index:2}
+.folder-drop-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:999;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.folder-drop-msg{background:var(--acc);color:var(--bg);padding:24px 48px;border-radius:var(--rad);font-size:1.2rem;font-weight:800;box-shadow:0 8px 32px rgba(0,0,0,0.4)}
+
+@media(max-width:768px){
+  .folder-layout{flex-direction:column}
+  .folder-sidebar{width:100%;flex-direction:row;flex-wrap:wrap;max-height:none;gap:4px;padding:6px}
+  .folder-cat-item{padding:6px 8px;font-size:0.8rem}
+  .folder-cat-count{display:none}
+  .folder-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+  .folder-file-preview{height:90px}
+  .folder-file-thumb{height:90px}
+}

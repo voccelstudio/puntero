@@ -1,0 +1,1626 @@
+{
+  "project": {
+    "id": "p_ejemplo_mh",
+    "name": "Casa Habitación 2D - 140m² (MH)",
+    "client": "Cliente Ejemplo",
+    "phone": "0981 000 000",
+    "address": "Asunción, Paraguay",
+    "m2Area": 140,
+    "date": "28/6/2026",
+    "status": "active",
+    "activeAdendaId": "ad_ejemplo_mh",
+    "budgets": [
+      {
+        "id": "ad_ejemplo_mh",
+        "name": "Presupuesto Principal",
+        "items": [
+          {
+            "cat": "FUNDACIONES",
+            "name": "Cimiento PBC con cal (1/2:1:4)",
+            "unit": "m3",
+            "unitPrice": 585200,
+            "matCost": 440000,
+            "laborCost": 145200,
+            "mats": [
+              {
+                "n": "Piedra bruta blanca",
+                "q": 1.2,
+                "u": "m3"
+              },
+              {
+                "n": "Cemento tipo 1",
+                "q": 46,
+                "u": "kg"
+              },
+              {
+                "n": "Cal triturada",
+                "q": 30,
+                "u": "kg"
+              },
+              {
+                "n": "Arena lavada",
+                "q": 0.3,
+                "u": "m3"
+              }
+            ],
+            "qty": 17.6,
+            "id": 1782695415907.333,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "FUNDACIONES",
+            "name": "Cimiento PBC sin cal (1:12)",
+            "unit": "m3",
+            "unitPrice": 492100,
+            "matCost": 370000,
+            "laborCost": 122100,
+            "mats": [
+              {
+                "n": "Piedra bruta blanca",
+                "q": 1.2,
+                "u": "m3"
+              },
+              {
+                "n": "Cemento tipo 1",
+                "q": 80,
+                "u": "kg"
+              },
+              {
+                "n": "Arena lavada",
+                "q": 0.6,
+                "u": "m3"
+              }
+            ],
+            "qty": 4.2,
+            "id": 1782695415908.0723,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "FUNDACIONES",
+            "name": "Hormigón Ciclópeo (1:3:6)",
+            "unit": "m3",
+            "unitPrice": 952280,
+            "matCost": 716000,
+            "laborCost": 236280,
+            "mats": [
+              {
+                "n": "Piedra bruta blanca",
+                "q": 0.4,
+                "u": "m3"
+              },
+              {
+                "n": "Cemento tipo 1",
+                "q": 225,
+                "u": "kg"
+              },
+              {
+                "n": "Arena lavada",
+                "q": 0.4,
+                "u": "m3"
+              },
+              {
+                "n": "Piedra triturada IV",
+                "q": 1.05,
+                "u": "tn"
+              }
+            ],
+            "qty": 6.5,
+            "id": 1782695415909.717,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "ESTRUCTURAS",
+            "name": "Zapata fck=18 MPa",
+            "unit": "m3",
+            "unitPrice": 2665600,
+            "matCost": 1960000,
+            "laborCost": 705600,
+            "mats": [
+              {
+                "n": "Cemento tipo 1",
+                "q": 300,
+                "u": "kg"
+              },
+              {
+                "n": "Arena lavada",
+                "q": 0.7,
+                "u": "m3"
+              },
+              {
+                "n": "Piedra triturada IV",
+                "q": 1.4,
+                "u": "tn"
+              },
+              {
+                "n": "Varilla conformada Ø8mm",
+                "q": 65,
+                "u": "kg"
+              },
+              {
+                "n": "Alambre recocido Nº18",
+                "q": 0.3,
+                "u": "kg"
+              },
+              {
+                "n": "REOPLAST Fluidificante",
+                "q": 3.5,
+                "u": "kg"
+              }
+            ],
+            "qty": 1.5,
+            "id": 1782695415910.8643,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "ESTRUCTURAS",
+            "name": "Columna fck=21 MPa",
+            "unit": "m3",
+            "unitPrice": 3427200,
+            "matCost": 2520000,
+            "laborCost": 907200,
+            "mats": [
+              {
+                "n": "Cemento tipo 1",
+                "q": 300,
+                "u": "kg"
+              },
+              {
+                "n": "Arena lavada",
+                "q": 0.7,
+                "u": "m3"
+              },
+              {
+                "n": "Piedra triturada IV",
+                "q": 1.4,
+                "u": "tn"
+              },
+              {
+                "n": "Varilla conformada Ø8mm",
+                "q": 95,
+                "u": "kg"
+              },
+              {
+                "n": "Alambre recocido Nº18",
+                "q": 0.4,
+                "u": "kg"
+              },
+              {
+                "n": "Clavo 1 a 7 pulgadas",
+                "q": 0.4,
+                "u": "kg"
+              },
+              {
+                "n": "REOPLAST Fluidificante",
+                "q": 3.5,
+                "u": "kg"
+              }
+            ],
+            "qty": 0.6,
+            "id": 1782695415911.173,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "ESTRUCTURAS",
+            "name": "Viga fck=21 MPa",
+            "unit": "m3",
+            "unitPrice": 3338800,
+            "matCost": 2455000,
+            "laborCost": 883800,
+            "mats": [
+              {
+                "n": "Cemento tipo 1",
+                "q": 300,
+                "u": "kg"
+              },
+              {
+                "n": "Arena lavada",
+                "q": 0.7,
+                "u": "m3"
+              },
+              {
+                "n": "Piedra triturada IV",
+                "q": 1.4,
+                "u": "tn"
+              },
+              {
+                "n": "Varilla conformada Ø8mm",
+                "q": 90,
+                "u": "kg"
+              },
+              {
+                "n": "Alambre recocido Nº18",
+                "q": 0.4,
+                "u": "kg"
+              },
+              {
+                "n": "REOPLAST",
+                "q": 3,
+                "u": "kg"
+              }
+            ],
+            "qty": 0.7,
+            "id": 1782695415912.462,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "ESTRUCTURAS",
+            "name": "Losa Rap h=17cm (12+5)",
+            "unit": "m2",
+            "unitPrice": 326400,
+            "matCost": 240000,
+            "laborCost": 86400,
+            "mats": [
+              {
+                "n": "Cemento tipo 1",
+                "q": 22.8,
+                "u": "kg"
+              },
+              {
+                "n": "Arena lavada",
+                "q": 0.04,
+                "u": "m3"
+              },
+              {
+                "n": "Piedra triturada V",
+                "q": 0.09,
+                "u": "tn"
+              },
+              {
+                "n": "Varilla conformada Ø6mm",
+                "q": 1.8,
+                "u": "kg"
+              },
+              {
+                "n": "Alambre recocido Nº18",
+                "q": 0.06,
+                "u": "kg"
+              },
+              {
+                "n": "Viguetas y ladrillos",
+                "q": 1,
+                "u": "m2"
+              }
+            ],
+            "qty": 42,
+            "id": 1782695415913.4658,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "MAMPOSTERÍA",
+            "name": "Elevación 0.15m ladrillo cerámico 6 tubos",
+            "unit": "m2",
+            "unitPrice": 84320,
+            "matCost": 62000,
+            "laborCost": 22320,
+            "mats": [
+              {
+                "n": "Ladrillo cerámico 6 tubos",
+                "q": 20,
+                "u": "un"
+              },
+              {
+                "n": "Cemento tipo 1",
+                "q": 1.8,
+                "u": "kg"
+              },
+              {
+                "n": "Cal triturada",
+                "q": 1.7,
+                "u": "kg"
+              },
+              {
+                "n": "Arena lavada",
+                "q": 0.01,
+                "u": "m3"
+              }
+            ],
+            "qty": 220,
+            "id": 1782695415914.469,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "MAMPOSTERÍA",
+            "name": "Elevación 0.20m ladrillo cerámico hueco",
+            "unit": "m2",
+            "unitPrice": 119680,
+            "matCost": 88000,
+            "laborCost": 31680,
+            "mats": [
+              {
+                "n": "Ladrillo cerámico hueco 18x18x25cm",
+                "q": 19,
+                "u": "un"
+              },
+              {
+                "n": "Cemento tipo 1",
+                "q": 2.8,
+                "u": "kg"
+              },
+              {
+                "n": "Cal triturada",
+                "q": 2.7,
+                "u": "kg"
+              },
+              {
+                "n": "Arena lavada",
+                "q": 0.02,
+                "u": "m3"
+              }
+            ],
+            "qty": 40,
+            "id": 1782695415915.7053,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "MAMPOSTERÍA",
+            "name": "Elevación 0.15m ladrillo común",
+            "unit": "m2",
+            "unitPrice": 130560,
+            "matCost": 96000,
+            "laborCost": 34560,
+            "mats": [
+              {
+                "n": "Ladrillo común",
+                "q": 65,
+                "u": "un"
+              },
+              {
+                "n": "Cemento tipo 1",
+                "q": 5.74,
+                "u": "kg"
+              },
+              {
+                "n": "Cal triturada",
+                "q": 5.53,
+                "u": "kg"
+              },
+              {
+                "n": "Arena lavada",
+                "q": 0.05,
+                "u": "m3"
+              }
+            ],
+            "qty": 30,
+            "id": 1782695415916.7283,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "AISLACIÓN",
+            "name": "Horizontal 0.15m con asfalto",
+            "unit": "ml",
+            "unitPrice": 26130,
+            "matCost": 19500,
+            "laborCost": 6630,
+            "mats": [
+              {
+                "n": "Cemento tipo 1",
+                "q": 1,
+                "u": "kg"
+              },
+              {
+                "n": "Arena lavada",
+                "q": 0.02,
+                "u": "m3"
+              },
+              {
+                "n": "Negrolin (asfalto)",
+                "q": 0.5,
+                "u": "lt"
+              }
+            ],
+            "qty": 48,
+            "id": 1782695415917.3335,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "CONTRAPISOS",
+            "name": "Contrapiso 10cm cascotes (1/4:1:4:6)",
+            "unit": "m2",
+            "unitPrice": 58295,
+            "matCost": 44500,
+            "laborCost": 13795,
+            "mats": [
+              {
+                "n": "Cemento tipo 1",
+                "q": 5,
+                "u": "kg"
+              },
+              {
+                "n": "Cal triturada",
+                "q": 6,
+                "u": "kg"
+              },
+              {
+                "n": "Arena lavada",
+                "q": 0.04,
+                "u": "m3"
+              },
+              {
+                "n": "Cascotillo cerámico",
+                "q": 0.09,
+                "u": "m3"
+              }
+            ],
+            "qty": 115,
+            "id": 1782695415918.705,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "REVOQUES",
+            "name": "Revoque 1 capa 1.5cm hidrófugo (1:4:16)",
+            "unit": "m2",
+            "unitPrice": 46530,
+            "matCost": 33000,
+            "laborCost": 13530,
+            "mats": [
+              {
+                "n": "Cemento tipo 1",
+                "q": 1.5,
+                "u": "kg"
+              },
+              {
+                "n": "Cal triturada",
+                "q": 4,
+                "u": "kg"
+              },
+              {
+                "n": "Arena lavada",
+                "q": 0.02,
+                "u": "m3"
+              },
+              {
+                "n": "Betocem hidrófugo",
+                "q": 0.25,
+                "u": "lt"
+              }
+            ],
+            "qty": 260,
+            "id": 1782695415919.7197,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "REVOQUES",
+            "name": "Revoque 1 capa sin hidrófugo",
+            "unit": "m2",
+            "unitPrice": 44415,
+            "matCost": 31500,
+            "laborCost": 12915,
+            "mats": [
+              {
+                "n": "Cemento tipo 1",
+                "q": 1.5,
+                "u": "kg"
+              },
+              {
+                "n": "Cal triturada",
+                "q": 4,
+                "u": "kg"
+              },
+              {
+                "n": "Arena lavada",
+                "q": 0.02,
+                "u": "m3"
+              }
+            ],
+            "qty": 170,
+            "id": 1782695415920.864,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "REVOQUES",
+            "name": "Revoque salpicado (1:3)",
+            "unit": "m2",
+            "unitPrice": 40608,
+            "matCost": 28800,
+            "laborCost": 11808,
+            "mats": [
+              {
+                "n": "Cemento tipo 1",
+                "q": 3,
+                "u": "kg"
+              },
+              {
+                "n": "Arena lavada",
+                "q": 0.01,
+                "u": "m3"
+              },
+              {
+                "n": "Ceresita hidrófugo",
+                "q": 0.25,
+                "u": "lt"
+              }
+            ],
+            "qty": 60,
+            "id": 1782695415921.4385,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "TECHOS",
+            "name": "Teja francesa s/ machimbre",
+            "unit": "m2",
+            "unitPrice": 410720,
+            "matCost": 302000,
+            "laborCost": 108720,
+            "mats": [
+              {
+                "n": "Teja francesa 1ra Yoayu",
+                "q": 16,
+                "u": "un"
+              },
+              {
+                "n": "Machimbre ybyrapyta 1x3",
+                "q": 1.05,
+                "u": "m2"
+              },
+              {
+                "n": "Tirante 2x5 ybyrapyta",
+                "q": 24,
+                "u": "pulg/m"
+              },
+              {
+                "n": "Listón cedro 1x2",
+                "q": 2,
+                "u": "ml"
+              }
+            ],
+            "qty": 140,
+            "id": 1782695415922.7048,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "TECHOS",
+            "name": "Chapa Nº28 s/ caños metálicos",
+            "unit": "m2",
+            "unitPrice": 166211,
+            "matCost": 122214,
+            "laborCost": 43997,
+            "mats": [
+              {
+                "n": "Caño rectangular 30x50x1.20mm",
+                "q": 1,
+                "u": "ml"
+              },
+              {
+                "n": "Chapa zinc Nº28",
+                "q": 1.05,
+                "u": "m2"
+              },
+              {
+                "n": "Tornillo autoroscante 2",
+                "q": 4,
+                "u": "un"
+              }
+            ],
+            "qty": 55,
+            "id": 1782695415923.3472,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "CIELO RASOS",
+            "name": "Cielo raso machimbre c/ estructura madera",
+            "unit": "m2",
+            "unitPrice": 169910,
+            "matCost": 130700,
+            "laborCost": 39210,
+            "mats": [
+              {
+                "n": "Machimbre ybyrapyta 1x3",
+                "q": 1.1,
+                "u": "m2"
+              },
+              {
+                "n": "Listón cedro 1x2",
+                "q": 3,
+                "u": "ml"
+              },
+              {
+                "n": "Clavo",
+                "q": 0.25,
+                "u": "kg"
+              }
+            ],
+            "qty": 140,
+            "id": 1782695415924.3347,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "PISOS",
+            "name": "Porcelanato 60x60cm",
+            "unit": "m2",
+            "unitPrice": 197600,
+            "matCost": 152000,
+            "laborCost": 45600,
+            "mats": [
+              {
+                "n": "Porcelanato 60x60cm",
+                "q": 1.05,
+                "u": "m2"
+              },
+              {
+                "n": "Mezcla adhesiva",
+                "q": 2,
+                "u": "kg"
+              },
+              {
+                "n": "Pastina base blanca",
+                "q": 0.2,
+                "u": "kg"
+              }
+            ],
+            "qty": 60,
+            "id": 1782695415925.0554,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "PISOS",
+            "name": "Cerámica esmaltada Cecafi 32x57cm",
+            "unit": "m2",
+            "unitPrice": 100100,
+            "matCost": 77000,
+            "laborCost": 23100,
+            "mats": [
+              {
+                "n": "Cerámica Cecafi 32x57cm",
+                "q": 1.05,
+                "u": "m2"
+              },
+              {
+                "n": "Mezcla adhesiva",
+                "q": 3.5,
+                "u": "kg"
+              },
+              {
+                "n": "Pastina base blanca",
+                "q": 0.2,
+                "u": "kg"
+              }
+            ],
+            "qty": 50,
+            "id": 1782695415926.2578,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "PISOS",
+            "name": "Mosaico granítico gris 30x30cm",
+            "unit": "m2",
+            "unitPrice": 191100,
+            "matCost": 147000,
+            "laborCost": 44100,
+            "mats": [
+              {
+                "n": "Mosaico granítico gris 30x30cm",
+                "q": 1.05,
+                "u": "m2"
+              },
+              {
+                "n": "Cemento tipo 1",
+                "q": 8,
+                "u": "kg"
+              },
+              {
+                "n": "Cal triturada",
+                "q": 7,
+                "u": "kg"
+              },
+              {
+                "n": "Arena lavada",
+                "q": 0.03,
+                "u": "m3"
+              }
+            ],
+            "qty": 60,
+            "id": 1782695415927.6858,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "PISOS",
+            "name": "Baldosa calcárea 20x20cm",
+            "unit": "m2",
+            "unitPrice": 106600,
+            "matCost": 82000,
+            "laborCost": 24600,
+            "mats": [
+              {
+                "n": "Baldosa calcárea 20x20cm",
+                "q": 1.05,
+                "u": "m2"
+              },
+              {
+                "n": "Cemento tipo 1",
+                "q": 4,
+                "u": "kg"
+              },
+              {
+                "n": "Cal triturada",
+                "q": 3,
+                "u": "kg"
+              },
+              {
+                "n": "Arena lavada",
+                "q": 0.03,
+                "u": "m3"
+              },
+              {
+                "n": "Pastina base gris",
+                "q": 0.2,
+                "u": "kg"
+              }
+            ],
+            "qty": 45,
+            "id": 1782695415928.5122,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "PINTURAS",
+            "name": "Látex interior con enduido",
+            "unit": "m2",
+            "unitPrice": 55130,
+            "matCost": 37000,
+            "laborCost": 18130,
+            "mats": [
+              {
+                "n": "Lija",
+                "q": 0.25,
+                "u": "un"
+              },
+              {
+                "n": "Sellador acrílico",
+                "q": 0.05,
+                "u": "lt"
+              },
+              {
+                "n": "Látex interior",
+                "q": 0.3,
+                "u": "lt"
+              },
+              {
+                "n": "Enduido interior",
+                "q": 1.2,
+                "u": "kg"
+              }
+            ],
+            "qty": 320,
+            "id": 1782695415929.549,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "PINTURAS",
+            "name": "Látex exterior con enduido",
+            "unit": "m2",
+            "unitPrice": 56173,
+            "matCost": 37700,
+            "laborCost": 18473,
+            "mats": [
+              {
+                "n": "Lija",
+                "q": 0.25,
+                "u": "un"
+              },
+              {
+                "n": "Sellador acrílico",
+                "q": 0.05,
+                "u": "lt"
+              },
+              {
+                "n": "Látex exterior",
+                "q": 0.3,
+                "u": "lt"
+              },
+              {
+                "n": "Enduido exterior",
+                "q": 1.2,
+                "u": "kg"
+              }
+            ],
+            "qty": 60,
+            "id": 1782695415930.055,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "PINTURAS",
+            "name": "Pintura a la cal",
+            "unit": "m2",
+            "unitPrice": 22350,
+            "matCost": 15000,
+            "laborCost": 7350,
+            "mats": [
+              {
+                "n": "Cal triturada",
+                "q": 0.5,
+                "u": "kg"
+              },
+              {
+                "n": "Colorante 100cc",
+                "q": 0.05,
+                "u": "un"
+              },
+              {
+                "n": "Fijador Inatix",
+                "q": 0.6,
+                "u": "lt"
+              },
+              {
+                "n": "Lija",
+                "q": 0.25,
+                "u": "un"
+              }
+            ],
+            "qty": 40,
+            "id": 1782695415931.5461,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "CARPINTERÍA MADERA",
+            "name": "Puerta tablero eucalipto 0.80x2.10m",
+            "unit": "un",
+            "unitPrice": 1434455,
+            "matCost": 1185500,
+            "laborCost": 248955,
+            "mats": [
+              {
+                "n": "Puerta tablero eucalipto",
+                "q": 1,
+                "u": "un"
+              },
+              {
+                "n": "Ficha 5 agujeros",
+                "q": 1.5,
+                "u": "par"
+              },
+              {
+                "n": "Cerradura externa c/manija",
+                "q": 1,
+                "u": "un"
+              }
+            ],
+            "qty": 5,
+            "id": 1782695415932.4639,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "CARPINTERÍA MADERA",
+            "name": "Marco ybyrapyta puerta 0.70m",
+            "unit": "un",
+            "unitPrice": 484908,
+            "matCost": 400750,
+            "laborCost": 84158,
+            "mats": [
+              {
+                "n": "Marco ybyrapyta",
+                "q": 5.1,
+                "u": "ml"
+              },
+              {
+                "n": "Tirafondo galvanizado 3/8x5",
+                "q": 5,
+                "u": "un"
+              },
+              {
+                "n": "Cemento tipo 1",
+                "q": 1,
+                "u": "kg"
+              }
+            ],
+            "qty": 3,
+            "id": 1782695415933.0215,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "CARPINTERÍA MADERA",
+            "name": "Marco ybyrapyta puerta 0.80m",
+            "unit": "un",
+            "unitPrice": 493378,
+            "matCost": 407750,
+            "laborCost": 85628,
+            "mats": [
+              {
+                "n": "Marco ybyrapyta",
+                "q": 5.4,
+                "u": "ml"
+              },
+              {
+                "n": "Tirafondo galvanizado 3/8x5",
+                "q": 5,
+                "u": "un"
+              }
+            ],
+            "qty": 5,
+            "id": 1782695415934.4414,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "CARPINTERÍA METÁLICA",
+            "name": "Portón cochera 3.00x2.00m",
+            "unit": "un",
+            "unitPrice": 2331568,
+            "matCost": 2027450,
+            "laborCost": 304118,
+            "mats": [
+              {
+                "n": "Portón con cerradura",
+                "q": 6,
+                "u": "m2"
+              },
+              {
+                "n": "Cemento tipo 1",
+                "q": 5,
+                "u": "kg"
+              },
+              {
+                "n": "Arena lavada",
+                "q": 0.03,
+                "u": "m3"
+              }
+            ],
+            "qty": 1,
+            "id": 1782695415935.159,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "CARPINTERÍA METÁLICA",
+            "name": "Reja hierro artística 1.50x1.20m",
+            "unit": "un",
+            "unitPrice": 572643,
+            "matCost": 497950,
+            "laborCost": 74693,
+            "mats": [
+              {
+                "n": "Reja artística",
+                "q": 1.8,
+                "u": "m2"
+              },
+              {
+                "n": "Cemento tipo 1",
+                "q": 3,
+                "u": "kg"
+              }
+            ],
+            "qty": 4,
+            "id": 1782695415936.7568,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "HERRERÍA ORNAMENTAL",
+            "name": "Portón corredizo chapa lisa 3.00x2.00m",
+            "unit": "un",
+            "unitPrice": 5390000,
+            "matCost": 3850000,
+            "laborCost": 1540000,
+            "mats": [
+              {
+                "n": "Plancha hierro 1.5mm (1.22x2.44m)",
+                "q": 2,
+                "u": "un"
+              },
+              {
+                "n": "Caño estructural cuadrado 50x50x2mm",
+                "q": 12,
+                "u": "ml"
+              },
+              {
+                "n": "Caño estructural cuadrado 40x40x1.6mm",
+                "q": 8,
+                "u": "ml"
+              },
+              {
+                "n": "Riel corredizo portón 3m",
+                "q": 1.5,
+                "u": "un"
+              },
+              {
+                "n": "Rueda portón corredizo (par)",
+                "q": 1,
+                "u": "par"
+              },
+              {
+                "n": "Cerradura doble paleta portón",
+                "q": 1,
+                "u": "un"
+              },
+              {
+                "n": "Electrodo 6013 2.5mm (kg)",
+                "q": 3,
+                "u": "kg"
+              },
+              {
+                "n": "Anticorrosivo rojo/gris (lt)",
+                "q": 1,
+                "u": "lt"
+              },
+              {
+                "n": "Esmalte sintético industrial (lt)",
+                "q": 1.5,
+                "u": "lt"
+              }
+            ],
+            "qty": 1,
+            "id": 1782695415937.564,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "HERRERÍA ORNAMENTAL",
+            "name": "Puerta peatonal metálica 0.90x2.10m",
+            "unit": "un",
+            "unitPrice": 1750000,
+            "matCost": 1250000,
+            "laborCost": 500000,
+            "mats": [
+              {
+                "n": "Plancha hierro 1.5mm (1.22x2.44m)",
+                "q": 0.8,
+                "u": "un"
+              },
+              {
+                "n": "Caño estructural cuadrado 40x40x1.6mm",
+                "q": 6,
+                "u": "ml"
+              },
+              {
+                "n": "Bisagra industrial 4\" (par)",
+                "q": 1.5,
+                "u": "par"
+              },
+              {
+                "n": "Cerradura doble paleta portón",
+                "q": 1,
+                "u": "un"
+              },
+              {
+                "n": "Electrodo 6013 2.5mm (kg)",
+                "q": 1,
+                "u": "kg"
+              },
+              {
+                "n": "Anticorrosivo rojo/gris (lt)",
+                "q": 0.5,
+                "u": "lt"
+              },
+              {
+                "n": "Esmalte sintético industrial (lt)",
+                "q": 0.8,
+                "u": "lt"
+              }
+            ],
+            "qty": 1,
+            "id": 1782695415938.1794,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "DESAGÜE CLOACAL",
+            "name": "Pozo ciego Ø1.50m h=3.00m",
+            "unit": "un",
+            "unitPrice": 3690675,
+            "matCost": 2617500,
+            "laborCost": 1073175,
+            "mats": [
+              {
+                "n": "Ladrillo común",
+                "q": 1100,
+                "u": "un"
+              },
+              {
+                "n": "Cemento tipo 1",
+                "q": 150,
+                "u": "kg"
+              },
+              {
+                "n": "Arena lavada",
+                "q": 0.5,
+                "u": "m3"
+              }
+            ],
+            "qty": 1,
+            "id": 1782695415939.5637,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "DESAGÜE CLOACAL",
+            "name": "Boca de desagüe 30x30x30cm",
+            "unit": "un",
+            "unitPrice": 309248,
+            "matCost": 219325,
+            "laborCost": 89923,
+            "mats": [
+              {
+                "n": "Ladrillo común",
+                "q": 65,
+                "u": "un"
+              },
+              {
+                "n": "Cemento tipo 1",
+                "q": 7,
+                "u": "kg"
+              },
+              {
+                "n": "Arena lavada",
+                "q": 0.05,
+                "u": "m3"
+              },
+              {
+                "n": "Cal triturada",
+                "q": 7,
+                "u": "kg"
+              },
+              {
+                "n": "Rejilla hierro 30x30cm",
+                "q": 1,
+                "u": "un"
+              }
+            ],
+            "qty": 8,
+            "id": 1782695415940.2446,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "DESAGÜE CLOACAL",
+            "name": "Caño PVC 100mm (desagüe)",
+            "unit": "ml",
+            "unitPrice": 69090,
+            "matCost": 49000,
+            "laborCost": 20090,
+            "mats": [
+              {
+                "n": "Caño PVC 100mm",
+                "q": 1,
+                "u": "ml"
+              }
+            ],
+            "qty": 15,
+            "id": 1782695415941.0918,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "AGUA CORRIENTE",
+            "name": "Instalación agua fría - baño completo",
+            "unit": "un",
+            "unitPrice": 981572,
+            "matCost": 727090,
+            "laborCost": 254482,
+            "mats": [
+              {
+                "n": "Caño 1/2 roscable",
+                "q": 9,
+                "u": "ml"
+              },
+              {
+                "n": "Codo 90° roscable 1/2",
+                "q": 6,
+                "u": "un"
+              },
+              {
+                "n": "Llave de paso 1/2 FV cromada",
+                "q": 2,
+                "u": "un"
+              },
+              {
+                "n": "Tapón roscable 1/2",
+                "q": 4,
+                "u": "un"
+              },
+              {
+                "n": "Cinta teflón 18mmx25m",
+                "q": 2,
+                "u": "un"
+              }
+            ],
+            "qty": 3,
+            "id": 1782695415942.4707,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "AGUA CORRIENTE",
+            "name": "Instalación agua fría - pileta cocina",
+            "unit": "un",
+            "unitPrice": 298094,
+            "matCost": 220810,
+            "laborCost": 77284,
+            "mats": [
+              {
+                "n": "Caño 1/2 roscable",
+                "q": 2,
+                "u": "ml"
+              },
+              {
+                "n": "Codo 90° roscable 1/2",
+                "q": 3,
+                "u": "un"
+              },
+              {
+                "n": "Tapón roscable 1/2",
+                "q": 1,
+                "u": "un"
+              }
+            ],
+            "qty": 1,
+            "id": 1782695415943.67,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "AGUA CORRIENTE",
+            "name": "Tanque cisterna fibra de vidrio 500lt",
+            "unit": "un",
+            "unitPrice": 966533,
+            "matCost": 715950,
+            "laborCost": 250583,
+            "mats": [
+              {
+                "n": "Ladrillo común",
+                "q": 100,
+                "u": "un"
+              },
+              {
+                "n": "Cemento tipo 1",
+                "q": 12,
+                "u": "kg"
+              },
+              {
+                "n": "Cal triturada",
+                "q": 10,
+                "u": "kg"
+              },
+              {
+                "n": "Arena lavada",
+                "q": 0.3,
+                "u": "m3"
+              },
+              {
+                "n": "Varilla conformada Ø6mm",
+                "q": 3,
+                "u": "kg"
+              },
+              {
+                "n": "Tanque Fibrac 500lt",
+                "q": 1,
+                "u": "un"
+              }
+            ],
+            "qty": 1,
+            "id": 1782695415944.4077,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "ARTEFACTOS SANITARIOS",
+            "name": "Baño completo frío y caliente (sin bañera)",
+            "unit": "un",
+            "unitPrice": 9124972,
+            "matCost": 7604143,
+            "laborCost": 1520829,
+            "mats": [
+              {
+                "n": "Juego WC cisterna Deca Ravena",
+                "q": 1,
+                "u": "un"
+              },
+              {
+                "n": "Grifería FV Línea Clásica",
+                "q": 1,
+                "u": "un"
+              },
+              {
+                "n": "Termocalefón 80lt",
+                "q": 1,
+                "u": "un"
+              },
+              {
+                "n": "Botiquín 44x58x11cm",
+                "q": 1,
+                "u": "un"
+              },
+              {
+                "n": "Ducha eléctrica Corona",
+                "q": 1,
+                "u": "un"
+              }
+            ],
+            "qty": 3,
+            "id": 1782695415945.7166,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "ARTEFACTOS SANITARIOS",
+            "name": "Pileta cocina acero inoxidable",
+            "unit": "un",
+            "unitPrice": 717600,
+            "matCost": 598000,
+            "laborCost": 119600,
+            "mats": [
+              {
+                "n": "Pileta 1 bacha acero inox",
+                "q": 1,
+                "u": "un"
+              },
+              {
+                "n": "Grifería externa FV",
+                "q": 1,
+                "u": "un"
+              }
+            ],
+            "qty": 1,
+            "id": 1782695415946.2932,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "INSTALACIÓN ELÉCTRICA",
+            "name": "Lámpara con interruptor",
+            "unit": "un",
+            "unitPrice": 147710,
+            "matCost": 101869,
+            "laborCost": 45841,
+            "mats": [
+              {
+                "n": "Caja llave plástica",
+                "q": 1,
+                "u": "un"
+              },
+              {
+                "n": "Caja metálica conexión",
+                "q": 1,
+                "u": "un"
+              },
+              {
+                "n": "Caño corrugado 3/4",
+                "q": 5,
+                "u": "ml"
+              },
+              {
+                "n": "Cable 2mm",
+                "q": 11,
+                "u": "ml"
+              },
+              {
+                "n": "Llave unipolar + tapa",
+                "q": 1,
+                "u": "un"
+              }
+            ],
+            "qty": 18,
+            "id": 1782695415947.4746,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "INSTALACIÓN ELÉCTRICA",
+            "name": "Tomacorriente",
+            "unit": "un",
+            "unitPrice": 147710,
+            "matCost": 101869,
+            "laborCost": 45841,
+            "mats": [
+              {
+                "n": "Caja llave plástica",
+                "q": 1,
+                "u": "un"
+              },
+              {
+                "n": "Caja metálica conexión",
+                "q": 1,
+                "u": "un"
+              },
+              {
+                "n": "Caño corrugado 3/4",
+                "q": 5,
+                "u": "ml"
+              },
+              {
+                "n": "Cable 2mm",
+                "q": 11,
+                "u": "ml"
+              }
+            ],
+            "qty": 24,
+            "id": 1782695415948.186,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "INSTALACIÓN ELÉCTRICA",
+            "name": "Tablero monofásico 12 polos completo",
+            "unit": "un",
+            "unitPrice": 1711000,
+            "matCost": 1180000,
+            "laborCost": 531000,
+            "mats": [
+              {
+                "n": "Tablero PVC 12 polos riel DIN",
+                "q": 1,
+                "u": "un"
+              },
+              {
+                "n": "Llave termomagnética 1P 32A",
+                "q": 1,
+                "u": "un"
+              },
+              {
+                "n": "Llave termomagnética 1P 16A",
+                "q": 4,
+                "u": "un"
+              },
+              {
+                "n": "Llave diferencial 2P 25A 30mA",
+                "q": 1,
+                "u": "un"
+              },
+              {
+                "n": "Riel DIN 35mm x 1m",
+                "q": 0.5,
+                "u": "ml"
+              }
+            ],
+            "qty": 1,
+            "id": 1782695415949.9534,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "INSTALACIÓN ELÉCTRICA",
+            "name": "Llave diferencial 2P 25A 30mA (salvavidas)",
+            "unit": "un",
+            "unitPrice": 478500,
+            "matCost": 330000,
+            "laborCost": 148500,
+            "mats": [
+              {
+                "n": "Llave diferencial 2P 25A 30mA",
+                "q": 1,
+                "u": "un"
+              }
+            ],
+            "qty": 1,
+            "id": 1782695415950.578,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "INSTALACIÓN ELÉCTRICA",
+            "name": "Puesta a tierra completa (jabalina + cable)",
+            "unit": "un",
+            "unitPrice": 616250,
+            "matCost": 425000,
+            "laborCost": 191250,
+            "mats": [
+              {
+                "n": "Jabalina cobre 1.5m + tomatierra",
+                "q": 1,
+                "u": "un"
+              },
+              {
+                "n": "Cable cobre desnudo 35mm² (tierra)",
+                "q": 8,
+                "u": "ml"
+              },
+              {
+                "n": "Borne unión bimetálico tierra",
+                "q": 1,
+                "u": "un"
+              }
+            ],
+            "qty": 1,
+            "id": 1782695415951.7695,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "VEREDAS Y ACCESOS",
+            "name": "Vereda hormigón alisado 7cm s/ malla",
+            "unit": "m2",
+            "unitPrice": 195750,
+            "matCost": 145000,
+            "laborCost": 50750,
+            "mats": [
+              {
+                "n": "Cemento tipo 1",
+                "q": 25,
+                "u": "kg"
+              },
+              {
+                "n": "Arena lavada",
+                "q": 0.05,
+                "u": "m3"
+              },
+              {
+                "n": "Piedra triturada V",
+                "q": 0.1,
+                "u": "tn"
+              }
+            ],
+            "qty": 35,
+            "id": 1782695415952.8743,
+            "disc": 0,
+            "note": ""
+          },
+          {
+            "cat": "VEREDAS Y ACCESOS",
+            "name": "Cordón de vereda premoldeado colocado",
+            "unit": "ml",
+            "unitPrice": 74250,
+            "matCost": 55000,
+            "laborCost": 19250,
+            "mats": [
+              {
+                "n": "Cordón de vereda premoldeado",
+                "q": 1.05,
+                "u": "ml"
+              },
+              {
+                "n": "Cemento tipo 1",
+                "q": 5,
+                "u": "kg"
+              },
+              {
+                "n": "Arena lavada",
+                "q": 0.01,
+                "u": "m3"
+              }
+            ],
+            "qty": 20,
+            "id": 1782695415953.7908,
+            "disc": 0,
+            "note": ""
+          }
+        ],
+        "profitPct": 12,
+        "ivaEnabled": true,
+        "notes": "Casa de 2 dormitorios, sala, cocina, comedor, 3 baños, quincho, cochera y jardín. Planta alta: no."
+      }
+    ],
+    "execution": {
+      "finances": {
+        "income": [],
+        "expenses": []
+      },
+      "schedules": {},
+      "dailyLogs": [],
+      "documents": []
+    }
+  },
+  "contractors": [],
+  "profile": {
+    "name": "Constructor Ejemplo",
+    "email": "constructor@ejemplo.com",
+    "phone": "0981 000 001",
+    "logo": ""
+  },
+  "exportDate": "2026-06-29T01:10:16.136Z",
+  "app": "Puntero",
+  "version": "7.0"
+}

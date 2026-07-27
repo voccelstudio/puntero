@@ -348,6 +348,224 @@ function migrateToV8() {
     state.migratedV7 = true;
 }
 
+// ── FILE SYSTEM ACCESS API — CARPETA DE PROYECTO ───────────────────────
+var DEFAULT_FOLDER_CATEGORIES = [
+    { id: "planos",        name: "Planos",                  icon: "📐" },
+    { id: "fotos_avance",  name: "Fotos de Avance",         icon: "📸" },
+    { id: "fotos_detalle", name: "Fotos de Detalle",        icon: "🔍" },
+    { id: "contratos",     name: "Contratos",               icon: "📝" },
+    { id: "facturas",      name: "Facturas",                icon: "🧾" },
+    { id: "manuales",      name: "Manuales",                icon: "📘" },
+    { id: "planillas",     name: "Planillas",               icon: "📊" },
+    { id: "exportados",    name: "Exportados",              icon: "📤" },
+    { id: "otros",         name: "Otros",                   icon: "📁" }
+];
+
+function supportsFileSystemAccess() {
+    return 'showDirectoryPicker' in window;
+}
+
+function getProjectFolderHandle(p) {
+    if (!p || !p.execution) return null;
+    return p.execution.folderHandle || null;
+}
+
+function getProjectFolderStatus(p) {
+    if (!supportsFileSystemAccess()) return 'unsupported';
+    if (!p || !p.execution || !p.execution.folderHandle) return 'none';
+    return 'linked';
+}
+
+async function verifyFolderPermission(handle, requestWrite) {
+    if (!handle) return false;
+    try {
+        var mode = requestWrite ? 'readwrite' : 'read';
+        var perm = await handle.queryPermission({ mode: mode });
+        if (perm === 'granted') return true;
+        perm = await handle.requestPermission({ mode: mode });
+        return perm === 'granted';
+    } catch (e) {
+        return false;
+    }
+}
+
+async function initProjectFolder(p) {
+    if (!supportsFileSystemAccess()) {
+        toast("Tu navegador no soporta carpetas en disco. Usá Chrome o Edge.", false);
+        return false;
+    }
+    try {
+        var dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        // Crear subcarpetas
+        for (var i = 0; i < DEFAULT_FOLDER_CATEGORIES.length; i++) {
+            var cat = DEFAULT_FOLDER_CATEGORIES[i];
+            await dirHandle.getDirectoryHandle(cat.name, { create: true });
+        }
+        // Escribir _metadata.json
+        var metadata = {
+            app: "Puntero",
+            version: "3.0",
+            project: p.name,
+            client: p.client || "",
+            created: new Date().toISOString(),
+            categories: DEFAULT_FOLDER_CATEGORIES.map(function(c) { return c.name; })
+        };
+        var metaFile = await dirHandle.getFileHandle('_metadata.json', { create: true });
+        var writable = await metaFile.createWritable();
+        await writable.write(JSON.stringify(metadata, null, 2));
+        await writable.close();
+
+        if (!p.execution) p.execution = {};
+        p.execution.folderHandle = dirHandle;
+        p.execution.folderPath = dirHandle.name;
+        p.execution.folderCategories = DEFAULT_FOLDER_CATEGORIES;
+        save();
+        toast("Carpeta vinculada: " + dirHandle.name + " ✓");
+        return true;
+    } catch (e) {
+        if (e.name !== 'AbortError') {
+            toast("Error al vincular carpeta: " + e.message, false);
+        }
+        return false;
+    }
+}
+
+async function ensureSubfolders(dirHandle) {
+    if (!dirHandle) return;
+    for (var i = 0; i < DEFAULT_FOLDER_CATEGORIES.length; i++) {
+        var cat = DEFAULT_FOLDER_CATEGORIES[i];
+        await dirHandle.getDirectoryHandle(cat.name, { create: true });
+    }
+}
+
+async function getSubfolderHandle(dirHandle, categoryObj) {
+    if (!dirHandle) return null;
+    try {
+        return await dirHandle.getDirectoryHandle(categoryObj.name, { create: true });
+    } catch (e) {
+        return null;
+    }
+}
+
+async function scanFolder(dirHandle) {
+    var results = [];
+    if (!dirHandle) return results;
+    try {
+        for await (var entry of dirHandle) {
+            var name = entry[0];
+            var handle = entry[1];
+            if (name === '_metadata.json') continue;
+            if (handle.kind === 'directory') {
+                var catDef = DEFAULT_FOLDER_CATEGORIES.find(function(c) { return c.name === name; });
+                var catId = catDef ? catDef.id : 'otros';
+                var catIcon = catDef ? catDef.icon : '📁';
+                for await (var fileEntry of handle) {
+                    if (fileEntry[1].kind === 'file') {
+                        var fHandle = fileEntry[1];
+                        var file = await fHandle.getFile();
+                        results.push({
+                            name: fileEntry[0],
+                            handle: fHandle,
+                            category: catId,
+                            categoryName: name,
+                            categoryIcon: catIcon,
+                            size: file.size,
+                            type: file.type,
+                            lastModified: file.lastModified
+                        });
+                    }
+                }
+            }
+        }
+    } catch (e) {
+        console.warn("[Folder] Error escaneando carpeta:", e);
+    }
+    return results;
+}
+
+async function writeFileToFolder(dirHandle, categoryName, fileName, data, mimeType) {
+    if (!dirHandle) return false;
+    try {
+        var subHandle = await dirHandle.getDirectoryHandle(categoryName, { create: true });
+        var fileHandle = await subHandle.getFileHandle(fileName, { create: true });
+        var writable = await fileHandle.createWritable();
+        if (data instanceof Blob) {
+            await writable.write(data);
+        } else if (data instanceof ArrayBuffer) {
+            await writable.write(new Blob([data], { type: mimeType || 'application/octet-stream' }));
+        } else if (typeof data === 'string') {
+            await writable.write(data);
+        }
+        await writable.close();
+        return true;
+    } catch (e) {
+        console.warn("[Folder] Error escribiendo archivo:", e);
+        return false;
+    }
+}
+
+async function readFileFromFolder(fileHandle) {
+    try {
+        return await fileHandle.getFile();
+    } catch (e) {
+        return null;
+    }
+}
+
+async function deleteFileFromFolder(fileHandle) {
+    try {
+        await fileHandle.remove();
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+function formatFileSize(bytes) {
+    if (!bytes || bytes === 0) return '0 B';
+    var units = ['B', 'KB', 'MB', 'GB'];
+    var i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return (bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0) + ' ' + units[i];
+}
+
+async function autoSavePhotoToFolder(photoDataUrl, photoName) {
+    var p = getActiveProject();
+    if (!p || !p.execution || !p.execution.folderHandle) return false;
+    var handle = p.execution.folderHandle;
+    var ok = await verifyFolderPermission(handle, true);
+    if (!ok) return false;
+    // Convertir data URL a Blob
+    var parts = photoDataUrl.split(',');
+    var mime = parts[0].match(/:(.*?);/)[1];
+    var byteStr = atob(parts[1]);
+    var ab = new ArrayBuffer(byteStr.length);
+    var ia = new Uint8Array(ab);
+    for (var i = 0; i < byteStr.length; i++) ia[i] = byteStr.charCodeAt(i);
+    var blob = new Blob([ab], { type: mime });
+    return writeFileToFolder(handle, 'Fotos de Avance', photoName, blob, mime);
+}
+
+async function copyExportToFolder(blob, fileName) {
+    var p = getActiveProject();
+    if (!p || !p.execution || !p.execution.folderHandle) return false;
+    var handle = p.execution.folderHandle;
+    var ok = await verifyFolderPermission(handle, true);
+    if (!ok) return false;
+    return writeFileToFolder(handle, 'Exportados', fileName, blob, blob.type || 'application/octet-stream');
+}
+
+function migrateToV9() {
+    if (state.migratedV8) return;
+    state.projects.forEach(function(p) {
+        if (!p.execution) p.execution = {};
+        if (!p.execution.folderHandle) p.execution.folderHandle = null;
+        if (!p.execution.folderPath) p.execution.folderPath = '';
+        if (!p.execution.folderCategories) p.execution.folderCategories = DEFAULT_FOLDER_CATEGORIES;
+    });
+    state.migratedV8 = true;
+    save();
+}
+
 /**
  * GESTIÓN DE MULTI-PROYECTOS Y ADENDAS
  */
@@ -1145,12 +1363,13 @@ function setSection(s) {
     contratos: "Contratos Legales",
     resources: "Biblioteca y Recursos",
     projects: "Gestión de Proyectos",
+    folder: "Carpeta del Proyecto",
     cloud: "☁️ Cloud"
   };
   const vtitle = document.getElementById("view-title");
   if (vtitle) vtitle.textContent = titles[s] || "Puntero";
 
-  ["global_dashboard", "budget", "ot", "schedule", "contractors", "jornaleros", "contratos", "prices", "dashboard", "themes", "logs", "materials", "finances", "performance", "documents", "suppliers", "resources", "projects", "aftercare", "computo", "cloud"].forEach(x => {
+  ["global_dashboard", "budget", "ot", "schedule", "contractors", "jornaleros", "contratos", "prices", "dashboard", "themes", "logs", "materials", "finances", "performance", "documents", "suppliers", "resources", "projects", "aftercare", "computo", "folder", "cloud"].forEach(x => {
     const el = document.getElementById("section-" + x);
     if (el) el.style.display = s === x ? "" : "none";
     const b = document.getElementById("btn-" + x);
@@ -1176,6 +1395,7 @@ function setSection(s) {
   if (s === "documents") renderDocuments();
   if (s === "suppliers") renderSuppliers();
   if (s === "resources") renderResources();
+  if (s === "folder") renderFolder();
   if (s === "cloud") renderCloudSettings();
 }
 
@@ -1491,6 +1711,7 @@ async function exportDailyPDF(logId) {
   }
 
   doc.save(`Reporte_Diario_${formatDatePY(log.date).replace(/\//g, '-')}.pdf`);
+  copyExportToFolder(doc.output('blob'), `Reporte_Diario_${formatDatePY(log.date).replace(/\//g, '-')}.pdf`);
   toast("PDF Diario generado ✓");
 }
 
@@ -1596,6 +1817,7 @@ async function exportWeeklyReport() {
   }
 
   doc.save(`Informe_Semanal_${(proj.name || 'proyecto').replace(/\s+/g,'_')}.pdf`);
+  copyExportToFolder(doc.output('blob'), `Informe_Semanal_${(proj.name || 'proyecto').replace(/\s+/g,'_')}.pdf`);
   toast("Informe Semanal generado ✓");
 }
 
@@ -2241,8 +2463,11 @@ function exportXLS() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   const safeClient = (p.client || p.name || "Proyecto").replace(/\s+/g, "_");
-  a.href = url; a.download = `Presupuesto_${String(state.budgetNum || 1).padStart(4, "0")}_${safeClient}.csv`;
+  const csvFn = `Presupuesto_${String(state.budgetNum || 1).padStart(4, "0")}_${safeClient}.csv`;
+  a.href = url; a.download = csvFn;
   a.click(); URL.revokeObjectURL(url);
+  // Copiar a carpeta del proyecto si está vinculada
+  copyExportToFolder(blob, csvFn);
   toast("Archivo exportado ✓"); closeModal();
 }
 
@@ -2842,6 +3067,8 @@ function generarPDF() {
   }
   const fn = "Presupuesto_" + String(budgetNum).padStart(4, "0") + "_" + (clientName || projectName || "Proyecto").replace(/\s+/g, "_") + ".pdf";
   doc.save(fn);
+  // Copiar a carpeta del proyecto si está vinculada
+  copyExportToFolder(doc.output('blob'), fn);
   toast("PDF generado ✓");
 }
 
@@ -2879,17 +3106,59 @@ function createProject() {
             documents: [],
             aftercare: [],
             projectStartDate: "",
-            projectEndDate: ""
+            projectEndDate: "",
+            folderHandle: _pendingFolderHandle || null,
+            folderPath: _pendingFolderName || '',
+            folderCategories: DEFAULT_FOLDER_CATEGORIES
         }
     };
 
-    state.projects.push(newP);
-    state.activeProjectId = newP.id;
-    state.activeAdendaId = 'main';
-    save();
-    closeModal();
-    setSection('budget');
-    toast("Proyecto creado ✓");
+    var folderPromise = Promise.resolve();
+    if (newP.execution.folderHandle) {
+        folderPromise = ensureSubfolders(newP.execution.folderHandle).then(function() {
+            var metadata = {
+                app: "Puntero",
+                version: "3.0",
+                project: name,
+                client: newP.client || "",
+                created: new Date().toISOString(),
+                categories: DEFAULT_FOLDER_CATEGORIES.map(function(c) { return c.name; })
+            };
+            return writeFileToFolder(newP.execution.folderHandle, 'otros', '_metadata.json', JSON.stringify(metadata, null, 2), 'application/json');
+        });
+    }
+
+    folderPromise.then(function() {
+        state.projects.push(newP);
+        state.activeProjectId = newP.id;
+        state.activeAdendaId = 'main';
+        _pendingFolderHandle = null;
+        _pendingFolderName = '';
+        save();
+        closeModal();
+        setSection('budget');
+        toast(newP.execution.folderHandle ? "Proyecto creado con carpeta vinculada ✓" : "Proyecto creado ✓");
+    });
+}
+
+var _pendingFolderHandle = null;
+var _pendingFolderName = '';
+
+async function selectNewProjectFolder() {
+    if (!supportsFileSystemAccess()) return;
+    try {
+        var dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        _pendingFolderHandle = dirHandle;
+        _pendingFolderName = dirHandle.name;
+        var nameEl = document.getElementById("np-folder-name");
+        var btnEl = document.getElementById("np-folder-btn");
+        if (nameEl) nameEl.innerHTML = '✅ <strong>' + escapeHtml(dirHandle.name) + '</strong>';
+        if (btnEl) btnEl.textContent = '🔄 Cambiar carpeta';
+    } catch (e) {
+        if (e.name !== 'AbortError') {
+            toast("Error: " + e.message, false);
+        }
+    }
 }
 
 function saveEditProject(id) {
@@ -2980,6 +3249,18 @@ function showModal(type, arg) {
         <div class="fullcol"><label class="stat-lbl">Ubicación / Dirección</label><input id="np-addr" placeholder="Ciudad, Barrio..."></div>
         <div><label class="stat-lbl">Superficie (m²)</label><input id="np-m2" type="number" placeholder="0"></div>
       </div>
+      ${supportsFileSystemAccess() ? `
+      <div style="margin-top:16px;padding:14px;background:var(--sur2);border-radius:var(--rad);border:1px solid var(--bor)">
+        <label class="stat-lbl" style="margin-bottom:8px">📁 Carpeta del Proyecto</label>
+        <p style="font-size:0.8rem;color:var(--tx3);margin-bottom:10px">Elegí una carpeta en tu PC donde se guardarán fotos, planos, PDFs y archivos de esta obra. Se crearán subcarpetas automáticamente.</p>
+        <div id="np-folder-status" style="display:flex;align-items:center;gap:8px">
+          <button class="btn" onclick="selectNewProjectFolder()" id="np-folder-btn">📂 Elegir carpeta en mi PC</button>
+          <span id="np-folder-name" style="font-size:0.85rem;color:var(--tx3)"></span>
+        </div>
+      </div>` : `
+      <div style="margin-top:16px;padding:14px;background:var(--sur2);border-radius:var(--rad);border:1px solid var(--bor)">
+        <p style="font-size:0.8rem;color:var(--tx3)">📁 Tu navegador no soporta carpetas en disco. Los archivos se guardarán en el navegador. Usá Chrome o Edge para la experiencia completa.</p>
+      </div>`}
       <div class="modal-acts">
         <button class="btn" onclick="closeModal()">Cancelar</button>
         <button class="btn primary" onclick="createProject()">Crear e Iniciar 🚀</button>
@@ -3882,6 +4163,7 @@ window.onload = () => {
   if (!state.jornalConfig) state.jornalConfig = { ayudante: 80000, oficial: 110000, puntero: 140000 };
   
   migrateToV7();
+  migrateToV9();
   renderCurrencyArea();
   initFirebaseAuth();
   fetchExchangeRate();
