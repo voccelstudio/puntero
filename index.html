@@ -162,7 +162,8 @@
     <h2>Acceso Restringido</h2>
     <p>Necesitás iniciar sesión con tu cuenta para usar la aplicación. Tus proyectos y datos se guardan en este dispositivo.</p>
     <button class="btn primary full" onclick="showAuthModal()">🔐 Iniciar Sesión</button>
-    <button class="btn full" onclick="showAuthModal()">Crear Cuenta Nueva</button>
+    <button class="btn full" style="background:transparent;border-color:var(--bor,#e2e8f0);color:var(--tx3,#64748b)" onclick="startGuestSession('invitado01')">🎭 Invitado 01 (72h)</button>
+    <button class="btn full" style="background:transparent;border-color:var(--bor,#e2e8f0);color:var(--tx3,#64748b)" onclick="startGuestSession('Clara')">🎭 Invitado Clara (72h)</button>
   </div>
   <div class="app-lock-box" id="app-lock-verify" style="display:none;max-width:380px;width:100%;background:var(--sur,#fff);border:1px solid var(--bor,#e2e8f0);border-radius:16px;padding:30px 26px;text-align:center;box-shadow:0 20px 60px -12px rgba(0,0,0,.5)">
     <div style="font-size:2rem;margin-bottom:6px">📧</div>

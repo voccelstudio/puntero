@@ -4028,7 +4028,7 @@ window._currentUser = null;
 // Bloquea toda la app si no hay cuenta iniciada (se puede desactivar con state._requireAccount=false)
 // Las cuentas maestras (isMaster) o con email verificado pasan; las nuevas deben confirmar su correo.
 function masteredOrVerified(u) {
-  return !!u && (u.isMaster === true || u.emailVerified === true);
+  return !!u && (u.isMaster === true || u.isGuest === true || u.emailVerified === true);
 }
 
 function applyAppLock() {
@@ -4051,10 +4051,22 @@ function applyAppLock() {
 }
 
 function initFirebaseAuth() {
+  if (!window._AUTH) {
+    // Sin conexión / Firebase no cargó: solo sesión local (maestro o invitado)
+    window._currentUser = localStorage.getItem("pte_master_session") === "1"
+      ? { uid: "master", email: "martin@puntero.local", isMaster: true }
+      : guestUser();
+    applyAppLock();
+    scheduleGuestExpiry();
+    return;
+  }
   window._AUTH.onAuthStateChanged(function (user) {
     // Cuenta maestra (dueño): sesión local persistente sin correo registrado
     if (!user && localStorage.getItem("pte_master_session") === "1") {
       user = { uid: "master", email: "martin@puntero.local", isMaster: true };
+    } else if (!user) {
+      // Cuenta invitado/demo local: no usa Firebase
+      user = guestUser();
     }
     window._currentUser = user;
     var btn = document.getElementById("auth-btn");
@@ -4062,7 +4074,7 @@ function initFirebaseAuth() {
       btn.textContent = user ? "👤 " + user.email : "🔐 Iniciar Sesión";
     }
     applyAppLock();
-    if (user && user.isMaster !== true && masteredOrVerified(user)) {
+    if (user && user.isMaster !== true && user.isGuest !== true && masteredOrVerified(user)) {
       // [CLOUD OFF] sincronización con Firestore desactivada: reactivar quitando el comentario
       // loadFromFirestore().then(function () {
       //   if (state._workspaceId) startWorkspaceListener(state._workspaceId);
@@ -4073,6 +4085,7 @@ function initFirebaseAuth() {
       delete state._workspaceCode;
       delete window._workspaceRef;
     }
+    scheduleGuestExpiry();
   });
 }
 
@@ -4101,15 +4114,27 @@ async function loadFromFirestore() {
 function showAuthModal() {
   if (window._currentUser) {
     var el = document.getElementById("modal-area");
+    var guestNote = "";
+    if (window._currentUser.isGuest) {
+      var h = Math.floor(guestRemainingMs() / 3600000);
+      var m = Math.floor((guestRemainingMs() % 3600000) / 60000);
+      guestNote = '<div style="margin-top:6px;font-size:0.8rem;color:var(--tx3)">🎭 Cuenta de invitado · expira en ' + h + 'h ' + m + 'm</div>';
+    }
+    var isMasterAcc = window._currentUser.isMaster === true;
+    var acts = isMasterAcc
+      ? '<div class="modal-acts" style="flex-direction:column">' +
+        '<button class="btn primary full" onclick="showCreateAccountModal()">➕ Crear Nueva Cuenta (vender)</button>' +
+        '<button class="btn danger full" onclick="logout()">Cerrar Sesión</button></div>'
+      : '<div class="modal-acts"><button class="btn danger full" onclick="logout()">Cerrar Sesión</button></div>';
     el.innerHTML = '<div class="overlay" style="z-index:600" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:350px">' +
       '<div class="modal-title">Mi Cuenta<button class="delbtn" onclick="closeModal()">✕</button></div>' +
       '<div style="text-align:center;padding:20px">' +
-      '<div style="font-size:2rem;margin-bottom:10px">👤</div>' +
+      '<div style="font-size:2rem;margin-bottom:10px">' + (window._currentUser.isGuest ? '🎭' : '👤') + '</div>' +
       '<div style="font-weight:700;margin-bottom:4px">' + window._currentUser.email + '</div>' +
       '<div style="color:var(--tx3);font-size:0.85rem">' + window._currentUser.uid.slice(0, 8) + '...</div>' +
-      '<div style="margin-top:15px;font-size:0.8rem;color:var(--tx3)">Cuenta activa. La sincronización en la nube está desactivada.</div>' +
-      '</div>' +
-      '<div class="modal-acts"><button class="btn danger full" onclick="logout()">Cerrar Sesión</button></div></div></div>';
+      guestNote +
+      '<div style="margin-top:15px;font-size:0.8rem;color:var(--tx3)">' + (isMasterAcc ? '🔐 Acceso de administrador' : 'Cuenta activa. La sincronización en la nube está desactivada.') + '</div>' +
+      '</div>' + acts + '</div></div>';
     return;
   }
   var el = document.getElementById("modal-area");
@@ -4122,7 +4147,6 @@ function showAuthModal() {
     '</div>' +
     '<div class="modal-acts" style="flex-direction:column">' +
     '<button class="btn primary full" onclick="login()">Iniciar Sesión</button>' +
-    '<button class="btn full" onclick="register()">Crear Cuenta Nueva</button>' +
     '<button class="btn full" style="background:transparent;border-color:var(--bor);color:var(--tx3)" onclick="forgotPassword()">🔑 ¿Olvidaste tu contraseña?</button>' +
     '</div></div></div>';
 }
@@ -4134,14 +4158,17 @@ async function login() {
   // Cuenta maestra (dueño): martin no necesita correo registrado ni confirmación
   if (email.toLowerCase() === "martin" && pass === "6J89dfrh") {
     localStorage.setItem("pte_master_session", "1");
+    deleteGuestSession();
     window._currentUser = { uid: "master", email: "martin@puntero.local", isMaster: true };
     applyAppLock();
     closeModal();
     toast("Sesión maestra iniciada ✓");
     return;
   }
+  if (!window._AUTH) return toast("Sin conexión. Usá el modo invitado.", false);
   try {
     var cred = await window._AUTH.signInWithEmailAndPassword(email, pass);
+    deleteGuestSession();
     closeModal();
     if (cred.user && cred.user.emailVerified) {
       toast("Sesión iniciada ✓");
@@ -4155,12 +4182,17 @@ async function login() {
 }
 
 async function register() {
+  if (!window._currentUser || window._currentUser.isMaster !== true) {
+    return toast("La creación de cuentas está reservada al administrador 🔒", false);
+  }
   var email = document.getElementById("auth-email").value.trim();
   var pass = document.getElementById("auth-pass").value;
   if (!email || !pass) return toast("Completá todos los campos", false);
   if (pass.length < 6) return toast("La contraseña debe tener al menos 6 caracteres", false);
+  if (!window._AUTH) return toast("Sin conexión. Usá el modo invitado.", false);
   try {
     var cred = await window._AUTH.createUserWithEmailAndPassword(email, pass);
+    deleteGuestSession();
     if (cred.user && cred.user.sendEmailVerification) {
       await cred.user.sendEmailVerification();
     }
@@ -4173,6 +4205,7 @@ async function register() {
 }
 
 function resendVerification() {
+  if (!window._AUTH) return toast("Sin conexión", false);
   var u = window._AUTH.currentUser;
   if (!u) return toast("No hay sesión activa", false);
   u.sendEmailVerification().then(function () {
@@ -4181,6 +4214,7 @@ function resendVerification() {
 }
 
 async function recheckVerification() {
+  if (!window._AUTH) return toast("Sin conexión", false);
   var u = window._AUTH.currentUser;
   if (!u) return;
   try {
@@ -4199,6 +4233,7 @@ async function recheckVerification() {
 }
 
 async function forgotPassword() {
+  if (!window._AUTH) return toast("Sin conexión", false);
   var email = document.getElementById("auth-email").value.trim();
   if (!email) return toast("Ingresá tu correo primero", false);
   try {
@@ -4212,6 +4247,7 @@ async function forgotPassword() {
 
 async function logout() {
   stopWorkspaceListener();
+  stopGuestExpiry();
   delete state._workspaceId;
   delete state._workspaceCode;
   delete window._workspaceRef;
@@ -4223,11 +4259,162 @@ async function logout() {
     toast("Sesión cerrada ✓");
     return;
   }
+  if (window._currentUser && window._currentUser.isGuest) {
+    deleteGuestSession();
+    window._currentUser = null;
+    applyAppLock();
+    closeModal();
+    toast("Sesión de invitado cerrada ✓");
+    return;
+  }
   try {
     await window._AUTH.signOut();
     closeModal();
     toast("Sesión cerrada ✓");
   } catch (e) { toast("Error al cerrar sesión", false); }
+}
+
+// ── CUENTA DEMO / INVITADO ────────────────────────────────────────────────
+// Sesión local de invitado (cuenta-invitado-NN). Dura 72h y se cierra sola al
+// vencer, aunque no haya conexión a internet (usa el reloj del dispositivo).
+var GUEST_TTL_MS = 72 * 60 * 60 * 1000;
+var _guestTimer = null, _guestTimerDeadline = null;
+
+function guestSession() {
+  try { var raw = localStorage.getItem("pte_guest_session"); return raw ? JSON.parse(raw) : null; }
+  catch (e) { return null; }
+}
+
+function guestRemainingMs() {
+  var g = guestSession();
+  return g ? Math.max(0, g.expiresAt - Date.now()) : 0;
+}
+
+function guestUser() {
+  var g = guestSession();
+  if (!g || g.expiresAt <= Date.now()) return null;
+  return { uid: g.uid, email: g.email, isGuest: true };
+}
+
+function startGuestSession(label) {
+  var pretty = (label || "invitado").trim();
+  var slug = pretty.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+  var email = slug + "@puntero.local";
+  var uid = "guest-" + slug;
+  var g = guestSession();
+  if (!g || g.email !== email || g.expiresAt <= Date.now()) {
+    g = {
+      uid: uid,
+      email: email,
+      created: Date.now(),
+      expiresAt: Date.now() + GUEST_TTL_MS
+    };
+    localStorage.setItem("pte_guest_session", JSON.stringify(g));
+  }
+  window._currentUser = guestUser();
+  applyAppLock();
+  closeModal();
+  scheduleGuestExpiry();
+  toast("Sesión demo activa " + pretty + " · 72h ✓");
+}
+
+function deleteGuestSession() {
+  localStorage.removeItem("pte_guest_session");
+  window._guestWarned = false;
+}
+
+function scheduleGuestExpiry() {
+  stopGuestExpiry();
+  var g = guestSession();
+  if (!g || !window._currentUser || !window._currentUser.isGuest) return;
+  var rest = guestRemainingMs();
+  if (rest <= 0) return expireGuestSession();
+  _guestTimer = setInterval(function () {
+    var r = guestRemainingMs();
+    if (r <= 0) return expireGuestSession();
+    if (r <= 60 * 60 * 1000 && !window._guestWarned) {
+      window._guestWarned = true;
+      toast("Tu cuenta de invitado expira en menos de 1 hora ⏳", false);
+    }
+  }, 30000);
+  _guestTimerDeadline = setTimeout(function () { expireGuestSession(); }, rest + 2000);
+}
+
+function stopGuestExpiry() {
+  if (_guestTimer) { clearInterval(_guestTimer); _guestTimer = null; }
+  if (_guestTimerDeadline) { clearTimeout(_guestTimerDeadline); _guestTimerDeadline = null; }
+}
+
+function expireGuestSession() {
+  deleteGuestSession();
+  if (window._currentUser && window._currentUser.isGuest) {
+    window._currentUser = null;
+    applyAppLock();
+    toast("La cuenta de invitado venció (72h). Iniciá sesión o creá otra.", false);
+  }
+}
+
+function initGuestSession() {
+  var g = guestSession();
+  if (!g) return;
+  if (g.expiresAt <= Date.now()) { deleteGuestSession(); return; }
+  if (!window._currentUser) window._currentUser = guestUser();
+  scheduleGuestExpiry();
+}
+
+// ── CREACIÓN DE CUENTAS (SOLO ADMIN) ───────────────────────────────────────
+// El registro público está bloqueado: solo la cuenta maestra (admin) puede
+// crear cuentas nuevas para vender.
+function showCreateAccountModal() {
+  var el = document.getElementById("modal-area");
+  el.innerHTML = '<div class="overlay" style="z-index:600" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:400px">' +
+    '<div class="modal-title">➕ Crear Cuenta Nueva<button class="delbtn" onclick="closeModal()">✕</button></div>' +
+    '<div id="create-acc-msg" style="font-size:0.85rem;margin-bottom:10px;color:var(--tx3)">Completá los datos. Se enviará un link de verificación al correo del cliente.</div>' +
+    '<div style="display:flex;flex-direction:column;gap:12px">' +
+    '<input id="new-acc-email" type="email" placeholder="Correo del cliente" style="width:100%">' +
+    '<div style="display:flex;gap:8px"><input id="new-acc-pass" type="text" style="width:100%"><button class="btn" onclick="genAccPass()">🎲</button></div>' +
+    '</div>' +
+    '<div class="modal-acts"><button class="btn primary full" onclick="adminCreateAccount()">Crear y Enviar Verificación</button></div></div></div>';
+  genAccPass();
+}
+
+function randomPass() {
+  var c = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  var s = "";
+  for (var i = 0; i < 12; i++) s += c.charAt(Math.floor(Math.random() * c.length));
+  return s;
+}
+
+function genAccPass() {
+  var inp = document.getElementById("new-acc-pass");
+  if (inp) inp.value = randomPass();
+}
+
+async function adminCreateAccount() {
+  if (!window._currentUser || window._currentUser.isMaster !== true) return toast("Solo el administrador puede crear cuentas 🔒", false);
+  if (!window._AUTH) return toast("Sin conexión. Necesitás internet para crear cuentas.", false);
+  var email = document.getElementById("new-acc-email").value.trim();
+  var pass = document.getElementById("new-acc-pass").value;
+  var msg = document.getElementById("create-acc-msg");
+  if (!email || !pass) return toast("Completá correo y contraseña", false);
+  if (pass.length < 6) return toast("Contraseña mínima de 6 caracteres", false);
+  try {
+    await window._AUTH.createUserWithEmailAndPassword(email, pass);
+    if (window._AUTH.currentUser && window._AUTH.currentUser.sendEmailVerification) {
+      await window._AUTH.currentUser.sendEmailVerification();
+    }
+    // Restaurar sesión maestra (al crear, Firebase inicia sesión como el nuevo usuario)
+    try { await window._AUTH.signOut(); } catch (e) {}
+    if (localStorage.getItem("pte_master_session") === "1") {
+      window._currentUser = { uid: "master", email: "martin@puntero.local", isMaster: true };
+    }
+    applyAppLock();
+    msg.style.color = "var(--ok)";
+    msg.innerHTML = 'Cuenta creada ✓<br><b>' + email + '</b><br><b>' + pass + '</b><br><small>Link de verificación enviado al correo. Podés pegar estos datos al cliente.</small>';
+  } catch (e) {
+    msg.style.color = "var(--err)";
+    msg.textContent = (e && e.message) || "No se pudo crear la cuenta";
+  }
 }
 
 // ── CLOUD SETTINGS ─────────────────────────────────────────────────────────
@@ -4416,6 +4603,7 @@ window.onload = () => {
   migrateToV9();
   migrateToV10();
   renderCurrencyArea();
+  initGuestSession();
   initFirebaseAuth();
   fetchExchangeRate();
   applyAppLock();
