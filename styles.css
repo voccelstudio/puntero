@@ -352,6 +352,13 @@ table.tbl{width:100%;border-collapse:collapse;font-size:.9rem}
 .info-box p{font-size:.85rem;color:var(--tx2);line-height:1.5}
 .toast{position:fixed;bottom:16px;right:16px;padding:10px 20px;border-radius:var(--rad);font-size:.9rem;font-weight:600;z-index:400;background:var(--ok);color:var(--bg);box-shadow:0 8px 24px rgba(0,0,0,.3);font-family:var(--font-body)}
 
+/* Pantalla de bloqueo: requiere cuenta */
+.app-lock{position:fixed;inset:0;z-index:500;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;padding:24px;transition:opacity .25s}
+.app-lock-box{max-width:380px;width:100%;background:var(--sur);border:1px solid var(--bor);border-radius:16px;padding:30px 26px;text-align:center;box-shadow:0 20px 60px -12px rgba(0,0,0,.5)}
+.app-lock-box h2{font-family:var(--font-display);font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin:0 0 8px;color:var(--tx)}
+.app-lock-box p{color:var(--tx3);font-size:.9rem;margin:0 0 16px}
+.app-lock-box .btn{width:100%;justify-content:center;margin-top:8px}
+
 /* ═══════════════════════════════════════════ SCHEDULE / GANTT ═══ */
 .sch-card{background:var(--sur);border-radius:var(--rad);border:1px solid var(--bor);margin-bottom:12px;overflow:hidden}
 .sch-row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1.5fr;gap:12px;padding:10px 14px;border-bottom:1px solid var(--bor);align-items:center}

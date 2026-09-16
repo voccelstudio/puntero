@@ -211,19 +211,22 @@ function addWalkthroughPhoto(input) {
 
     var photoEntry = { url: '', areaId: '', uploading: true };
 
-    if (window._STORAGE && window._currentUser) {
-        var ref = window._STORAGE.ref("users/" + window._currentUser.uid + "/walkthrough/" + Date.now() + "_" + file.name);
-        ref.put(file).then(function (s) { return s.ref.getDownloadURL(); }).then(function (url) {
-            photoEntry.url = url;
-            photoEntry.uploading = false;
-            updateWalkthroughPreview();
-            toast("Foto agregada ✓");
-        }).catch(function () {
-            fallbackWalkthroughPhoto(file, idx);
-        });
-    } else {
-        fallbackWalkthroughPhoto(file, idx);
-    }
+    // [CLOUD OFF] subida a Storage desactivada — la foto se guarda en base64 local.
+    // Reactivar: quitar el comentario del bloque
+    // if (window._STORAGE && window._currentUser) {
+    //     var ref = window._STORAGE.ref("users/" + window._currentUser.uid + "/walkthrough/" + Date.now() + "_" + file.name);
+    //     ref.put(file).then(function (s) { return s.ref.getDownloadURL(); }).then(function (url) {
+    //         photoEntry.url = url;
+    //         photoEntry.uploading = false;
+    //         updateWalkthroughPreview();
+    //         toast("Foto agregada ✓");
+    //     }).catch(function () {
+    //         fallbackWalkthroughPhoto(file, idx);
+    //     });
+    // } else {
+    //     fallbackWalkthroughPhoto(file, idx);
+    // }
+    fallbackWalkthroughPhoto(file, idx);
 
     _walkPhotos.push(photoEntry);
     updateWalkthroughPreview();

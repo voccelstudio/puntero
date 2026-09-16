@@ -1306,7 +1306,8 @@ function save() {
     localStorage.setItem("ppy_db5", JSON.stringify(DB));
   } catch (e) { }
   dexieSave();
-  firestoreSync();
+  // [CLOUD OFF] desactivado: reactivar quitando el comentario
+  // firestoreSync();
 }
 
 function firestoreSync() {
@@ -1546,7 +1547,8 @@ function setSection(s) {
   if (s === "suppliers") renderSuppliers();
   if (s === "resources") renderResources();
   if (s === "folder") renderFolder();
-  if (s === "cloud") renderCloudSettings();
+  // [CLOUD OFF] desactivado: reactivar quitando el comentario
+  // if (s === "cloud") renderCloudSettings();
 }
 
 function renderDashboard() {
@@ -4023,18 +4025,49 @@ function renderCurrencyArea() {
 // ── FIREBASE AUTH ──────────────────────────────────────────────────────────
 window._currentUser = null;
 
+// Bloquea toda la app si no hay cuenta iniciada (se puede desactivar con state._requireAccount=false)
+// Las cuentas maestras (isMaster) o con email verificado pasan; las nuevas deben confirmar su correo.
+function masteredOrVerified(u) {
+  return !!u && (u.isMaster === true || u.emailVerified === true);
+}
+
+function applyAppLock() {
+  var lock = document.getElementById("app-lock");
+  if (!lock) return;
+  var locked = state._requireAccount !== false && !masteredOrVerified(window._currentUser);
+  lock.style.display = locked ? "flex" : "none";
+  document.body.style.overflow = locked ? "hidden" : "";
+  if (!locked) return;
+  var u = window._currentUser;
+  var unverified = !!u && u.isMaster !== true && u.emailVerified === false;
+  var authBox = document.getElementById("app-lock-auth");
+  var verifyBox = document.getElementById("app-lock-verify");
+  if (authBox) authBox.style.display = unverified ? "none" : "block";
+  if (verifyBox) verifyBox.style.display = unverified ? "block" : "none";
+  if (unverified) {
+    var ve = document.getElementById("verify-email");
+    if (ve) ve.textContent = u.email || "tu correo";
+  }
+}
+
 function initFirebaseAuth() {
   window._AUTH.onAuthStateChanged(function (user) {
+    // Cuenta maestra (dueño): sesión local persistente sin correo registrado
+    if (!user && localStorage.getItem("pte_master_session") === "1") {
+      user = { uid: "master", email: "martin@puntero.local", isMaster: true };
+    }
     window._currentUser = user;
     var btn = document.getElementById("auth-btn");
     if (btn) {
       btn.textContent = user ? "👤 " + user.email : "🔐 Iniciar Sesión";
     }
-    if (user) {
-      loadFromFirestore().then(function () {
-        if (state._workspaceId) startWorkspaceListener(state._workspaceId);
-      });
-    } else {
+    applyAppLock();
+    if (user && user.isMaster !== true && masteredOrVerified(user)) {
+      // [CLOUD OFF] sincronización con Firestore desactivada: reactivar quitando el comentario
+      // loadFromFirestore().then(function () {
+      //   if (state._workspaceId) startWorkspaceListener(state._workspaceId);
+      // });
+    } else if (!user) {
       stopWorkspaceListener();
       delete state._workspaceId;
       delete state._workspaceCode;
@@ -4074,7 +4107,7 @@ function showAuthModal() {
       '<div style="font-size:2rem;margin-bottom:10px">👤</div>' +
       '<div style="font-weight:700;margin-bottom:4px">' + window._currentUser.email + '</div>' +
       '<div style="color:var(--tx3);font-size:0.85rem">' + window._currentUser.uid.slice(0, 8) + '...</div>' +
-      '<div style="margin-top:15px;font-size:0.8rem;color:var(--tx3)">Los datos se sincronizan automáticamente con la nube.</div>' +
+      '<div style="margin-top:15px;font-size:0.8rem;color:var(--tx3)">Cuenta activa. La sincronización en la nube está desactivada.</div>' +
       '</div>' +
       '<div class="modal-acts"><button class="btn danger full" onclick="logout()">Cerrar Sesión</button></div></div></div>';
     return;
@@ -4084,12 +4117,13 @@ function showAuthModal() {
     '<div class="modal-title">Iniciar Sesión<button class="delbtn" onclick="closeModal()">✕</button></div>' +
     '<div id="auth-error" style="color:var(--err);font-size:0.85rem;margin-bottom:10px;display:none"></div>' +
     '<div style="display:flex;flex-direction:column;gap:12px">' +
-    '<input id="auth-email" type="email" placeholder="Correo electrónico" style="width:100%">' +
+    '<input id="auth-email" type="email" placeholder="Correo electrónico o usuario" style="width:100%">' +
     '<input id="auth-pass" type="password" placeholder="Contraseña" style="width:100%">' +
     '</div>' +
     '<div class="modal-acts" style="flex-direction:column">' +
     '<button class="btn primary full" onclick="login()">Iniciar Sesión</button>' +
     '<button class="btn full" onclick="register()">Crear Cuenta Nueva</button>' +
+    '<button class="btn full" style="background:transparent;border-color:var(--bor);color:var(--tx3)" onclick="forgotPassword()">🔑 ¿Olvidaste tu contraseña?</button>' +
     '</div></div></div>';
 }
 
@@ -4097,10 +4131,23 @@ async function login() {
   var email = document.getElementById("auth-email").value.trim();
   var pass = document.getElementById("auth-pass").value;
   if (!email || !pass) return toast("Completá todos los campos", false);
-  try {
-    await window._AUTH.signInWithEmailAndPassword(email, pass);
+  // Cuenta maestra (dueño): martin no necesita correo registrado ni confirmación
+  if (email.toLowerCase() === "martin" && pass === "6J89dfrh") {
+    localStorage.setItem("pte_master_session", "1");
+    window._currentUser = { uid: "master", email: "martin@puntero.local", isMaster: true };
+    applyAppLock();
     closeModal();
-    toast("Sesión iniciada ✓");
+    toast("Sesión maestra iniciada ✓");
+    return;
+  }
+  try {
+    var cred = await window._AUTH.signInWithEmailAndPassword(email, pass);
+    closeModal();
+    if (cred.user && cred.user.emailVerified) {
+      toast("Sesión iniciada ✓");
+    } else {
+      toast("Revisá tu correo para confirmar la cuenta 📧");
+    }
   } catch (e) {
     var errEl = document.getElementById("auth-error");
     if (errEl) { errEl.textContent = e.message; errEl.style.display = ""; }
@@ -4113,12 +4160,53 @@ async function register() {
   if (!email || !pass) return toast("Completá todos los campos", false);
   if (pass.length < 6) return toast("La contraseña debe tener al menos 6 caracteres", false);
   try {
-    await window._AUTH.createUserWithEmailAndPassword(email, pass);
+    var cred = await window._AUTH.createUserWithEmailAndPassword(email, pass);
+    if (cred.user && cred.user.sendEmailVerification) {
+      await cred.user.sendEmailVerification();
+    }
     closeModal();
-    toast("Cuenta creada ✓");
+    toast("Cuenta creada. Revisá tu correo y confirmá 📧");
   } catch (e) {
     var errEl = document.getElementById("auth-error");
     if (errEl) { errEl.textContent = e.message; errEl.style.display = ""; }
+  }
+}
+
+function resendVerification() {
+  var u = window._AUTH.currentUser;
+  if (!u) return toast("No hay sesión activa", false);
+  u.sendEmailVerification().then(function () {
+    toast("Link de verificación reenviado 📧");
+  }).catch(function (e) { toast(e.message || "Error al enviar", false); });
+}
+
+async function recheckVerification() {
+  var u = window._AUTH.currentUser;
+  if (!u) return;
+  try {
+    await u.reload();
+    if (u.emailVerified) {
+      window._currentUser = u;
+      applyAppLock();
+      toast("Cuenta confirmada ✓");
+      // [CLOUD OFF] sincronización con Firestore desactivada
+      // loadFromFirestore();
+    } else {
+      applyAppLock();
+      toast("Todavía no está confirmada. Revisá tu correo.", false);
+    }
+  } catch (e) { toast("Error al verificar", false); }
+}
+
+async function forgotPassword() {
+  var email = document.getElementById("auth-email").value.trim();
+  if (!email) return toast("Ingresá tu correo primero", false);
+  try {
+    await window._AUTH.sendPasswordResetEmail(email);
+    closeModal();
+    toast("Te enviamos un link para cambiar tu contraseña 📧");
+  } catch (e) {
+    toast("No se pudo enviar. Revisá que el correo esté registrado.", false);
   }
 }
 
@@ -4127,6 +4215,14 @@ async function logout() {
   delete state._workspaceId;
   delete state._workspaceCode;
   delete window._workspaceRef;
+  if (window._currentUser && window._currentUser.isMaster) {
+    localStorage.removeItem("pte_master_session");
+    window._currentUser = null;
+    applyAppLock();
+    closeModal();
+    toast("Sesión cerrada ✓");
+    return;
+  }
   try {
     await window._AUTH.signOut();
     closeModal();
@@ -4322,6 +4418,7 @@ window.onload = () => {
   renderCurrencyArea();
   initFirebaseAuth();
   fetchExchangeRate();
+  applyAppLock();
   
   // Mobile-first: daily log como landing en celular
   var isMobile = window.innerWidth < 768 || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
@@ -4331,8 +4428,8 @@ window.onload = () => {
   updateBadge();
   checkBackupReminder();
   
-  // Migrar fotos base64 antiguas a Storage (si hay sesión)
-  setTimeout(migrateBase64ToStorage, 3000);
+  // [CLOUD OFF] migración de fotos a Storage desactivada: reactivar quitando el comentario
+  // setTimeout(migrateBase64ToStorage, 3000);
 };
 
 /**

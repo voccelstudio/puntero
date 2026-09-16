@@ -157,23 +157,25 @@ function handleDeliveryPhoto(input) {
     if (!preview) return;
     preview.innerHTML = "<div style='padding:20px;color:var(--tx3)'>Subiendo foto...</div>";
 
-    // Si Firebase Storage está disponible, subir a la nube
-    if (window._STORAGE && window._currentUser) {
-        var storageRef = window._STORAGE.ref("users/" + window._currentUser.uid + "/delivery_photos/" + Date.now() + "_" + file.name);
-        var task = storageRef.put(file);
-        task.then(function (snapshot) {
-            return snapshot.ref.getDownloadURL();
-        }).then(function (url) {
-            _tempDeliveryPhoto = url;
-            preview.innerHTML = '<img src="' + url + '" style="max-width:100%;max-height:100%;object-fit:contain">';
-            toast("Foto subida a la nube ✓");
-        }).catch(function () {
-            // Fallback a base64 si falla Storage
-            fallbackPhotoUpload(file, preview);
-        });
-    } else {
-        fallbackPhotoUpload(file, preview);
-    }
+    // [CLOUD OFF] subida a Storage desactivada — la foto se guarda en base64 local.
+    // Reactivar: quitar el comentario del bloque
+    // if (window._STORAGE && window._currentUser) {
+    //     var storageRef = window._STORAGE.ref("users/" + window._currentUser.uid + "/delivery_photos/" + Date.now() + "_" + file.name);
+    //     var task = storageRef.put(file);
+    //     task.then(function (snapshot) {
+    //         return snapshot.ref.getDownloadURL();
+    //     }).then(function (url) {
+    //         _tempDeliveryPhoto = url;
+    //         preview.innerHTML = '<img src="' + url + '" style="max-width:100%;max-height:100%;object-fit:contain">';
+    //         toast("Foto subida a la nube ✓");
+    //     }).catch(function () {
+    //         // Fallback a base64 si falla Storage
+    //         fallbackPhotoUpload(file, preview);
+    //     });
+    // } else {
+    //     fallbackPhotoUpload(file, preview);
+    // }
+    fallbackPhotoUpload(file, preview);
 }
 
 function fallbackPhotoUpload(file, preview) {

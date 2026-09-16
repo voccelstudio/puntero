@@ -15,7 +15,9 @@ function renderContractors() {
                 <p style="color:var(--tx3); font-size:0.9rem">Directorio, Calificaciones y Control de Pagos</p>
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap">
-                ${isProUser() ? '<button class="btn sm" onclick="syncGlobalContractors(); toast(\'Actualizando DB global...\')">🔄 DB Global</button>' : ''}
+                ${/* [CLOUD OFF] DB Global desactivada: reactivar con
+                isProUser() ? '<button class="btn sm" onclick="syncGlobalContractors(); toast(\'Actualizando DB global...\')">🔄 DB Global</button>' : '' */
+                ''}
                 <button class="btn primary" onclick="showAddContractorModal()">+ Nuevo Contratista</button>
             </div>
         </div>

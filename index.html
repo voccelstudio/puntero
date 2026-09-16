@@ -85,7 +85,7 @@
         <button id="btn-suppliers" class="nbtn" onclick="setSection('suppliers')">🚛 Proveedores</button>
         <button id="btn-themes" class="nbtn" onclick="setSection('themes')">🎨 Temas Visuales</button>
         <button class="nbtn" onclick="showModal('profile')">👤 Mi Perfil</button>
-        <button id="btn-cloud" class="nbtn" onclick="setSection('cloud')">☁️ Cloud</button>
+        <!-- [CLOUD OFF] button id="btn-cloud" class="nbtn" onclick="setSection('cloud')">☁️ Cloud</button> -->
       </div>
     </div>
 
@@ -140,8 +140,38 @@
     <div id="section-folder" class="view" style="display:none"></div>
     <div id="section-suppliers" class="view" style="display:none"></div>
     <div id="section-resources" class="view" style="display:none"></div>
-    <div id="section-cloud" class="view" style="display:none"></div>
+    <!-- [CLOUD OFF] div id="section-cloud" class="view" style="display:none"></div> -->
   </main>
+</div>
+
+<!-- Bloqueo de acceso: requiere cuenta para usar la app -->
+<div id="app-lock" class="app-lock" style="display:flex">
+  <div>
+    <svg class="logo-mark" viewBox="0 0 100 100" width="44" height="44" aria-label="Puntero" style="margin:0 auto 10px;display:block">
+      <circle cx="50" cy="50" r="48" fill="#0f172a"/>
+      <circle cx="50" cy="50" r="44" fill="none" stroke="#f59e0b" stroke-width="1.8"/>
+      <g transform="translate(50 50) rotate(-30)">
+        <path d="M -28 -2 L 28 -2 L 22 16 L -22 16 Z" fill="#f59e0b" stroke="#c2410c" stroke-width="0.8"/>
+        <rect x="-3" y="-15" width="6" height="14" rx="1" fill="#78350f"/>
+      </g>
+    </svg>
+    <div style="font-size:0.7rem;font-weight:800;letter-spacing:.25em;color:var(--tx3);text-align:center">PUNTERO</div>
+  </div>
+  <div class="app-lock-box" id="app-lock-auth">
+    <div style="font-size:2rem;margin-bottom:6px">🔒</div>
+    <h2>Acceso Restringido</h2>
+    <p>Necesitás iniciar sesión con tu cuenta para usar la aplicación. Tus proyectos y datos se sincronizan en la nube.</p>
+    <button class="btn primary full" onclick="showAuthModal()">🔐 Iniciar Sesión</button>
+    <button class="btn full" onclick="showAuthModal()">Crear Cuenta Nueva</button>
+  </div>
+  <div class="app-lock-box" id="app-lock-verify" style="display:none">
+    <div style="font-size:2rem;margin-bottom:6px">📧</div>
+    <h2>Confirmá tu Correo</h2>
+    <p>Enviamos un link de verificación a <strong id="verify-email">tu correo</strong>. Revisá la bandeja de entrada, hacé clic en el link y volvé.</p>
+    <button class="btn primary full" onclick="resendVerification()">📧 Reenviar Link</button>
+    <button class="btn full" onclick="recheckVerification()">✅ Ya lo Confirmé</button>
+    <button class="btn full" style="background:transparent;border-color:var(--bor);color:var(--tx3)" onclick="logout()">Cerrar Sesión</button>
+  </div>
 </div>
 
 <!-- Overlay para drawer mobile -->
