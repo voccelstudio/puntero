@@ -145,7 +145,7 @@
 </div>
 
 <!-- Bloqueo de acceso: requiere cuenta para usar la app -->
-<div id="app-lock" class="app-lock" style="display:flex">
+<div id="app-lock" class="app-lock" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:500;background:var(--bg,#f6f7f9);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;padding:24px;overflow:auto">
   <div>
     <svg class="logo-mark" viewBox="0 0 100 100" width="44" height="44" aria-label="Puntero" style="margin:0 auto 10px;display:block">
       <circle cx="50" cy="50" r="48" fill="#0f172a"/>
@@ -155,16 +155,16 @@
         <rect x="-3" y="-15" width="6" height="14" rx="1" fill="#78350f"/>
       </g>
     </svg>
-    <div style="font-size:0.7rem;font-weight:800;letter-spacing:.25em;color:var(--tx3);text-align:center">PUNTERO</div>
+    <div style="font-size:0.7rem;font-weight:800;letter-spacing:.25em;color:var(--tx3,#64748b);text-align:center">PUNTERO</div>
   </div>
-  <div class="app-lock-box" id="app-lock-auth">
+  <div class="app-lock-box" id="app-lock-auth" style="max-width:380px;width:100%;background:var(--sur,#fff);border:1px solid var(--bor,#e2e8f0);border-radius:16px;padding:30px 26px;text-align:center;box-shadow:0 20px 60px -12px rgba(0,0,0,.5)">
     <div style="font-size:2rem;margin-bottom:6px">🔒</div>
     <h2>Acceso Restringido</h2>
-    <p>Necesitás iniciar sesión con tu cuenta para usar la aplicación. Tus proyectos y datos se sincronizan en la nube.</p>
+    <p>Necesitás iniciar sesión con tu cuenta para usar la aplicación. Tus proyectos y datos se guardan en este dispositivo.</p>
     <button class="btn primary full" onclick="showAuthModal()">🔐 Iniciar Sesión</button>
     <button class="btn full" onclick="showAuthModal()">Crear Cuenta Nueva</button>
   </div>
-  <div class="app-lock-box" id="app-lock-verify" style="display:none">
+  <div class="app-lock-box" id="app-lock-verify" style="display:none;max-width:380px;width:100%;background:var(--sur,#fff);border:1px solid var(--bor,#e2e8f0);border-radius:16px;padding:30px 26px;text-align:center;box-shadow:0 20px 60px -12px rgba(0,0,0,.5)">
     <div style="font-size:2rem;margin-bottom:6px">📧</div>
     <h2>Confirmá tu Correo</h2>
     <p>Enviamos un link de verificación a <strong id="verify-email">tu correo</strong>. Revisá la bandeja de entrada, hacé clic en el link y volvé.</p>

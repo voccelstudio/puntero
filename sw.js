@@ -4,7 +4,7 @@
  * Permite uso offline en obra cuando no hay señal.
  */
 
-const CACHE_NAME = 'puntero-v2-rebrand';
+const CACHE_NAME = 'puntero-v4-zfix';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

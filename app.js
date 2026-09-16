@@ -4101,7 +4101,7 @@ async function loadFromFirestore() {
 function showAuthModal() {
   if (window._currentUser) {
     var el = document.getElementById("modal-area");
-    el.innerHTML = '<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:350px">' +
+    el.innerHTML = '<div class="overlay" style="z-index:600" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:350px">' +
       '<div class="modal-title">Mi Cuenta<button class="delbtn" onclick="closeModal()">✕</button></div>' +
       '<div style="text-align:center;padding:20px">' +
       '<div style="font-size:2rem;margin-bottom:10px">👤</div>' +
@@ -4113,7 +4113,7 @@ function showAuthModal() {
     return;
   }
   var el = document.getElementById("modal-area");
-  el.innerHTML = '<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:350px">' +
+  el.innerHTML = '<div class="overlay" style="z-index:600" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:350px">' +
     '<div class="modal-title">Iniciar Sesión<button class="delbtn" onclick="closeModal()">✕</button></div>' +
     '<div id="auth-error" style="color:var(--err);font-size:0.85rem;margin-bottom:10px;display:none"></div>' +
     '<div style="display:flex;flex-direction:column;gap:12px">' +
