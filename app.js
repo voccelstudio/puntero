@@ -1514,12 +1514,13 @@ function setSection(s) {
     projects: "Gestión de Proyectos",
     folder: "Carpeta del Proyecto",
     cajachica: "Caja Chica",
+    accounts: "Gestión de Cuentas",
     cloud: "☁️ Cloud"
   };
   const vtitle = document.getElementById("view-title");
   if (vtitle) vtitle.textContent = titles[s] || "Puntero";
 
-  ["global_dashboard", "budget", "ot", "schedule", "contractors", "jornaleros", "contratos", "prices", "dashboard", "themes", "logs", "materials", "finances", "cajachica", "performance", "documents", "suppliers", "resources", "projects", "aftercare", "computo", "folder", "cloud"].forEach(x => {
+  ["global_dashboard", "budget", "ot", "schedule", "contractors", "jornaleros", "contratos", "prices", "dashboard", "themes", "logs", "materials", "finances", "cajachica", "performance", "documents", "suppliers", "resources", "projects", "aftercare", "computo", "folder", "accounts", "cloud"].forEach(x => {
     const el = document.getElementById("section-" + x);
     if (el) el.style.display = s === x ? "" : "none";
     const b = document.getElementById("btn-" + x);
@@ -1547,6 +1548,7 @@ function setSection(s) {
   if (s === "suppliers") renderSuppliers();
   if (s === "resources") renderResources();
   if (s === "folder") renderFolder();
+  if (s === "accounts") renderAccountsSettings();
   // [CLOUD OFF] desactivado: reactivar quitando el comentario
   // if (s === "cloud") renderCloudSettings();
 }
@@ -4035,6 +4037,9 @@ function applyAppLock() {
   var lock = document.getElementById("app-lock");
   if (!lock) return;
   var locked = state._requireAccount !== false && !masteredOrVerified(window._currentUser);
+  // Botón de administrador: visible solo para la cuenta maestra
+  var btnAcc = document.getElementById("btn-accounts");
+  if (btnAcc) btnAcc.style.display = (window._currentUser && window._currentUser.isMaster) ? "" : "none";
   lock.style.display = locked ? "flex" : "none";
   document.body.style.overflow = locked ? "hidden" : "";
   if (!locked) return;
@@ -4123,7 +4128,7 @@ function showAuthModal() {
     var isMasterAcc = window._currentUser.isMaster === true;
     var acts = isMasterAcc
       ? '<div class="modal-acts" style="flex-direction:column">' +
-        '<button class="btn primary full" onclick="showCreateAccountModal()">➕ Crear Nueva Cuenta (vender)</button>' +
+        '<button class="btn primary full" onclick="setSection(\'accounts\')">🗝️ Gestionar Cuentas</button>' +
         '<button class="btn danger full" onclick="logout()">Cerrar Sesión</button></div>'
       : '<div class="modal-acts"><button class="btn danger full" onclick="logout()">Cerrar Sesión</button></div>';
     el.innerHTML = '<div class="overlay" style="z-index:600" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:350px">' +
@@ -4165,15 +4170,21 @@ async function login() {
     toast("Sesión maestra iniciada ✓");
     return;
   }
-  // Cuentas demo (72h): usuario y contraseña = mismo nombre (invitado01 / invitado clara)
-  var normUser = email.toLowerCase().replace(/\s+/g, " ").trim();
-  if (normUser === "invitado01" || normUser === "invitado clara") {
-    if (pass.toLowerCase().replace(/\s+/g, " ").trim() !== normUser) {
-      var errGuest = document.getElementById("auth-error");
-      if (errGuest) { errGuest.textContent = "Usuario o contraseña incorrectos"; errGuest.style.display = ""; }
+  // Cuentas demo (72h): creadas por el admin, usuario + contraseña propias
+  var demoAcc = findDemoAccountByUsername(email);
+  if (demoAcc) {
+    if (demoAcc.expiresAt <= Date.now()) {
+      adminDeleteAccount(demoAcc.id);
+      var errD = document.getElementById("auth-error");
+      if (errD) { errD.textContent = "La cuenta demo venció (72h). Pedile una nueva al administrador."; errD.style.display = ""; }
       return;
     }
-    startGuestSession(normUser);
+    if (pass.trim() !== demoAcc.password) {
+      var errD2 = document.getElementById("auth-error");
+      if (errD2) { errD2.textContent = "Usuario o contraseña incorrectos"; errD2.style.display = ""; }
+      return;
+    }
+    startDemoSession(demoAcc);
     return;
   }
   if (!window._AUTH) return toast("Sin conexión. Usá el modo invitado.", false);
@@ -4285,9 +4296,9 @@ async function logout() {
   } catch (e) { toast("Error al cerrar sesión", false); }
 }
 
-// ── CUENTA DEMO / INVITADO ────────────────────────────────────────────────
-// Sesión local de invitado (cuenta-invitado-NN). Dura 72h y se cierra sola al
-// vencer, aunque no haya conexión a internet (usa el reloj del dispositivo).
+// ── CUENTAS DEMO / INVITADO ────────────────────────────────────────────────
+// Las demos son cuentas locales (sin Firebase) que duran 72h y se borran al
+// vencer aunque no haya internet (usa el reloj del dispositivo).
 var GUEST_TTL_MS = 72 * 60 * 60 * 1000;
 var _guestTimer = null, _guestTimerDeadline = null;
 
@@ -4307,26 +4318,25 @@ function guestUser() {
   return { uid: g.uid, email: g.email, isGuest: true };
 }
 
-function startGuestSession(label) {
-  var pretty = (label || "invitado").trim();
-  var slug = pretty.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-  var email = slug + "@puntero.local";
-  var uid = "guest-" + slug;
-  var g = guestSession();
-  if (!g || g.email !== email || g.expiresAt <= Date.now()) {
-    g = {
-      uid: uid,
-      email: email,
-      created: Date.now(),
-      expiresAt: Date.now() + GUEST_TTL_MS
-    };
-    localStorage.setItem("pte_guest_session", JSON.stringify(g));
-  }
+function accUserNameSlug(u) {
+  return String(u || "").toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+}
+
+function startDemoSession(acc) {
+  var slug = accUserNameSlug(acc.username);
+  localStorage.setItem("pte_guest_session", JSON.stringify({
+    uid: "guest-" + slug,
+    email: slug + "@puntero.local",
+    created: acc.created,
+    expiresAt: acc.expiresAt
+  }));
   window._currentUser = guestUser();
   applyAppLock();
   closeModal();
   scheduleGuestExpiry();
-  toast("Sesión demo activa " + pretty + " · 72h ✓");
+  var remaining = Math.max(0, acc.expiresAt - Date.now());
+  var h = Math.floor(remaining / 3600000);
+  toast("Sesión demo activa · " + (h < 1 ? "menos de 1 hora" : h + "h") + " restantes ✓");
 }
 
 function deleteGuestSession() {
@@ -4345,7 +4355,7 @@ function scheduleGuestExpiry() {
     if (r <= 0) return expireGuestSession();
     if (r <= 60 * 60 * 1000 && !window._guestWarned) {
       window._guestWarned = true;
-      toast("Tu cuenta de invitado expira en menos de 1 hora ⏳", false);
+      toast("Tu cuenta demo expira en menos de 1 hora ⏳", false);
     }
   }, 30000);
   _guestTimerDeadline = setTimeout(function () { expireGuestSession(); }, rest + 2000);
@@ -4357,20 +4367,194 @@ function stopGuestExpiry() {
 }
 
 function expireGuestSession() {
+  // Al vencer, la cuenta demo se borra (además de desloguear)
+  var g = guestSession();
+  if (g) {
+    var slug = g.email ? g.email.split("@")[0] : "";
+    setAccounts(getAccounts().filter(function (a) { return !(a.type === "demo" && accUserNameSlug(a.username) === slug); }));
+  }
   deleteGuestSession();
   if (window._currentUser && window._currentUser.isGuest) {
     window._currentUser = null;
     applyAppLock();
-    toast("La cuenta de invitado venció (72h). Iniciá sesión o creá otra.", false);
+    toast("La cuenta demo venció (72h). Pedile una nueva al administrador.", false);
   }
 }
 
 function initGuestSession() {
   var g = guestSession();
   if (!g) return;
-  if (g.expiresAt <= Date.now()) { deleteGuestSession(); return; }
+  if (g.expiresAt <= Date.now()) {
+    setAccounts(getAccounts().filter(function (a) { return !(a.type === "demo" && accUserNameSlug(a.username) === g.email.split("@")[0]); }));
+    deleteGuestSession();
+    return;
+  }
   if (!window._currentUser) window._currentUser = guestUser();
   scheduleGuestExpiry();
+}
+
+// ── REGISTRO DE CUENTAS (ADMIN) ────────────────────────────────────────────
+// pte_accounts: lista local de cuentas creadas por el admin (permanentes,
+// VIP y demo). Las demo expiran a las 72h; permanentes/VIP son de pago.
+var ACCOUNTS_KEY = "pte_accounts";
+
+function getAccounts() {
+  try { return JSON.parse(localStorage.getItem(ACCOUNTS_KEY) || "[]"); }
+  catch (e) { return []; }
+}
+function setAccounts(list) {
+  localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(list));
+}
+
+function isMasterAcc() {
+  return !!(window._currentUser && window._currentUser.isMaster === true);
+}
+
+function findDemoAccountByUsername(username) {
+  var nu = String(username || "").trim().toLowerCase();
+  return getAccounts().find(function (a) { return a.type === "demo" && String(a.username).trim().toLowerCase() === nu; });
+}
+
+function seedDemoAccounts() {
+  if (localStorage.getItem(ACCOUNTS_KEY) !== null) return;
+  setAccounts([
+    { id: "demo-invitado01", username: "invitado01", password: "invitado01", type: "demo", created: Date.now(), expiresAt: Date.now() + GUEST_TTL_MS, firebase: false },
+    { id: "demo-invitadoclara", username: "invitado clara", password: "invitado clara", type: "demo", created: Date.now(), expiresAt: Date.now() + GUEST_TTL_MS, firebase: false }
+  ]);
+}
+
+function renderAccountsSettings() {
+  var el = document.getElementById("section-accounts");
+  if (!el) return;
+  if (!isMasterAcc()) {
+    el.innerHTML = "<div class='empty'>🔒 Solo el administrador gestiona las cuentas.</div>";
+    return;
+  }
+  // Podar demos vencidas
+  setAccounts(getAccounts().filter(function (a) { return a.type !== "demo" || a.expiresAt > Date.now(); }));
+  var list = getAccounts();
+  var nPer = list.filter(function (a) { return a.type === "permanente"; }).length;
+  var nVip = list.filter(function (a) { return a.type === "vip"; }).length;
+  var nDemo = list.filter(function (a) { return a.type === "demo"; }).length;
+
+  var rows = list.map(function (a) {
+    var badge = a.type === "permanente" ? "🏆 Permanente"
+      : a.type === "vip" ? "💎 VIP"
+      : "🎭 Demo";
+    var estado = a.type === "demo"
+      ? (a.expiresAt > Date.now() ? "⏳ expira en " + Math.max(1, Math.ceil((a.expiresAt - Date.now()) / 3600000)) + "h" : "Vencida")
+      : "✅ Activa";
+    var copiar = '<button class="btn sm" onclick="adminCopyAccount(\'' + a.id + '\')">📋 Copiar</button>';
+    var resend = (a.type !== "demo")
+      ? '<button class="btn sm" onclick="adminResendVerify(\'' + a.id + '\')">📧 Verificar</button>'
+      : "";
+    var del = '<button class="btn sm danger" onclick="adminDeleteAccount(\'' + a.id + '\')">🗑️</button>';
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bor)">' +
+      '<div style="flex:1">' +
+      '<div style="font-weight:700">' + a.username + '</div>' +
+      '<div style="font-size:0.8rem;color:var(--tx3)">' + badge + ' · ' + estado + '</div>' +
+      '</div>' +
+      '<div style="font-size:0.8rem;color:var(--tx3);min-width:110px;text-align:right">' + (a.password || "") + '</div>' +
+      '<div style="display:flex;gap:6px">' + copiar + resend + del + '</div>' +
+      '</div>';
+  }).join("");
+
+  el.innerHTML =
+    '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:16px">' +
+    '<div><h2 style="font-family:var(--font-display);font-weight:800;margin:0 0 4px">GESTIÓN DE CUENTAS</h2>' +
+    '<p style="color:var(--tx3);font-size:0.9rem">Creá cuentas para vender. Solo visibles para el administrador (martin).</p></div>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;font-size:0.85rem">' +
+    '<span class="btn sm">🏆 Permanentes: ' + nPer + '</span>' +
+    '<span class="btn sm">💎 VIP: ' + nVip + '</span>' +
+    '<span class="btn sm">🎭 Demos: ' + nDemo + '</span>' +
+    '</div></div>' +
+
+    '<div class="card" style="margin-bottom:18px;padding:16px">' +
+    '<h3 class="sec-lbl">➕ Crear Cuenta Nueva</h3>' +
+    '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">' +
+    '<select id="acc-type" style="width:150px">' +
+    '<option value="permanente">🏆 Permanente</option>' +
+    '<option value="vip">💎 VIP</option>' +
+    '<option value="demo">🎭 Demo (72h)</option>' +
+    '</select>' +
+    '<input id="acc-user" style="flex:1;min-width:180px" placeholder="Correo (permanente/VIP) o usuario (demo)">' +
+    '<div style="display:flex;gap:6px"><input id="acc-pass" style="width:160px" placeholder="Contraseña"><button class="btn sm" onclick="genAccPass()">🎲</button></div>' +
+    '<button class="btn primary" onclick="adminCreateTab()">Crear Cuenta</button>' +
+    '</div>' +
+    '<div style="font-size:0.8rem;color:var(--tx3);margin-top:8px">Permanente y VIP funcionan igual (difieren en precio). Las demo se desloguean y borran a las 72h.</div>' +
+    '</div>' +
+
+    '<div class="card" style="padding:16px">' +
+    '<h3 class="sec-lbl">Cuentas creadas (' + list.length + ')</h3>' +
+    (rows || "<div class='empty'>Todavía no creaste cuentas.</div>") +
+    '</div>';
+}
+
+async function adminCreateTab() {
+  if (!isMasterAcc()) return toast("Solo el administrador crea cuentas 🔒", false);
+  var type = document.getElementById("acc-type").value;
+  var user = document.getElementById("acc-user").value.trim();
+  var pass = document.getElementById("acc-pass").value;
+  if (!user || !pass) return toast("Completá usuario y contraseña", false);
+  if (pass.length < 6) return toast("Contraseña mínima de 6 caracteres", false);
+  if (type === "demo") {
+    if (findDemoAccountByUsername(user)) return toast("Ya existe una cuenta demo con ese usuario", false);
+    var list = getAccounts();
+    list.push({ id: "acc-" + Date.now().toString(36), username: user, password: pass, type: "demo", created: Date.now(), expiresAt: Date.now() + GUEST_TTL_MS, firebase: false });
+    setAccounts(list);
+    toast("Cuenta demo creada · 72h ✓");
+    renderAccountsSettings();
+    return;
+  }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(user)) return toast("Para permanente/VIP ingresá un correo válido", false);
+  if (!window._AUTH) return toast("Sin conexión. Necesitás internet para crear cuentas de pago.", false);
+  try {
+    var cred = await window._AUTH.createUserWithEmailAndPassword(user, pass);
+    if (cred.user && cred.user.sendEmailVerification) await cred.user.sendEmailVerification();
+    var list2 = getAccounts();
+    list2.push({ id: "acc-" + Date.now().toString(36), username: user, password: pass, type: type, created: Date.now(), expiresAt: null, firebase: true, uid: cred.user.uid });
+    setAccounts(list2);
+    try { await window._AUTH.signOut(); } catch (e) {}
+    if (localStorage.getItem("pte_master_session") === "1") window._currentUser = { uid: "master", email: "martin@puntero.local", isMaster: true };
+    applyAppLock();
+    toast("Cuenta " + type + " creada ✓ · link de verificación enviado");
+    renderAccountsSettings();
+  } catch (e) { toast((e && e.message) || "No se pudo crear la cuenta", false); }
+}
+
+function adminCopyAccount(id) {
+  var a = getAccounts().find(function (x) { return x.id === id; });
+  if (!a) return;
+  var txt = "Usuario: " + a.username + "\nContraseña: " + a.password + "\nTipo: " + a.type;
+  if (navigator.clipboard) navigator.clipboard.writeText(txt).then(function () { toast("Credenciales copiadas ✓"); });
+  else toast(txt, false);
+}
+
+async function adminResendVerify(id) {
+  if (!isMasterAcc()) return toast("Solo el administrador", false);
+  if (!window._AUTH) return toast("Sin conexión", false);
+  var a = getAccounts().find(function (x) { return x.id === id; });
+  if (!a || a.type === "demo") return;
+  try {
+    await window._AUTH.signInWithEmailAndPassword(a.username, a.password);
+    if (window._AUTH.currentUser && window._AUTH.currentUser.sendEmailVerification) {
+      await window._AUTH.currentUser.sendEmailVerification();
+    }
+    try { await window._AUTH.signOut(); } catch (e) {}
+    if (localStorage.getItem("pte_master_session") === "1") window._currentUser = { uid: "master", email: "martin@puntero.local", isMaster: true };
+    applyAppLock();
+    toast("Link de verificación reenviado a " + a.username + " ✓");
+  } catch (e) { toast((e && e.message) || "No se pudo reenviar", false); }
+}
+
+function adminDeleteAccount(id) {
+  var a = getAccounts().find(function (x) { return x.id === id; });
+  if (!a) return;
+  var note = a.firebase ? "\n\n(La cuenta en Firebase sigue en Auth; para borrarla de verdad usá la consola de Firebase.)" : "";
+  if (!confirm("¿Eliminar la cuenta " + a.username + " de la lista?" + note)) return;
+  setAccounts(getAccounts().filter(function (x) { return x.id !== id; }));
+  renderAccountsSettings();
+  toast("Cuenta quitada de la lista ✓");
 }
 
 // ── CREACIÓN DE CUENTAS (SOLO ADMIN) ───────────────────────────────────────
@@ -4614,6 +4798,7 @@ window.onload = () => {
   migrateToV9();
   migrateToV10();
   renderCurrencyArea();
+  seedDemoAccounts();
   initGuestSession();
   initFirebaseAuth();
   fetchExchangeRate();
