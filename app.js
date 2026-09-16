@@ -4030,15 +4030,24 @@ window._currentUser = null;
 // Bloquea toda la app si no hay cuenta iniciada (se puede desactivar con state._requireAccount=false)
 // Pasan: cuentas maestras (isMaster), demos (isGuest) y cualquier cuenta creada por
 // el administrador en el panel de cuentas (aunque no confirme el correo). El registro
-// público está bloqueado, así que la verificación por email ya no es requisito.
+// público está bloqueado, así que la verificación por email ya no es requisito:
+// cualquier usuario de Firebase que inicie sesión fue creado por el admin (o es la
+// identidad técnica de sincronización) y entra sin confirmar.
 function isAdminAccount(email) {
   if (!email) return false;
   var n = String(email).trim().toLowerCase();
   return getAccounts().some(function (a) { return a.firebase === true && String(a.username).trim().toLowerCase() === n; });
 }
 
+// Detecta una cuenta de Firebase real (no maestra, no demo) iniciada en este dispositivo.
+function isFirebaseAccount(u) {
+  return !!u && u.isMaster !== true && u.isGuest !== true &&
+    !!u.uid && !!u.email && !!window._AUTH &&
+    !!window._AUTH.currentUser && window._AUTH.currentUser.uid === u.uid;
+}
+
 function masteredOrVerified(u) {
-  return !!u && (u.isMaster === true || u.isGuest === true || u.emailVerified === true || isAdminAccount(u.email));
+  return !!u && (u.isMaster === true || u.isGuest === true || u.emailVerified === true || isAdminAccount(u.email) || isFirebaseAccount(u));
 }
 
 function applyAppLock() {
@@ -4209,15 +4218,12 @@ async function login() {
   }
   if (!window._AUTH) return toast("Sin conexión. Usá el modo invitado.", false);
   try {
-    var cred = await window._AUTH.signInWithEmailAndPassword(email, pass);
+    await window._AUTH.signInWithEmailAndPassword(email, pass);
     deleteGuestSession();
     closeModal();
-    // Cuentas creadas por el admin no requieren confirmar el correo
-    if (cred.user && (cred.user.emailVerified || isAdminAccount(email))) {
-      toast("Sesión iniciada ✓");
-    } else {
-      toast("Revisá tu correo para confirmar la cuenta 📧");
-    }
+    // El registro público está bloqueado: toda cuenta de Firebase fue creada por
+    // el admin, así que entra sin necesidad de confirmar el correo.
+    toast("Sesión iniciada ✓");
   } catch (e) {
     var errEl = document.getElementById("auth-error");
     if (errEl) { errEl.textContent = e.message; errEl.style.display = ""; }
@@ -4543,7 +4549,6 @@ async function adminCreateTab() {
   if (!window._AUTH) return toast("Sin conexión. Necesitás internet para crear cuentas de pago.", false);
   try {
     var cred = await window._AUTH.createUserWithEmailAndPassword(user, pass);
-    if (cred.user && cred.user.sendEmailVerification) await cred.user.sendEmailVerification();
     var list2 = getAccounts();
     list2.push({ id: "acc-" + Date.now().toString(36), username: user, password: pass, type: type, created: Date.now(), expiresAt: null, firebase: true, uid: cred.user.uid });
     setAccounts(list2);
@@ -4551,7 +4556,7 @@ async function adminCreateTab() {
     if (localStorage.getItem("pte_master_session") === "1") window._currentUser = { uid: "master", email: "martin@puntero.local", isMaster: true };
     applyAppLock();
     pushAccountsSync();
-    toast("Cuenta " + type + " creada ✓ · link de verificación enviado");
+    toast("Cuenta " + type + " creada ✓ · entra sin confirmar correo");
     renderAccountsSettings();
   } catch (e) { toast((e && e.message) || "No se pudo crear la cuenta", false); }
 }
@@ -4660,7 +4665,7 @@ function showCreateAccountModal() {
   var el = document.getElementById("modal-area");
   el.innerHTML = '<div class="overlay" style="z-index:600" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:400px">' +
     '<div class="modal-title">➕ Crear Cuenta Nueva<button class="delbtn" onclick="closeModal()">✕</button></div>' +
-    '<div id="create-acc-msg" style="font-size:0.85rem;margin-bottom:10px;color:var(--tx3)">Completá los datos. Se enviará un link de verificación al correo del cliente.</div>' +
+    '<div id="create-acc-msg" style="font-size:0.85rem;margin-bottom:10px;color:var(--tx3)">Completá los datos. La cuenta entrará sin necesidad de confirmar el correo.</div>' +
     '<div style="display:flex;flex-direction:column;gap:12px">' +
     '<input id="new-acc-email" type="email" placeholder="Correo del cliente" style="width:100%">' +
     '<div style="display:flex;gap:8px"><input id="new-acc-pass" type="text" style="width:100%"><button class="btn" onclick="genAccPass()">🎲</button></div>' +
@@ -4691,9 +4696,6 @@ async function adminCreateAccount() {
   if (pass.length < 6) return toast("Contraseña mínima de 6 caracteres", false);
   try {
     await window._AUTH.createUserWithEmailAndPassword(email, pass);
-    if (window._AUTH.currentUser && window._AUTH.currentUser.sendEmailVerification) {
-      await window._AUTH.currentUser.sendEmailVerification();
-    }
     // Restaurar sesión maestra (al crear, Firebase inicia sesión como el nuevo usuario)
     try { await window._AUTH.signOut(); } catch (e) {}
     if (localStorage.getItem("pte_master_session") === "1") {
@@ -4701,7 +4703,7 @@ async function adminCreateAccount() {
     }
     applyAppLock();
     msg.style.color = "var(--ok)";
-    msg.innerHTML = 'Cuenta creada ✓<br><b>' + email + '</b><br><b>' + pass + '</b><br><small>Link de verificación enviado al correo. Podés pegar estos datos al cliente.</small>';
+    msg.innerHTML = 'Cuenta creada ✓<br><b>' + email + '</b><br><b>' + pass + '</b><br><small>El cliente entra con estas credenciales, sin confirmar el correo.</small>';
   } catch (e) {
     msg.style.color = "var(--err)";
     msg.textContent = (e && e.message) || "No se pudo crear la cuenta";
