@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Puntero 3.0 — Features</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0a0e1a;
+      color: #c8cdd8;
+      line-height: 1.6;
+      padding: 2rem 1rem;
+    }
+
+    .container { max-width: 1100px; margin: 0 auto; }
+
+    header {
+      text-align: center;
+      margin-bottom: 3rem;
+      padding-bottom: 2rem;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    header h1 {
+      font-size: 2.8rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #6ee7b7, #3b82f6, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+    }
+
+    header .subtitle {
+      font-size: 1.05rem;
+      color: #7a8299;
+      max-width: 650px;
+      margin: 0 auto;
+    }
+
+    header .badge {
+      display: inline-block;
+      margin-top: 1rem;
+      padding: 0.3rem 0.9rem;
+      border-radius: 999px;
+      background: rgba(59,130,246,0.12);
+      color: #60a5fa;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 14px;
+      padding: 1.6rem;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .card:hover {
+      border-color: rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.05);
+    }
+
+    .card-icon {
+      font-size: 1.8rem;
+      margin-bottom: 0.6rem;
+    }
+
+    .card h2 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #eef0f5;
+      margin-bottom: 0.75rem;
+    }
+
+    .card ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .card li {
+      position: relative;
+      padding-left: 1.1rem;
+      margin-bottom: 0.4rem;
+      font-size: 0.88rem;
+      color: #9aa1b2;
+    }
+
+    .card li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0.55rem;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: #4b5563;
+    }
+
+    .tech-bar {
+      margin-top: 3rem;
+      padding: 2rem;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 14px;
+      text-align: center;
+    }
+
+    .tech-bar h2 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 1rem;
+    }
+
+    .tech-tags {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .tech-tags span {
+      padding: 0.35rem 0.85rem;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: #a1a7b8;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      font-size: 0.8rem;
+      color: #4b5563;
+    }
+
+    @media (max-width: 640px) {
+      header h1 { font-size: 2rem; }
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Puntero 3.0</h1>
+      <p class="subtitle">Gestión de obra — Presupuestos, cronogramas y seguimiento. PWA offline-first para construcción en Paraguay.</p>
+      <span class="badge">v2.0.0</span>
+    </header>
+
+    <div class="grid">
+
+      <!-- Presupuestos -->
+      <div class="card">
+        <div class="card-icon">📊</div>
+        <h2>Presupuestos</h2>
+        <ul>
+          <li>Selección desde catálogo de precios</li>
+          <li>Ítems personalizados</li>
+          <li>Tabla por categorías con M²</li>
+          <li>IVA por tasa (Mat 10% / MO 5%) — toggle por adenda</li>
+          <li>Descuentos y honorarios %</li>
+          <li>Adendas múltiples por proyecto</li>
+          <li>Historial de versiones y rollback</li>
+          <li>Numeración y notas/condiciones</li>
+        </ul>
+      </div>
+
+      <!-- Base de Precios -->
+      <div class="card">
+        <div class="card-icon">💰</div>
+        <h2>Base de Precios</h2>
+        <ul>
+          <li>DB de precios (Mar 2026 + Ago 2025 promedios ponderados)</li>
+          <li>Desglose Material / Mano de Obra</li>
+          <li>Edición inline de precios</li>
+          <li>Ajuste global por %</li>
+          <li>Restaurar valores de fábrica</li>
+          <li>Importación / exportación JSON</li>
+        </ul>
+      </div>
+
+      <!-- Cronograma & Gantt -->
+      <div class="card">
+        <div class="card-icon">📅</div>
+        <h2>Cronograma & Gantt</h2>
+        <ul>
+          <li>Estado por ítem (pendiente / en progreso / listo)</li>
+          <li>Fechas de inicio y fin</li>
+          <li>Asignación de contratistas y personal</li>
+          <li>Fecha de inicio del proyecto</li>
+          <li>Botón recalcular fechas</li>
+          <li>Filtros por categoría</li>
+          <li>Gráfico Gantt visual</li>
+          <li>Exportación CSV</li>
+        </ul>
+      </div>
+
+      <!-- Libro de Obra -->
+      <div class="card">
+        <div class="card-icon">📓</div>
+        <h2>Libro de Obra</h2>
+        <ul>
+          <li>Registros diarios (trabajo, asistencia, clima)</li>
+          <li>Fetch automático del clima</li>
+          <li>Modo recorrido con cámara</li>
+          <li>Fotos con GPS y checklist de 7 ítems</li>
+          <li>Etiquetado de área por foto</li>
+          <li>Guardado automático en carpeta del proyecto</li>
+        </ul>
+      </div>
+
+      <!-- Contratistas -->
+      <div class="card">
+        <div class="card-icon">👷</div>
+        <h2>Contratistas</h2>
+        <ul>
+          <li>Directorio con filtros de especialidad e IPS</li>
+          <li>Registro de pagos</li>
+          <li>Calificación (estrellas + comentarios)</li>
+          <li>Listas de personal asignado</li>
+          <li>Ítems de presupuesto asignados</li>
+          <li>DB Global compartida para usuarios PRO</li>
+        </ul>
+      </div>
+
+      <!-- Jornaleros -->
+      <div class="card">
+        <div class="card-icon">🧑‍🔧</div>
+        <h2>Jornaleros</h2>
+        <ul>
+          <li>Registro de trabajadores (nombre, cédula, rol)</li>
+          <li>Roles: ayudante 80k / oficial 110k / puntero 140k</li>
+          <li>Jornadas con historial</li>
+          <li>Auto-publicación de gasto en Finanzas</li>
+          <li>Exportación CSV</li>
+        </ul>
+      </div>
+
+      <!-- Materiales -->
+      <div class="card">
+        <div class="card-icon">📦</div>
+        <h2>Materiales</h2>
+        <ul>
+          <li>Órdenes de compra con estado</li>
+          <li>Fotos de entrega</li>
+          <li>Registro de pagos</li>
+          <li>Alertas presupuesto vs. gastado</li>
+          <li>Cálculo desde costo unitario × cantidad</li>
+        </ul>
+      </div>
+
+      <!-- Finanzas -->
+      <div class="card">
+        <div class="card-icon">💵</div>
+        <h2>Finanzas</h2>
+        <ul>
+          <li>Ingresos y egresos (11 categorías / 5 fuentes)</li>
+          <li>5 métodos de pago</li>
+          <li>Fondo fijo (chica) con tracking de RUC/factura</li>
+          <li>Gráfico donut de distribución</li>
+          <li>Flujo de caja mensual</li>
+          <li>Exportación PDF y CSV</li>
+        </ul>
+      </div>
+
+      <!-- KPIs de Performance -->
+      <div class="card">
+        <div class="card-icon">📈</div>
+        <h2>KPIs de Performance</h2>
+        <ul>
+          <li>Progreso general vs. tiempo (A TIEMPO / RETRASADO)</li>
+          <li>Ejecución financiera %</li>
+          <li>Órdenes entregadas %</li>
+          <li>Estadísticas de jornaleros</li>
+          <li>Tabla de desviaciones con alertas</li>
+        </ul>
+      </div>
+
+      <!-- Documentos -->
+      <div class="card">
+        <div class="card-icon">📁</div>
+        <h2>Documentos</h2>
+        <ul>
+          <li>Galería de fotos + archivos con categorías</li>
+          <li>Visor integrado de archivos</li>
+          <li>Carpeta del Proyecto (File System Access API)</li>
+          <li>Subcarpetas automáticas</li>
+          <li>Upload, cámara, drag & drop</li>
+          <li>Miniaturas (thumbnails)</li>
+        </ul>
+      </div>
+
+      <!-- Proveedores -->
+      <div class="card">
+        <div class="card-icon">🏪</div>
+        <h2>Proveedores</h2>
+        <ul>
+          <li>Directorio con links (llamar / WhatsApp)</li>
+          <li>Categorías y calificación por estrellas</li>
+          <li>Tabla de comparación de precios por material</li>
+          <li>Destacado del mejor precio</li>
+        </ul>
+      </div>
+
+      <!-- Orden de Trabajo -->
+      <div class="card">
+        <div class="card-icon">📋</div>
+        <h2>Orden de Trabajo</h2>
+        <ul>
+          <li>Generación automática "OT N°" desde presupuesto activo</li>
+          <li>Agrupación por categoría con cantidades</li>
+          <li>Ventana de impresión con líneas de firma</li>
+        </ul>
+      </div>
+
+      <!-- Contratos -->
+      <div class="card">
+        <div class="card-icon">📝</div>
+        <h2>Contratos</h2>
+        <ul>
+          <li>Cláusulas predefinidas (cliente + contratista)</li>
+          <li>Placeholders dinámicos (total, anticipos, fechas)</li>
+          <li>Redacción de terminación anticipada y penalidades</li>
+          <li>Vista previa HTML en vivo</li>
+          <li>PDF multi-página con numeroALetras</li>
+          <li>Exportación masiva</li>
+        </ul>
+      </div>
+
+      <!-- Exportaciones -->
+      <div class="card">
+        <div class="card-icon">📤</div>
+        <h2>Exportaciones</h2>
+        <ul>
+          <li>PDF presupuesto (5 paletas de colores)</li>
+          <li>CSV y XLS</li>
+          <li>.xlsx profesional (3 hojas)</li>
+          <li>MS Project .xml</li>
+          <li>Informes PDF diario / semanal / mensual</li>
+          <li>Backup completo JSON</li>
+        </ul>
+      </div>
+
+      <!-- Proyectos -->
+      <div class="card">
+        <div class="card-icon">🏗️</div>
+        <h2>Proyectos</h2>
+        <ul>
+          <li>Tarjetas con inversión total</li>
+          <li>Archivar / restaurar / eliminar</li>
+          <li>Compartir por WhatsApp</li>
+          <li>Ubicación en mapa (Leaflet)</li>
+          <li>Compartir ubicación vía WhatsApp / Google Maps</li>
+        </ul>
+      </div>
+
+      <!-- Recursos -->
+      <div class="card">
+        <div class="card-icon">🔧</div>
+        <h2>Recursos</h2>
+        <ul>
+          <li>Comparación de precios históricos (con barras de diferencia)</li>
+          <li>Herramientas de gestión de DB</li>
+          <li>Templates de obra</li>
+        </ul>
+      </div>
+
+      <!-- Cloud & Colaboración -->
+      <div class="card">
+        <div class="card-icon">☁️</div>
+        <h2>Cloud & Colaboración</h2>
+        <ul>
+          <li>Firebase Auth (login / registro)</li>
+          <li>Auto-sync a Firestore (debounced)</li>
+          <li>Workspaces en tiempo real (códigos PUN-XXXX)</li>
+          <li>Compartir: proyectos, contratistas, proveedores, roles</li>
+          <li>Plan PRO</li>
+          <li>Backup / restore a la nube</li>
+        </ul>
+      </div>
+
+      <!-- Temas -->
+      <div class="card">
+        <div class="card-icon">🎨</div>
+        <h2>12 Temas de la App</h2>
+        <ul>
+          <li>Constructor Dark / Obra de Día / Plano Técnico</li>
+          <li>Estudio / Neón / Bosque</li>
+          <li>Cobre / Midnight / Arena</li>
+          <li>Carmesí / Pizarra / Obsidiana</li>
+        </ul>
+      </div>
+
+      <!-- PWA -->
+      <div class="card">
+        <div class="card-icon">📱</div>
+        <h2>PWA Offline</h2>
+        <ul>
+          <li>Service Worker con cache-first</li>
+          <li>IndexedDB (Dexie) para datos locales</li>
+          <li>Funciona sin conexión</li>
+          <li>Toast de actualización al nueva versión</li>
+          <li>Instalable como app nativa</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <!-- Tech Stack -->
+    <div class="tech-bar">
+      <h2>Tech Stack</h2>
+      <div class="tech-tags">
+        <span>Vanilla JS</span>
+        <span>HTML / CSS</span>
+        <span>PWA</span>
+        <span>Firebase (Auth, Firestore, Storage)</span>
+        <span>Dexie (IndexedDB)</span>
+        <span>Leaflet 1.9</span>
+        <span>jsPDF + autotable</span>
+        <span>Vitest</span>
+        <span>ESLint</span>
+        <span>Prettier</span>
+        <span>GitHub Actions CI/CD</span>
+        <span>GitHub Pages</span>
+      </div>
+    </div>
+
+    <footer>Puntero 3.0 &mdash; Gestión de obra para Paraguay</footer>
+  </div>
+</body>
+</html>

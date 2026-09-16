@@ -349,7 +349,10 @@ function exportScheduleCSV() {
             duration,
             sch.status || "pending",
             sch.executionMode || "contractor"
-        ].join(","));
+        ].map(function (v) {
+            v = String(v == null ? "" : v);
+            return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+        }).join(","));
     });
     var csv = rows.join("\n");
     var blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });

@@ -17,7 +17,7 @@ function renderMaterials() {
         budgetMatCost = adenda.items.reduce((s, i) => s + (i.matCost || 0) * (i.qty || 0), 0);
     }
     const spentMatCost = orders.filter(o => o.status === 'delivered' || o.isPaid).reduce((s, o) => s + (o.total || 0), 0);
-    const pendingOrders = orders.filter(o => o.status !== 'delivered').reduce((s, o) => s + (o.total || 0), 0);
+    const pendingOrders = orders.filter(o => o.status !== 'delivered' && !o.isPaid).reduce((s, o) => s + (o.total || 0), 0);
     const budgetAlert = spentMatCost > budgetMatCost ? 'danger' : (spentMatCost + pendingOrders > budgetMatCost ? 'warn' : '');
 
     el.innerHTML = `

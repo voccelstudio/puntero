@@ -1,5 +1,5 @@
 /**
- * contractors.js — Gestión de Contratistas, Pagos y Contratos
+ * contractors.js — Gestión de Contratistas, Pagos, Contratos y Calificaciones
  */
 
 function renderContractors() {
@@ -9,31 +9,38 @@ function renderContractors() {
     const adenda = getActiveAdenda();
 
     let h = `<div class="prices-wrap">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; flex-wrap:wrap; gap:10px">
             <div>
                 <h2 style="font-family:var(--font-display); font-weight:800; margin-bottom:4px">GESTIÓN DE CONTRATISTAS</h2>
-                <p style="color:var(--tx3); font-size:0.9rem">Directorio y Control de Pagos</p>
+                <p style="color:var(--tx3); font-size:0.9rem">Directorio, Calificaciones y Control de Pagos</p>
             </div>
-            <button class="btn primary" onclick="showAddContractorModal()">+ Nuevo Contratista</button>
+            <div style="display:flex; gap:8px; flex-wrap:wrap">
+                ${isProUser() ? '<button class="btn sm" onclick="syncGlobalContractors(); toast(\'Actualizando DB global...\')">🔄 DB Global</button>' : ''}
+                <button class="btn primary" onclick="showAddContractorModal()">+ Nuevo Contratista</button>
+            </div>
         </div>
 
         <div class="card" style="margin-bottom:18px; padding:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap">
             <span style="font-size:0.85rem; font-weight:700; color:var(--tx3)">Filtros:</span>
-            <input id="con-filter-text" placeholder="Buscar por nombre o especialidad..." style="width:250px; font-size:0.85rem" oninput="renderContractors()">
-            <select id="con-filter-ips" style="width:140px; font-size:0.85rem" onchange="renderContractors()">
+            <input id="con-filter-text" placeholder="Buscar por nombre o especialidad..." style="width:220px; font-size:0.85rem" oninput="renderContractors()">
+            <select id="con-filter-ips" style="width:130px; font-size:0.85rem" onchange="renderContractors()">
                 <option value="all">IPS: Todos</option>
                 <option value="yes">Con IPS</option>
                 <option value="no">Sin IPS</option>
             </select>
-            <select id="con-filter-records" style="width:160px; font-size:0.85rem" onchange="renderContractors()">
+            <select id="con-filter-records" style="width:150px; font-size:0.85rem" onchange="renderContractors()">
                 <option value="all">Antecedentes: Todos</option>
                 <option value="clean">Sin Antecedentes</option>
                 <option value="flagged">Con Antecedentes</option>
             </select>
-            <select id="con-filter-blacklist" style="width:160px; font-size:0.85rem" onchange="renderContractors()">
-                <option value="all">Lista Negra: Todos</option>
-                <option value="hide">Ocultar Lista Negra</option>
-                <option value="only">Solo Lista Negra</option>
+            <select id="con-filter-rating" style="width:150px; font-size:0.85rem" onchange="renderContractors()">
+                <option value="all">Calificación: Todas</option>
+                <option value="5">★★★★★ Solo 5</option>
+                <option value="4">★★★★☆ 4+</option>
+                <option value="3">★★★☆☆ 3+</option>
+                <option value="2">★★☆☆☆ 2+</option>
+                <option value="1">★☆☆☆☆ 1+</option>
+                <option value="unrated">Sin calificar</option>
             </select>
         </div>
 
@@ -42,7 +49,7 @@ function renderContractors() {
     const filterText = document.getElementById("con-filter-text")?.value.toLowerCase() || "";
     const filterIPS = document.getElementById("con-filter-ips")?.value || "all";
     const filterRecords = document.getElementById("con-filter-records")?.value || "all";
-    const filterBlacklist = document.getElementById("con-filter-blacklist")?.value || "all";
+    const filterRating = document.getElementById("con-filter-rating")?.value || "all";
 
     const filteredContractors = (state.contractors || []).filter(con => {
         const matchesText = con.name.toLowerCase().includes(filterText) || (con.specialty || "").toLowerCase().includes(filterText);
@@ -52,11 +59,16 @@ function renderContractors() {
 
         const matchesIPS = filterIPS === "all" || (filterIPS === "yes" && hasStaffWithIPS) || (filterIPS === "no" && !hasStaffWithIPS);
         const matchesRecords = filterRecords === "all" || (filterRecords === "clean" && !hasStaffWithRecords) || (filterRecords === "flagged" && hasStaffWithRecords);
-        const matchesBlacklist = filterBlacklist === "all"
-            || (filterBlacklist === "hide" && !con.isBlacklisted)
-            || (filterBlacklist === "only" && con.isBlacklisted);
+        
+        const rating = getContractorRating(con);
+        let matchesRating = true;
+        if (filterRating === "unrated") {
+            matchesRating = rating.count === 0;
+        } else if (filterRating !== "all") {
+            matchesRating = rating.avg >= parseFloat(filterRating);
+        }
 
-        return matchesText && matchesIPS && matchesRecords && matchesBlacklist;
+        return matchesText && matchesIPS && matchesRecords && matchesRating;
     });
 
     if (filteredContractors.length === 0) {
@@ -74,11 +86,18 @@ function renderContractors() {
         
         const totalPaid = (con.payments || []).reduce((s, pay) => s + pay.amount, 0);
         const balance = totalMO - totalPaid;
-
         const phoneClean = (con.phone || '').replace(/[^\d+]/g, '');
-        h += `<div class="con-card ${con.isBlacklisted ? 'blacklist' : ''}" ${con.isBlacklisted ? 'style="border-left:4px solid var(--err); background:rgba(248,113,113,0.05)"' : ''}>
-            ${con.isBlacklisted ? '<div style="font-size:0.7rem; font-weight:800; color:var(--err); text-transform:uppercase; margin-bottom:4px">🚨 Lista Negra</div>' : ''}
-            <div class="con-name">${con.name}</div>
+        const rating = getContractorRating(con);
+
+        h += `<div class="con-card">
+            <div class="con-header">
+                <div class="con-name">${con.name}</div>
+                <div class="con-rating-badge" onclick="event.stopPropagation(); rateFromCard('${con.id}')">
+                    ${rating.count > 0 
+                        ? renderStarsHTML(rating.avg, false, con.id) + '<span class="rating-text">' + rating.avg + ' (' + rating.count + ')</span>'
+                        : '<span class="rating-unrated" onclick="event.stopPropagation(); rateFromCard(\'' + con.id + '\')">Sin calificar ★</span>'}
+                </div>
+            </div>
             <div class="con-meta">
                 <span>📱 ${con.phone || 'S/T'}</span>
                 <span>🔨 ${con.specialty || 'Gral'}</span>
@@ -101,6 +120,7 @@ function renderContractors() {
                 <button class="btn sm" style="flex:1" onclick="showPaymentModal('${con.id}')">💸 Pagos</button>
                 <button class="btn sm" style="flex:1" onclick="showAssignItemsModal('${con.id}')">🔗 Asignar</button>
                 <button class="btn sm" style="flex:1" onclick="showStaffModal('${con.id}')">👥 (${(con.staff || []).length})</button>
+                <button class="btn sm" style="flex:0.5" onclick="rateFromCard('${con.id}')" title="Calificar">★</button>
                 <button class="btn sm danger" onclick="deleteContractor('${con.id}')">✕</button>
             </div>
         </div>`;
@@ -119,7 +139,6 @@ function showAddContractorModal() {
             <input id="cn-phone" placeholder="Teléfono">
             <input id="cn-spec" placeholder="Especialidad">
             <textarea id="cn-notes" placeholder="Notas..."></textarea>
-            <label><input type="checkbox" id="cn-black"> 🚨 Lista Negra</label>
         </div>
         <div class="modal-acts">
             <button class="btn" onclick="closeModal()">Cancelar</button>
@@ -137,7 +156,7 @@ function addContractor() {
         phone: document.getElementById("cn-phone").value,
         specialty: document.getElementById("cn-spec").value,
         notes: document.getElementById("cn-notes").value,
-        isBlacklisted: document.getElementById("cn-black").checked,
+        ratingAvg: 0, ratingCount: 0, ratings: {},
         payments: [], staff: []
     };
     if (!state.contractors) state.contractors = [];
@@ -194,7 +213,6 @@ function addPayment(conId) {
     if (con) {
         if (!con.payments) con.payments = [];
         con.payments.push({ amount: amt, date, note, id: Date.now() });
-        // Integración Contratistas → Finanzas: registrar como egreso automático
         const proj = getActiveProject();
         if (proj && proj.execution) {
             if (!proj.execution.finances) proj.execution.finances = { income: [], expenses: [] };

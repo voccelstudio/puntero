@@ -85,7 +85,7 @@ function renderFolderLinked(p) {
         '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">' +
         '<span style="font-size:0.8rem;color:var(--tx3)">' + totalFiles + ' archivos · ' + formatFileSize(totalSize) + '</span>' +
         '<button class="btn sm" onclick="refreshFolderScan()">🔄 Actualizar</button>' +
-        '<button class="btn sm" onclick="unlinkProjectFolder()">.Desvincular</button>' +
+        '<button class="btn sm" onclick="unlinkProjectFolder()">Desvincular</button>' +
         '</div></div>' +
 
         // Toolbar: búsqueda + subir + cámara
@@ -441,9 +441,9 @@ function renderDocuments() {
     if (!proj.execution.documents) proj.execution.documents = [];
     var dailyLogs = proj.execution.dailyLogs || [];
 
-    var logPhotos = dailyLogs.flatMap(function(l) { return (l.photos || []).map(function(p) {
+    var logPhotos = dailyLogs.flatMap(function(l) { return (l.photos || []).map(function(p, pi) {
         return {
-            id: 'log-' + l.id + '-' + Math.random(),
+            id: 'log-' + l.id + '-' + pi,
             type: 'photo',
             category: 'Bitácora',
             name: 'Foto ' + formatDatePY(l.date),

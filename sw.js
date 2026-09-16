@@ -21,10 +21,15 @@ const ASSETS_TO_CACHE = [
   './contractors.js',
   './materials.js',
   './finances.js',
+  './cajachica.js',
   './performance.js',
   './documents.js',
   './suppliers.js',
   './resources.js',
+  './firebase-init.js',
+  './ot.js',
+  './jornaleros.js',
+  './contracts.js',
   // CDNs externos (jspdf)
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js'

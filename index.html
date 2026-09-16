@@ -18,7 +18,7 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;700;800&family=Barlow:wght@400;600;700&family=DM+Sans:wght@400;700&family=IBM+Plex+Mono:wght@400;600&family=Playfair+Display:wght@700;800&family=Sora:wght@400;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;700;800&family=Barlow:wght@400;600;700&family=DM+Sans:wght@400;700&family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&family=Playfair+Display:wght@700;800&family=Sora:wght@400;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
   <!-- Leaflet Maps -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -78,6 +78,7 @@
       <div class="nav-group">
         <div class="nav-label">Gestión y Análisis</div>
         <button id="btn-finances" class="nbtn" onclick="setSection('finances')">💰 Finanzas</button>
+        <button id="btn-cajachica" class="nbtn" onclick="setSection('cajachica')">💵 Caja Chica</button>
         <button id="btn-performance" class="nbtn" onclick="setSection('performance')">📈 Desempeño</button>
         <button id="btn-documents" class="nbtn" onclick="setSection('documents')">📁 Planos y Fotos</button>
         <button id="btn-folder" class="nbtn" onclick="setSection('folder')">📂 Carpeta del Proyecto</button>
@@ -130,6 +131,7 @@
     <div id="section-jornaleros" class="view" style="display:none"></div>
     <div id="section-contratos" class="view" style="display:none"></div>
     <div id="section-finances" class="view" style="display:none"></div>
+    <div id="section-cajachica" class="view" style="display:none"></div>
     <div id="section-performance" class="view" style="display:none"></div>
     <div id="section-dashboard" class="view" style="display:none"></div>
     <div id="section-prices" class="view" style="display:none"></div>
@@ -184,6 +186,7 @@
 <script src="contractors.js"></script>
 <script src="materials.js"></script>
 <script src="finances.js"></script>
+<script src="cajachica.js"></script>
 <script src="performance.js"></script>
 <script src="documents.js"></script>
 <script src="suppliers.js"></script>

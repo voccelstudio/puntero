@@ -72,7 +72,8 @@ function formatDatePY(input) {
  * Los <input type="date"> SIEMPRE usan ISO internamente, no se puede cambiar.
  */
 function todayISO() {
-  return new Date().toISOString().split('T')[0];
+  var d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
 /**
@@ -564,6 +565,153 @@ function migrateToV9() {
     });
     state.migratedV8 = true;
     save();
+}
+
+function migrateToV10() {
+    if (state.migratedV9) return;
+    (state.contractors || []).forEach(function(c) {
+        if (c.isBlacklisted !== undefined) {
+            c.ratingAvg = 1;
+            c.ratingCount = 0;
+            c.ratings = {};
+            delete c.isBlacklisted;
+        } else {
+            if (c.ratingAvg === undefined) c.ratingAvg = 0;
+            if (c.ratingCount === undefined) c.ratingCount = 0;
+            if (!c.ratings) c.ratings = {};
+        }
+    });
+    state._globalContractorsCache = [];
+    state._globalContractorsLastSync = null;
+    state.migratedV9 = true;
+    save();
+}
+
+// ── RATING & GLOBAL DB HELPERS ────────────────────────────────────────────
+
+function isProUser() {
+    return state.isPro === true;
+}
+
+function rateContractor(conId, stars, comment) {
+    var con = (state.contractors || []).find(function(c) { return c.id === conId; });
+    if (!con) return;
+    if (!con.ratings) con.ratings = {};
+    var uid = window._currentUser ? window._currentUser.uid : 'local';
+    con.ratings[uid] = { stars: stars, comment: comment || '', date: todayISO() };
+    var vals = Object.values(con.ratings);
+    con.ratingAvg = vals.reduce(function(s, r) { return s + r.stars; }, 0) / vals.length;
+    con.ratingCount = vals.length;
+    save();
+}
+
+function getContractorRating(con) {
+    if (!con || !con.ratings) return { avg: 0, count: 0, userStars: 0 };
+    var vals = Object.values(con.ratings);
+    var avg = vals.length ? vals.reduce(function(s, r) { return s + r.stars; }, 0) / vals.length : 0;
+    var uid = window._currentUser ? window._currentUser.uid : 'local';
+    var userStars = (con.ratings[uid] || {}).stars || 0;
+    return { avg: Math.round(avg * 10) / 10, count: vals.length, userStars: userStars };
+}
+
+function renderStarsHTML(rating, interactive, conId) {
+    var stars = [];
+    var rounded = Math.round(rating);
+    for (var i = 1; i <= 5; i++) {
+        var cls = i <= rounded ? 'star filled' : 'star';
+        if (interactive) {
+            stars.push('<span class="' + cls + ' star-interactive" onclick="event.stopPropagation(); rateFromCard(\'' + conId + '\', ' + i + ')">' + (i <= rounded ? '★' : '☆') + '</span>');
+        } else {
+            stars.push('<span class="' + cls + '">' + (i <= rounded ? '★' : '☆') + '</span>');
+        }
+    }
+    return '<span class="stars-display">' + stars.join('') + '</span>';
+}
+
+function rateFromCard(conId, stars) {
+    var con = (state.contractors || []).find(function(c) { return c.id === conId; });
+    if (!con) return;
+    var existing = {};
+    var uid = window._currentUser ? window._currentUser.uid : 'local';
+    if (con.ratings && con.ratings[uid]) existing = con.ratings[uid];
+    showRateModal(conId, con.name, existing.stars || 0, existing.comment || '');
+}
+
+function showRateModal(conId, conName, currentStars, currentComment) {
+    var el = document.getElementById("modal-area");
+    el.innerHTML = '<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:380px">' +
+        '<div class="modal-title">Calificar: ' + escapeHtml(conName) + '<button class="delbtn" onclick="closeModal()">✕</button></div>' +
+        '<div style="text-align:center; padding:10px 0">' +
+        '<div id="rate-stars" style="font-size:2.5rem; cursor:pointer; letter-spacing:4px">' +
+        [1,2,3,4,5].map(function(s) {
+            return '<span class="star-interactive" data-star="' + s + '" onclick="selectStar(' + s + ')" onmouseover="hoverStar(' + s + ')" onmouseout="resetStars()">' + (s <= currentStars ? '★' : '☆') + '</span>';
+        }).join('') +
+        '</div>' +
+        '<div id="rate-label" style="margin-top:6px; font-size:0.85rem; color:var(--tx3)">' + (currentStars ? starLabel(currentStars) : 'Tocá una estrella') + '</div>' +
+        '</div>' +
+        '<textarea id="rate-comment" placeholder="Comentario (opcional)..." style="width:100%; min-height:60px; resize:vertical">' + escapeHtml(currentComment) + '</textarea>' +
+        '<div class="modal-acts">' +
+        '<button class="btn" onclick="closeModal()">Cancelar</button>' +
+        '<button class="btn primary" onclick="confirmRate(\'' + conId + '\')">Calificar ★</button>' +
+        '</div></div></div>';
+    window._selectedRating = currentStars;
+}
+
+function selectStar(n) {
+    window._selectedRating = n;
+    var stars = document.querySelectorAll('#rate-stars .star-interactive');
+    stars.forEach(function(el) {
+        var s = parseInt(el.getAttribute('data-star'));
+        el.textContent = s <= n ? '★' : '☆';
+        el.className = 'star-interactive' + (s <= n ? ' star-selected' : '');
+    });
+    document.getElementById('rate-label').textContent = starLabel(n);
+}
+
+function hoverStar(n) {
+    var stars = document.querySelectorAll('#rate-stars .star-interactive');
+    stars.forEach(function(el) {
+        var s = parseInt(el.getAttribute('data-star'));
+        el.textContent = s <= n ? '★' : '☆';
+    });
+}
+
+function resetStars() {
+    var cur = window._selectedRating || 0;
+    var stars = document.querySelectorAll('#rate-stars .star-interactive');
+    stars.forEach(function(el) {
+        var s = parseInt(el.getAttribute('data-star'));
+        el.textContent = s <= cur ? '★' : '☆';
+        el.className = 'star-interactive' + (s <= cur ? ' star-selected' : '');
+    });
+}
+
+function starLabel(n) {
+    var labels = { 1: 'Malo', 2: 'Regular', 3: 'Bueno', 4: 'Muy Bueno', 5: 'Excelente' };
+    return labels[n] || '';
+}
+
+function confirmRate(conId) {
+    var stars = window._selectedRating || 0;
+    if (!stars) return toast("Seleccioná una estrella", false);
+    var comment = document.getElementById('rate-comment').value;
+    rateContractor(conId, stars, comment);
+    closeModal();
+    renderContractors();
+    toast("Calificación guardada ✓");
+}
+
+async function syncGlobalContractors() {
+    if (!isProUser()) return;
+    if (!window._FIRESTORE || !window._currentUser) return;
+    try {
+        var snap = await window._FIRESTORE.collection('globalContractors').limit(200).get();
+        var list = [];
+        snap.forEach(function(doc) { list.push({ id: doc.id, ...doc.data() }); });
+        state._globalContractorsCache = list;
+        state._globalContractorsLastSync = new Date().toISOString();
+        save();
+    } catch(e) { console.warn('[GlobalDB] Sync error:', e); }
 }
 
 /**
@@ -1364,12 +1512,13 @@ function setSection(s) {
     resources: "Biblioteca y Recursos",
     projects: "Gestión de Proyectos",
     folder: "Carpeta del Proyecto",
+    cajachica: "Caja Chica",
     cloud: "☁️ Cloud"
   };
   const vtitle = document.getElementById("view-title");
   if (vtitle) vtitle.textContent = titles[s] || "Puntero";
 
-  ["global_dashboard", "budget", "ot", "schedule", "contractors", "jornaleros", "contratos", "prices", "dashboard", "themes", "logs", "materials", "finances", "performance", "documents", "suppliers", "resources", "projects", "aftercare", "computo", "folder", "cloud"].forEach(x => {
+  ["global_dashboard", "budget", "ot", "schedule", "contractors", "jornaleros", "contratos", "prices", "dashboard", "themes", "logs", "materials", "finances", "cajachica", "performance", "documents", "suppliers", "resources", "projects", "aftercare", "computo", "folder", "cloud"].forEach(x => {
     const el = document.getElementById("section-" + x);
     if (el) el.style.display = s === x ? "" : "none";
     const b = document.getElementById("btn-" + x);
@@ -1391,6 +1540,7 @@ function setSection(s) {
   if (s === "logs") renderLogs();
   if (s === "materials") renderMaterials();
   if (s === "finances") renderFinances();
+  if (s === "cajachica") renderCajaChica();
   if (s === "performance") renderPerformance();
   if (s === "documents") renderDocuments();
   if (s === "suppliers") renderSuppliers();
@@ -1976,6 +2126,7 @@ function loadVersion(id) {
 
     const adenda = p.budgets.find(b => b.id === v.adendaId) || getActiveAdenda();
     if (!adenda) return toast("Adenda no encontrada", false);
+    state.activeAdendaId = adenda.id;
 
     adenda.items = JSON.parse(JSON.stringify(v.items));
     p.m2Area = v.m2Area || 0;
@@ -2214,7 +2365,7 @@ function renderBudget() {
   el.innerHTML = `
     <div style="background:var(--sur2); padding:10px; border-radius:var(--rad); margin-bottom:15px; display:flex; align-items:center; gap:10px; border:1px solid var(--bor)">
         <span style="font-weight:700; font-size:0.85rem">Adenda Activa:</span>
-        <select style="flex:1" onchange="state.activeAdendaId=this.value; renderBudget()">
+        <select style="flex:1" onchange="state.activeAdendaId=this.value; save(); renderBudget()">
             ${p.budgets.map(b => `<option value="${b.id}" ${b.id === adenda.id ? 'selected' : ''}>${b.name}</option>`).join("")}
         </select>
         <button class="btn sm" onclick="addAdenda()">+ Nueva Adenda</button>
@@ -2745,7 +2896,7 @@ function exportScheduleMSProject() {
   }
 
   let resources = '', rUid = 1, cMap = {};
-  (state.contractors || []).filter(c => !c.isBlacklisted).forEach(c => {
+  (state.contractors || []).forEach(c => {
     cMap[c.id] = rUid;
     resources += `<Resource><UID>${rUid}</UID><ID>${rUid}</ID><Name>${esc(c.name)}</Name><Type>1</Type><Group>${esc(c.specialty || '')}</Group></Resource>`;
     rUid++;
@@ -2864,7 +3015,6 @@ function generarPDF() {
   const W = 210, M = 14;
   const p = state.profile;
   const ivaEnabled = !!adenda.ivaEnabled;
-  const profitPct = adenda.profitPct || 0;
   const validDays = state.validDays || 30;
   const budgetNum = state.budgetNum || 1;
   const projectName = proj.name || "";
@@ -2976,14 +3126,15 @@ function generarPDF() {
     for (const item of ci) {
       itemNum++;
       const { ivaTotal: ivaItem } = calcIVA(item.matCost, item.laborCost, item.qty);
-      const totalItem = item.unitPrice * item.qty + (ivaEnabled ? ivaItem : 0);
+      const ep = item.unitPrice * (1 - (item.disc || 0) / 100);
+      const totalItem = ep * item.qty + (ivaEnabled ? ivaItem : 0);
       catSubtotal += totalItem;
       rows.push([
         { content: catNum + "." + itemNum, styles: { halign: "center", fontSize: 7.5, textColor: C.mutedTx } },
         { content: pdfTxt(item.name), styles: { fontSize: 8 } },
         { content: pdfTxt(item.unit), styles: { halign: "center", fontSize: 8 } },
         { content: String(item.qty), styles: { halign: "center", fontSize: 8 } },
-        { content: "Gs. " + fmt(item.unitPrice + (ivaEnabled ? Math.round(ivaItem / item.qty) : 0)), styles: { halign: "right", fontSize: 7.5 } },
+        { content: "Gs. " + fmt(ep + (ivaEnabled ? Math.round(ivaItem / item.qty) : 0)), styles: { halign: "right", fontSize: 7.5 } },
         { content: "Gs. " + fmt(totalItem), styles: { halign: "right", fontStyle: "bold", fontSize: 7.5 } },
       ]);
     }
@@ -3023,11 +3174,6 @@ function generarPDF() {
     doc.text("IVA 10% sobre materiales:", totX, y + 4); doc.setTextColor(79, 70, 229); doc.setFont("helvetica", "bold"); doc.text("Gs. " + fmt(ivaMat), W - M, y + 4, { align: "right" }); y += 6;
     doc.setFont("helvetica", "normal"); doc.setTextColor(...C.mutedTx);
     doc.text("IVA 5% sobre mano de obra:", totX, y + 4); doc.setTextColor(79, 70, 229); doc.setFont("helvetica", "bold"); doc.text("Gs. " + fmt(ivaLab), W - M, y + 4, { align: "right" }); y += 6;
-  }
-  if (profitPct > 0) {
-    doc.setFont("helvetica", "normal"); doc.setTextColor(...C.mutedTx);
-    doc.text("Honorarios profesionales (" + profitPct + "%):", totX, y + 4);
-    doc.setTextColor(22, 163, 74); doc.setFont("helvetica", "bold"); doc.text("Gs. " + fmt(profitAmt), W - M, y + 4, { align: "right" }); y += 6;
   }
   // Total separator
   doc.setDrawColor(...C.accentBg); doc.setLineWidth(0.3); doc.line(totX, y, W - M, y); y += 3;
@@ -3397,7 +3543,7 @@ function showModal(type, arg) {
     el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:400px">
       <div class="modal-title">Guardar Presupuesto</div>
       <p style="font-size:1rem;color:var(--tx2);margin-bottom:12px"><strong>${p.name}</strong><br>Adenda: <strong>${adenda.name}</strong> — ${adenda.items.length} ítems — Total: <strong style="color:var(--acc)">${fmt(getTotals().total)}</strong></p>
-      <div class="modal-acts"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="doSave()">Guardar</button></div>
+      <div class="modal-acts"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="closeModal();saveVersion()">Guardar</button></div>
     </div></div>`;
   }
 
@@ -3858,7 +4004,7 @@ function loadDemoProject() {
 
   state.contractors = [
     { id: "con_demo_1", name: "Maestro Pintos", phone: "0981 000 111", specialty: "Albañilería y Estructura", email: "pintos_obras@gmail.com", notes: "Excelente para cimientos y mampostería. Muy puntual.", payments: [{amount: 2000000, date: "2026-04-20", note: "Anticipo inicio obra"}], staff: [] },
-    { id: "con_demo_2", name: "Juan 'Chapuza' González", phone: "0971 222 333", specialty: "Instalaciones", isBlacklisted: true, notes: "No contratar. Malas terminaciones y deja la obra a medias.", payments: [], staff: [] }
+    { id: "con_demo_2", name: "Juan 'Chapuza' González", phone: "0971 222 333", specialty: "Instalaciones", ratingAvg: 1.5, ratingCount: 2, ratings: {}, notes: "Malas terminaciones y deja la obra a medias.", payments: [], staff: [] }
   ];
 }
 
@@ -4043,6 +4189,14 @@ function renderCloudSettings() {
     '<p style="color:var(--tx3);font-size:0.8rem;margin-top:6px">Cada cambio se sube automáticamente a Firestore cuando hay sesión iniciada.</p>' +
     '</div></div>' +
 
+    // ── PLAN PRO ──
+    '<div class="card" style="margin-top:16px"><h3 class="sec-lbl">⭐ Plan PRO</h3><div style="margin-top:12px">' +
+    '<label style="display:flex;align-items:center;gap:12px;cursor:pointer">' +
+    '<input type="checkbox" ' + (state.isPro ? "checked" : "") + ' onchange="state.isPro=this.checked;save();toast(this.checked?\'Plan PRO activado\':\'Plan PRO desactivado\');renderCloudSettings()">' +
+    '<span style="font-weight:600">Cuenta PRO (acceso a DB Global de Contratistas)</span></label>' +
+    '<p style="color:var(--tx3);font-size:0.8rem;margin-top:6px">Con PLAN PRO accedés a la base de datos global compartida entre todos los usuarios del programa, con calificaciones y reseñas de contratistas.</p>' +
+    '</div></div>' +
+
     '<div class="card" style="margin-top:16px"><h3 class="sec-lbl">Backup y Datos</h3><div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">' +
     '<button class="btn full" onclick="exportBackup()">📥 Descargar Backup (JSON)</button>' +
     '<button class="btn full" onclick="importBackup()">📤 Restaurar Backup</button>' +
@@ -4164,6 +4318,7 @@ window.onload = () => {
   
   migrateToV7();
   migrateToV9();
+  migrateToV10();
   renderCurrencyArea();
   initFirebaseAuth();
   fetchExchangeRate();

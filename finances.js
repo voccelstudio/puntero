@@ -20,10 +20,6 @@ function renderFinances() {
     if (!p.execution.finances) p.execution.finances = { income: [], expenses: [], pettyCash: { fundAmount: 0, transactions: [] } };
 
     var finances = p.execution.finances;
-    if (!finances.pettyCash) finances.pettyCash = { fundAmount: 0, transactions: [] };
-    var pc = finances.pettyCash;
-    var pcTotalExpenses = (pc.transactions || []).reduce(function(s, t) { return s + t.amount; }, 0);
-    var pcBalance = pc.fundAmount - pcTotalExpenses;
     var filterType = (window._finFilterType || "all");
     var filterCat = (window._finFilterCat || "");
     
@@ -83,7 +79,7 @@ function renderFinances() {
                 <button class="btn sm primary" onclick="showModal('finance_entry',{type:'in'})">+ Ingreso</button>
                 <button class="btn sm danger" onclick="showModal('finance_entry',{type:'ex'})">+ Gasto</button>
                 <button class="btn sm" onclick="exportFinancePDF()">📄 PDF</button>
-                <button class="btn sm" onclick="showModal('petty_cash_fund')">💵 Caja Chica</button>
+                <button class="btn sm" onclick="setSection('cajachica')">💵 Caja Chica</button>
                 <button class="btn sm" onclick="exportFinancesCSV()">📥 CSV</button>
             </div>
         </div>
@@ -115,48 +111,7 @@ function renderFinances() {
             ${catSummary.length > 1 ? '<div style="display:flex; flex-wrap:wrap; gap:24px; margin-top:16px; align-items:flex-start"><div><canvas id="fin-chart-pie" width="200" height="200" style="width:200px;height:200px"></canvas></div><div style="flex:1;min-width:160px"><div style="font-size:0.8rem;font-weight:700;color:var(--tx3);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em">Distribución</div>' + catSummary.map(function(c,i) { return '<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:0.85rem"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:' + FINANCE_CHART_COLORS[i % FINANCE_CHART_COLORS.length] + '"></span>' + escapeHtml(c[0]) + ': <strong>' + fmt(c[1]) + '</strong></div>'; }).join("") + '</div></div>' : ""}
         </div>
 
-        <div class="card" style="margin-top:20px">
-            <h3 class="sec-lbl">Caja Chica</h3>
-            <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:12px">
-                <div style="flex:1; min-width:140px; padding:15px; background:var(--sur2); border-radius:var(--rad)">
-                    <div style="font-size:0.75rem; color:var(--tx3)">FONDO ASIGNADO</div>
-                    <div style="font-size:1.3rem; font-weight:800">${fmt(pc.fundAmount)}</div>
-                </div>
-                <div style="flex:1; min-width:140px; padding:15px; background:var(--sur2); border-radius:var(--rad)">
-                    <div style="font-size:0.75rem; color:var(--tx3)">GASTADO</div>
-                    <div style="font-size:1.3rem; font-weight:800; color:var(--err)">${fmt(pcTotalExpenses)}</div>
-                </div>
-                <div style="flex:1; min-width:140px; padding:15px; background:var(--sur2); border-radius:var(--rad)">
-                    <div style="font-size:0.75rem; color:var(--tx3)">SALDO DISPONIBLE</div>
-                    <div style="font-size:1.3rem; font-weight:800; color:${pcBalance >= 0 ? 'var(--ok)' : 'var(--err)'}">${fmt(pcBalance)}</div>
-                </div>
-            </div>
-            ${pc.fundAmount > 0 ? '<div style="margin-top:8px;height:8px;border-radius:4px;background:var(--bor);overflow:hidden"><div style="height:100%;width:' + Math.min(Math.round(pcTotalExpenses / pc.fundAmount * 100), 100) + '%;border-radius:4px;background:' + (pcTotalExpenses > pc.fundAmount ? 'var(--err)' : 'var(--ok)') + ';transition:width .3s"></div></div><div style="font-size:0.75rem;color:var(--tx3);margin-top:4px">' + Math.min(Math.round(pcTotalExpenses / pc.fundAmount * 100), 100) + '% utilizado</div>' : ''}
-            <div style="display:flex; gap:8px; margin-top:12px">
-                <button class="btn sm primary" onclick="showModal('petty_cash_fund')">Ajustar Fondo</button>
-                <button class="btn sm danger" onclick="showModal('petty_cash_expense')">Gasto Caja Chica</button>
-            </div>
-            <table class="tbl sm" style="margin-top:12px">
-                <thead><tr><th>Fecha</th><th>RUC</th><th>Factura N°</th><th>Descripción</th><th>Proveedor</th><th style="text-align:right">Monto</th><th style="text-align:center">Acción</th></tr></thead>
-                <tbody>
-                    ${pc.transactions.length === 0 ? '<tr><td colspan="7" class="empty">Sin movimientos de caja chica.</td></tr>' :
-                    pc.transactions.slice(0, 10).map(function(t) { return `
-                        <tr>
-                            <td>${formatDatePY(t.date)}</td>
-                            <td style="font-size:0.85rem;color:var(--tx3)">${escapeHtml(t.ruc || '')}</td>
-                            <td style="font-size:0.85rem;color:var(--tx3)">${escapeHtml(t.invoiceNum || '')}</td>
-                            <td>${escapeHtml(t.description || t.concept || '')}</td>
-                            <td style="font-size:0.85rem;color:var(--tx3)">${escapeHtml(t.supplier || '')}</td>
-                            <td style="text-align:right;font-weight:700;color:var(--err)">- ${fmt(t.amount)}</td>
-                            <td style="text-align:center"><button class="btn sm danger" onclick="deletePettyCashTransaction(${t.id})">🗑️</button></td>
-                        </tr>`;
-                    }).join("")}
-                </tbody>
-            </table>
-            ${pc.transactions.length > 10 ? '<div style="margin-top:8px;font-size:0.8rem;color:var(--tx3)">Mostrando últimos 10 de ' + pc.transactions.length + ' movimientos</div>' : ''}
-        </div>
-
-                <div class="card" style="margin-top:20px"><h3 class="sec-lbl">Flujo Mensual</h3><div style="display:flex;gap:12px;overflow-x:auto;padding:12px 0">${getMonthlyCashFlow().map(function(m) { var bal = m.income - m.expenses; var months = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]; var parts = m.month.split("-"); var label = months[parseInt(parts[1],10)-1]; return '<div style="min-width:100px;padding:12px;background:var(--sur2);border-radius:var(--rad);text-align:center;border-left:3px solid ' + (bal >= 0 ? 'var(--ok)' : 'var(--err)') + '"><div style="font-size:0.7rem;color:var(--tx3);font-weight:700;text-transform:uppercase">' + label + '</div><div style="font-size:0.8rem;color:var(--ok);margin-top:4px">+' + fmt(m.income) + '</div><div style="font-size:0.8rem;color:var(--err)">-' + fmt(m.expenses) + '</div><div style="font-size:0.75rem;font-weight:700;color:' + (bal >= 0 ? 'var(--ok)' : 'var(--err)') + ';margin-top:4px;border-top:1px solid var(--bor);padding-top:4px">' + (bal >= 0 ? '+' : '') + fmt(bal) + '</div></div>'; }).join("") || '<div style="color:var(--tx3);padding:12px">Sin movimientos mensuales</div>'}</div></div>
+        <div class="card" style="margin-top:20px"><h3 class="sec-lbl">Flujo Mensual</h3><div style="display:flex;gap:12px;overflow-x:auto;padding:12px 0">${getMonthlyCashFlow().map(function(m) { var bal = m.income - m.expenses; var months = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]; var parts = m.month.split("-"); var label = months[parseInt(parts[1],10)-1]; return '<div style="min-width:100px;padding:12px;background:var(--sur2);border-radius:var(--rad);text-align:center;border-left:3px solid ' + (bal >= 0 ? 'var(--ok)' : 'var(--err)') + '"><div style="font-size:0.7rem;color:var(--tx3);font-weight:700;text-transform:uppercase">' + label + '</div><div style="font-size:0.8rem;color:var(--ok);margin-top:4px">+' + fmt(m.income) + '</div><div style="font-size:0.8rem;color:var(--err)">-' + fmt(m.expenses) + '</div><div style="font-size:0.75rem;font-weight:700;color:' + (bal >= 0 ? 'var(--ok)' : 'var(--err)') + ';margin-top:4px;border-top:1px solid var(--bor);padding-top:4px">' + (bal >= 0 ? '+' : '') + fmt(bal) + '</div></div>'; }).join("") || '<div style="color:var(--tx3);padding:12px">Sin movimientos mensuales</div>'}</div></div>
 
             ${(incomeTotal > 0 || total > 0) ? '<div class="card" style="margin-top:20px"><h3 class="sec-lbl">Presupuesto vs Real</h3><div class="grid3" style="margin-top:12px"><div style="padding:15px;background:var(--sur2);border-radius:var(--rad)"><div style="font-size:0.75rem;color:var(--tx3)">PRESUPUESTO META</div><div style="font-size:1.3rem;font-weight:800">' + fmt(total) + '</div></div><div style="padding:15px;background:var(--sur2);border-radius:var(--rad)"><div style="font-size:0.75rem;color:var(--tx3)">TOTAL GASTADO</div><div style="font-size:1.3rem;font-weight:800;color:var(--err)">' + fmt(totalSpent) + '</div></div><div style="padding:15px;background:var(--sur2);border-radius:var(--rad)"><div style="font-size:0.75rem;color:var(--tx3)">EJECUCIÓN</div><div style="font-size:1.3rem;font-weight:800;color:' + (totalSpent > total ? 'var(--err)' : 'var(--ok)') + '">' + (total > 0 ? Math.round(totalSpent / total * 100) : 0) + '%</div></div></div>' + (total > 0 ? '<div style="margin-top:8px;height:8px;border-radius:4px;background:var(--bor);overflow:hidden"><div style="height:100%;width:' + Math.min(Math.round(totalSpent / total * 100), 100) + '%;border-radius:4px;background:' + (totalSpent > total ? 'var(--err)' : 'var(--ok)') + ';transition:width .3s"></div></div>' : '') + '</div>' : ''}
 
@@ -183,8 +138,8 @@ function renderFinances() {
                             <td style="font-size:0.85rem">${escapeHtml(m.method || '-')}</td>
                             <td style="text-align:right; font-weight:700; color:${m._t==='in'?'var(--ok)':'var(--err)'}">${m._t==='in'?'+':'-'} ${fmt(m.amount)}</td>
                             <td style="text-align:center">
-                                <button class="btn sm" onclick="showModal('finance_entry',{id:${m.id},type:'${m._t}'})">✏️</button>
-                                <button class="btn sm danger" onclick="deleteFinanceEntry(${m.id},'${m._t}')">🗑️</button>
+                                <button class="btn sm" onclick="showModal('finance_entry',{id:'${m.id}',type:'${m._t}'})">✏️</button>
+                                <button class="btn sm danger" onclick="deleteFinanceEntry('${m.id}','${m._t}')">🗑️</button>
                             </td>
                         </tr>`;
                     }).join("")}
@@ -351,7 +306,7 @@ function exportFinancePDF() {
     doc.setPage(i);
     doc.setFontSize(6.5); doc.setFont("helvetica", "normal"); doc.setTextColor(148, 163, 184);
     doc.setDrawColor(226, 232, 240); doc.setLineWidth(0.2); doc.line(M, 287, W - M, 287);
-    doc.text(profile.company || "Puntero" + (profile.ruc ? " - RUC: " + profile.ruc : ""), M, 292);
+    doc.text((profile.company || "Puntero") + (profile.ruc ? " - RUC: " + profile.ruc : ""), M, 292);
     doc.text("Pagina " + i + " de " + pages, W - M, 292, { align: "right" });
   }
   doc.save("estado_financiero_" + p.name.replace(/\s+/g, "_") + ".pdf");
@@ -399,7 +354,7 @@ function saveFinanceEntry() {
   if (!p.execution.finances) p.execution.finances = { income: [], expenses: [] };
   var finances = p.execution.finances;
   var type = document.getElementById("fin-type").value;
-  var id = parseInt(document.getElementById("fin-id").value, 10) || Date.now();
+  var id = document.getElementById("fin-id").value || String(Date.now());
   var list = type === 'in' ? finances.income : finances.expenses;
   
   var date = document.getElementById("fin-date").value;
@@ -411,7 +366,7 @@ function saveFinanceEntry() {
   if (!date) return toast("Fecha requerida", false);
   if (!amount || amount <= 0) return toast("Monto inválido", false);
   
-  var existing = list.findIndex(function(e) { return e.id === id; });
+  var existing = list.findIndex(function(e) { return String(e.id) === String(id); });
   var entry = { id: id, date: date, amount: amount, category: category, method: method, note: note };
   
   if (existing >= 0) {
@@ -453,86 +408,4 @@ function exportFinancesCSV() {
   a.click();
   URL.revokeObjectURL(a.href);
   toast("CSV exportado ✓");
-}
-
-// ── Petty Cash (Caja Chica) ──
-window.modals.petty_cash_fund = function(arg) {
-  var p = getActiveProject();
-  var pc = (p.execution && p.execution.finances && p.execution.finances.pettyCash) || { fundAmount: 0, transactions: [] };
-  return '<div class="modal-title">Ajustar Fondo de Caja Chica<button class="delbtn" onclick="closeModal()">✕</button></div>' +
-    '<div style="display:flex; flex-direction:column; gap:12px">' +
-      '<div><label class="stat-lbl">Monto del Fondo (Gs.)</label><input id="pc-fund-amount" type="number" class="inp" value="' + pc.fundAmount + '" placeholder="0"></div>' +
-    '</div>' +
-    '<div class="modal-acts">' +
-      '<button class="btn" onclick="closeModal()">Cancelar</button>' +
-      '<button class="btn primary" onclick="savePettyCashFund()">Guardar Fondo 💾</button>' +
-    '</div>';
-};
-
-window.modals.petty_cash_expense = function(arg) {
-  return '<div class="modal-title">Registrar Gasto de Caja Chica<button class="delbtn" onclick="closeModal()">\u2715</button></div>' +
-    '<div style="display:flex; flex-direction:column; gap:12px">' +
-      '<div class="grid2">' +
-        '<div><label class="stat-lbl">Fecha</label>' + dateInputPY("pc-exp-date", todayISO(), '', 'width:100%') + '</div>' +
-        '<div><label class="stat-lbl">Monto (Gs.)</label><input id="pc-exp-amount" type="number" class="inp" placeholder="0"></div>' +
-        '<div><label class="stat-lbl">RUC / CI Proveedor</label><input id="pc-exp-ruc" class="inp" placeholder="Ej: 1234567-0"></div>' +
-        '<div><label class="stat-lbl">N\u00famero de Factura</label><input id="pc-exp-invoice" class="inp" placeholder="Ej: 001-001-0000001"></div>' +
-        '<div class="fullcol"><label class="stat-lbl">Descripci\u00f3n</label><input id="pc-exp-desc" class="inp" placeholder="Ej: Compra de cemento para reparaci\u00f3n ba\u00f1o"></div>' +
-        '<div class="fullcol"><label class="stat-lbl">Proveedor (opcional)</label><input id="pc-exp-supplier" class="inp" placeholder="Nombre del proveedor"></div>' +
-      '</div>' +
-    '</div>' +
-    '<div class="modal-acts">' +
-      '<button class="btn" onclick="closeModal()">Cancelar</button>' +
-      '<button class="btn primary" onclick="savePettyCashExpense()">Registrar Gasto \u2713</button>' +
-    '</div>';
-};
-
-function savePettyCashFund() {
-  var p = getActiveProject();
-  if (!p.execution.finances) p.execution.finances = { income: [], expenses: [] };
-  if (!p.execution.finances.pettyCash) p.execution.finances.pettyCash = { fundAmount: 0, transactions: [] };
-  var amount = parseFloat(document.getElementById("pc-fund-amount").value);
-  if (isNaN(amount) || amount < 0) return toast("Monto inv\u00e1lido", false);
-  p.execution.finances.pettyCash.fundAmount = amount;
-  toast("Fondo de caja chica actualizado \u2713");
-  save(); closeModal(); renderFinances();
-}
-
-function savePettyCashExpense() {
-  var p = getActiveProject();
-  if (!p.execution.finances) p.execution.finances = { income: [], expenses: [] };
-  if (!p.execution.finances.pettyCash) p.execution.finances.pettyCash = { fundAmount: 0, transactions: [] };
-  var date = document.getElementById("pc-exp-date").value;
-  var amount = parseFloat(document.getElementById("pc-exp-amount").value);
-  var ruc = document.getElementById("pc-exp-ruc").value.trim();
-  var invoiceNum = document.getElementById("pc-exp-invoice").value.trim();
-  var desc = document.getElementById("pc-exp-desc").value.trim();
-  var supplier = document.getElementById("pc-exp-supplier").value.trim();
-  if (!date) return toast("Fecha requerida", false);
-  if (!amount || amount <= 0) return toast("Monto inv\u00e1lido", false);
-  if (!desc) return toast("Descripci\u00f3n requerida", false);
-  var pc = p.execution.finances.pettyCash;
-  pc.transactions.push({
-    id: Date.now(),
-    date: date,
-    amount: amount,
-    ruc: ruc,
-    invoiceNum: invoiceNum,
-    description: desc,
-    supplier: supplier
-  });
-  pc.transactions.sort(function(a,b) { return parseDate(b.date) - parseDate(a.date); });
-  toast("Gasto de caja chica registrado \u2713");
-  save(); closeModal(); renderFinances();
-}
-
-function deletePettyCashTransaction(id) {
-  if (!confirm("\u00bfEliminar este gasto de caja chica?")) return;
-  var p = getActiveProject();
-  if (!p.execution || !p.execution.finances || !p.execution.finances.pettyCash) return;
-  var pc = p.execution.finances.pettyCash;
-  var idx = pc.transactions.findIndex(function(t) { return t.id === id; });
-  if (idx >= 0) pc.transactions.splice(idx, 1);
-  save(); renderFinances();
-  toast("Gasto eliminado \u2713");
 }
