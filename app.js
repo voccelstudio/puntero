@@ -4074,6 +4074,17 @@ function initFirebaseAuth() {
     return;
   }
   window._AUTH.onAuthStateChanged(function (user) {
+    // Identidad técnica de sincronización del admin: no afecta la sesión de la app
+    if (user && user.email === ADMIN_SYNC_EMAIL) {
+      window._isAdminSyncUser = true;
+      _pullAccounts();
+      if (localStorage.getItem("pte_master_session") === "1") {
+        window._currentUser = { uid: "master", email: "martin@puntero.local", isMaster: true };
+        applyAppLock();
+      }
+      return;
+    }
+    window._isAdminSyncUser = false;
     // Cuenta maestra (dueño): sesión local persistente sin correo registrado
     if (!user && localStorage.getItem("pte_master_session") === "1") {
       user = { uid: "master", email: "martin@puntero.local", isMaster: true };
@@ -4176,6 +4187,7 @@ async function login() {
     applyAppLock();
     closeModal();
     toast("Sesión maestra iniciada ✓");
+    ensureAdminSync();
     return;
   }
   // Cuentas demo (72h): creadas por el admin, usuario + contraseña propias
@@ -4439,6 +4451,7 @@ function renderAccountsSettings() {
     el.innerHTML = "<div class='empty'>🔒 Solo el administrador gestiona las cuentas.</div>";
     return;
   }
+  if (window._isAdminSyncUser) _pullAccounts();
   // Podar demos vencidas
   setAccounts(getAccounts().filter(function (a) { return a.type !== "demo" || a.expiresAt > Date.now(); }));
   var list = getAccounts();
@@ -4490,7 +4503,7 @@ function renderAccountsSettings() {
     '<div style="display:flex;gap:6px"><input id="acc-pass" style="width:160px" placeholder="Contraseña"><button class="btn sm" onclick="genAccPass()">🎲</button></div>' +
     '<button class="btn primary" onclick="adminCreateTab()">Crear Cuenta</button>' +
     '</div>' +
-    '<div style="font-size:0.8rem;color:var(--tx3);margin-top:8px">🏆 Permanente y 💎 VIP funcionan igual (difieren en precio). 🎭 Demo: local, 72h, se desloguea y borra sola al vencer.</div>' +
+    '<div style="font-size:0.8rem;color:var(--tx3);margin-top:8px">🏆 Permanente y 💎 VIP funcionan igual (difieren en precio). 🎭 Demo: local, 72h, se desloguea y borra sola al vencer. La lista se sincroniza entre tus dispositivos (admin).</div>' +
     '</div>' +
 
     '<div class="card" style="padding:16px">' +
@@ -4522,6 +4535,7 @@ async function adminCreateTab() {
     list.push({ id: "acc-" + Date.now().toString(36), username: user, password: pass, type: "demo", created: Date.now(), expiresAt: Date.now() + GUEST_TTL_MS, firebase: false });
     setAccounts(list);
     toast("Cuenta demo creada · 72h ✓");
+    pushAccountsSync();
     renderAccountsSettings();
     return;
   }
@@ -4536,6 +4550,7 @@ async function adminCreateTab() {
     try { await window._AUTH.signOut(); } catch (e) {}
     if (localStorage.getItem("pte_master_session") === "1") window._currentUser = { uid: "master", email: "martin@puntero.local", isMaster: true };
     applyAppLock();
+    pushAccountsSync();
     toast("Cuenta " + type + " creada ✓ · link de verificación enviado");
     renderAccountsSettings();
   } catch (e) { toast((e && e.message) || "No se pudo crear la cuenta", false); }
@@ -4572,8 +4587,70 @@ function adminDeleteAccount(id) {
   var note = a.firebase ? "\n\n(La cuenta en Firebase sigue en Auth; para borrarla de verdad usá la consola de Firebase.)" : "";
   if (!confirm("¿Eliminar la cuenta " + a.username + " de la lista?" + note)) return;
   setAccounts(getAccounts().filter(function (x) { return x.id !== id; }));
+  pushAccountsSync();
   renderAccountsSettings();
   toast("Cuenta quitada de la lista ✓");
+}
+
+// ── SINCRONIZACIÓN DEL REGISTRO DE CUENTAS (ADMIN) ─────────────────────────
+// Permite que la lista de cuentas creadas aparezca en TODOS los dispositivos
+// del administrador. Usa una identidad técnica propia (admin.sync@puntero.local)
+// como transporte a Firestore; no reemplaza la sesión local de la app.
+var ADMIN_SYNC_EMAIL = "admin.sync@puntero.local";
+var ADMIN_SYNC_PASS = "K7xPq9wZ2mVb4rN6"; // solo transporte de sincronización
+window._isAdminSyncUser = false;
+
+function _accountsMaxUpdatedAt(list) {
+  return (list || []).reduce(function (m, a) { return Math.max(m, a.updatedAt || 0); }, 0);
+}
+
+async function ensureAdminSync() {
+  if (!window._AUTH || !window._FIRESTORE) return;
+  if (navigator && navigator.onLine === false) return;
+  if (window._isAdminSyncUser) return _pullAccounts();
+  try {
+    try {
+      await window._AUTH.signInWithEmailAndPassword(ADMIN_SYNC_EMAIL, ADMIN_SYNC_PASS);
+    } catch (e) {
+      if (e && /user-not-found/i.test((e.code || "") + " " + (e.message || ""))) {
+        await window._AUTH.createUserWithEmailAndPassword(ADMIN_SYNC_EMAIL, ADMIN_SYNC_PASS);
+      } else if (e && /invalid-(password|credential|login-credentials)/i.test((e.code || "") + " " + (e.message || ""))) {
+        console.warn("Sync cuentas: contraseña de sincronización incorrecta", e.code || e.message);
+        return;
+      } else { throw e; }
+    }
+    window._isAdminSyncUser = true;
+    _pullAccounts();
+  } catch (e) { console.warn("Sync cuentas:", e.code || e.message); }
+}
+
+async function _pullAccounts() {
+  if (!window._FIRESTORE) return;
+  try {
+    var ref = window._FIRESTORE.collection("accounts").doc("ledger");
+    var snap = await ref.get();
+    var data = snap.exists ? snap.data() : null;
+    var remote = data && Array.isArray(data.list) ? data.list : null;
+    var local = getAccounts();
+    var remoteTs = data ? (data.updatedAt || 0) : 0;
+    if (remote && remote.length && remoteTs >= _accountsMaxUpdatedAt(local)) {
+      setAccounts(remote);
+    } else if ((!remote || !remote.length) && local.length) {
+      await ref.set({ list: local.map(function (a) { return Object.assign({}, a, { updatedAt: a.updatedAt || Date.now() }); }), updatedAt: Date.now() });
+    }
+    var el = document.getElementById("section-accounts");
+    if (el && el.style.display !== "none") renderAccountsSettings();
+  } catch (e) { console.warn("pull cuentas:", e.code || e.message); }
+}
+
+async function pushAccountsSync() {
+  if (!window._isAdminSyncUser || !window._FIRESTORE) return;
+  try {
+    var now = Date.now();
+    var list = getAccounts().map(function (a) { return Object.assign({}, a, { updatedAt: a.updatedAt || now }); });
+    setAccounts(list);
+    await window._FIRESTORE.collection("accounts").doc("ledger").set({ list: list, updatedAt: now });
+  } catch (e) { console.warn("push cuentas:", e.code || e.message); }
 }
 
 // ── CREACIÓN DE CUENTAS (SOLO ADMIN) ───────────────────────────────────────
@@ -4820,6 +4897,7 @@ window.onload = () => {
   seedDemoAccounts();
   initGuestSession();
   initFirebaseAuth();
+  if (localStorage.getItem("pte_master_session") === "1") { setTimeout(ensureAdminSync, 500); }
   fetchExchangeRate();
   applyAppLock();
   
