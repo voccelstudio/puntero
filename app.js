@@ -4443,11 +4443,29 @@ function findDemoAccountByUsername(username) {
 }
 
 function seedDemoAccounts() {
-  if (localStorage.getItem(ACCOUNTS_KEY) !== null) return;
-  setAccounts([
-    { id: "demo-invitado01", username: "invitado01", password: "invitado01", type: "demo", created: Date.now(), expiresAt: Date.now() + GUEST_TTL_MS, firebase: false },
-    { id: "demo-invitadoclara", username: "invitado clara", password: "invitado clara", type: "demo", created: Date.now(), expiresAt: Date.now() + GUEST_TTL_MS, firebase: false }
-  ]);
+  // Cuentas base de invitado: se aseguran en cada carga. Si no existen se
+  // agregan, y si vencieron se renuevan por otras 72h. Así siempre funcionan,
+  // sin importar el estado previo de la lista de cuentas.
+  var defaults = [
+    { id: "demo-invitado01", username: "invitado01", password: "invitado01" },
+    { id: "demo-invitadoclara", username: "invitado clara", password: "invitado clara" }
+  ];
+  var list = getAccounts();
+  var changed = false;
+  defaults.forEach(function (d) {
+    var slug = accUserNameSlug(d.username);
+    var existing = list.find(function (a) { return a.type === "demo" && accUserNameSlug(a.username) === slug; });
+    if (!existing) {
+      list.push({ id: d.id, username: d.username, password: d.password, type: "demo", created: Date.now(), expiresAt: Date.now() + GUEST_TTL_MS, firebase: false });
+      changed = true;
+    } else if (!existing.expiresAt || existing.expiresAt <= Date.now()) {
+      existing.created = Date.now();
+      existing.expiresAt = Date.now() + GUEST_TTL_MS;
+      if (!existing.password) existing.password = d.password;
+      changed = true;
+    }
+  });
+  if (changed) setAccounts(list);
 }
 
 function renderAccountsSettings() {
@@ -4458,6 +4476,8 @@ function renderAccountsSettings() {
     return;
   }
   if (window._isAdminSyncUser) _pullAccounts();
+  // Reasegurar las demos base y podar las vencidas (las base se renuevan solas)
+  seedDemoAccounts();
   // Podar demos vencidas
   setAccounts(getAccounts().filter(function (a) { return a.type !== "demo" || a.expiresAt > Date.now(); }));
   var list = getAccounts();
@@ -4643,6 +4663,8 @@ async function _pullAccounts() {
     } else if ((!remote || !remote.length) && local.length) {
       await ref.set({ list: local.map(function (a) { return Object.assign({}, a, { updatedAt: a.updatedAt || Date.now() }); }), updatedAt: Date.now() });
     }
+    // Reasegurar las demos base por si el remoto no las traía
+    seedDemoAccounts();
     var el = document.getElementById("section-accounts");
     if (el && el.style.display !== "none") renderAccountsSettings();
   } catch (e) { console.warn("pull cuentas:", e.code || e.message); }
