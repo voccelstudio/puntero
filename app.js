@@ -4471,17 +4471,17 @@ function renderAccountsSettings() {
 
     '<div class="card" style="margin-bottom:18px;padding:16px">' +
     '<h3 class="sec-lbl">➕ Crear Cuenta Nueva</h3>' +
-    '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">' +
-    '<select id="acc-type" style="width:150px">' +
-    '<option value="permanente">🏆 Permanente</option>' +
-    '<option value="vip">💎 VIP</option>' +
-    '<option value="demo">🎭 Demo (72h)</option>' +
-    '</select>' +
-    '<input id="acc-user" style="flex:1;min-width:180px" placeholder="Correo (permanente/VIP) o usuario (demo)">' +
+    '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px">' +
+    '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
+    '<button type="button" class="btn sm acc-type-btn" id="acc-type-permanente" onclick="setAccType(\'permanente\')" style="background:var(--ok);color:#fff">🏆 Permanente</button>' +
+    '<button type="button" class="btn sm acc-type-btn" id="acc-type-vip" onclick="setAccType(\'vip\')">💎 VIP</button>' +
+    '<button type="button" class="btn sm acc-type-btn" id="acc-type-demo" onclick="setAccType(\'demo\')">🎭 Demo (72h)</button>' +
+    '</div>' +
+    '<input id="acc-user" style="flex:1;min-width:180px" placeholder="Correo (Permanente/VIP) o usuario (Demo)">' +
     '<div style="display:flex;gap:6px"><input id="acc-pass" style="width:160px" placeholder="Contraseña"><button class="btn sm" onclick="genAccPass()">🎲</button></div>' +
     '<button class="btn primary" onclick="adminCreateTab()">Crear Cuenta</button>' +
     '</div>' +
-    '<div style="font-size:0.8rem;color:var(--tx3);margin-top:8px">Permanente y VIP funcionan igual (difieren en precio). Las demo se desloguean y borran a las 72h.</div>' +
+    '<div style="font-size:0.8rem;color:var(--tx3);margin-top:8px">🏆 Permanente y 💎 VIP funcionan igual (difieren en precio). 🎭 Demo: local, 72h, se desloguea y borra sola al vencer.</div>' +
     '</div>' +
 
     '<div class="card" style="padding:16px">' +
@@ -4490,9 +4490,19 @@ function renderAccountsSettings() {
     '</div>';
 }
 
+function setAccType(type) {
+  window._accTypeSel = type;
+  document.querySelectorAll(".acc-type-btn").forEach(function (b) {
+    b.style.background = "";
+    b.style.color = "";
+  });
+  var active = document.getElementById("acc-type-" + type);
+  if (active) { active.style.background = "var(--ok)"; active.style.color = "#fff"; }
+}
+
 async function adminCreateTab() {
   if (!isMasterAcc()) return toast("Solo el administrador crea cuentas 🔒", false);
-  var type = document.getElementById("acc-type").value;
+  var type = window._accTypeSel || "permanente";
   var user = document.getElementById("acc-user").value.trim();
   var pass = document.getElementById("acc-pass").value;
   if (!user || !pass) return toast("Completá usuario y contraseña", false);
