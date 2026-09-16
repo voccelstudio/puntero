@@ -4,7 +4,7 @@
  * Permite uso offline en obra cuando no hay señal.
  */
 
-const CACHE_NAME = 'puntero-v7-sync';
+const CACHE_NAME = 'puntero-v8-authfix';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
