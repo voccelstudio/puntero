@@ -4165,6 +4165,17 @@ async function login() {
     toast("Sesión maestra iniciada ✓");
     return;
   }
+  // Cuentas demo (72h): usuario y contraseña = mismo nombre (invitado01 / invitado clara)
+  var normUser = email.toLowerCase().replace(/\s+/g, " ").trim();
+  if (normUser === "invitado01" || normUser === "invitado clara") {
+    if (pass.toLowerCase().replace(/\s+/g, " ").trim() !== normUser) {
+      var errGuest = document.getElementById("auth-error");
+      if (errGuest) { errGuest.textContent = "Usuario o contraseña incorrectos"; errGuest.style.display = ""; }
+      return;
+    }
+    startGuestSession(normUser);
+    return;
+  }
   if (!window._AUTH) return toast("Sin conexión. Usá el modo invitado.", false);
   try {
     var cred = await window._AUTH.signInWithEmailAndPassword(email, pass);
