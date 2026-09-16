@@ -4028,9 +4028,17 @@ function renderCurrencyArea() {
 window._currentUser = null;
 
 // Bloquea toda la app si no hay cuenta iniciada (se puede desactivar con state._requireAccount=false)
-// Las cuentas maestras (isMaster) o con email verificado pasan; las nuevas deben confirmar su correo.
+// Pasan: cuentas maestras (isMaster), demos (isGuest) y cualquier cuenta creada por
+// el administrador en el panel de cuentas (aunque no confirme el correo). El registro
+// público está bloqueado, así que la verificación por email ya no es requisito.
+function isAdminAccount(email) {
+  if (!email) return false;
+  var n = String(email).trim().toLowerCase();
+  return getAccounts().some(function (a) { return a.firebase === true && String(a.username).trim().toLowerCase() === n; });
+}
+
 function masteredOrVerified(u) {
-  return !!u && (u.isMaster === true || u.isGuest === true || u.emailVerified === true);
+  return !!u && (u.isMaster === true || u.isGuest === true || u.emailVerified === true || isAdminAccount(u.email));
 }
 
 function applyAppLock() {
@@ -4044,7 +4052,7 @@ function applyAppLock() {
   document.body.style.overflow = locked ? "hidden" : "";
   if (!locked) return;
   var u = window._currentUser;
-  var unverified = !!u && u.isMaster !== true && u.emailVerified === false;
+  var unverified = !!u && !masteredOrVerified(u);
   var authBox = document.getElementById("app-lock-auth");
   var verifyBox = document.getElementById("app-lock-verify");
   if (authBox) authBox.style.display = unverified ? "none" : "block";
@@ -4192,7 +4200,8 @@ async function login() {
     var cred = await window._AUTH.signInWithEmailAndPassword(email, pass);
     deleteGuestSession();
     closeModal();
-    if (cred.user && cred.user.emailVerified) {
+    // Cuentas creadas por el admin no requieren confirmar el correo
+    if (cred.user && (cred.user.emailVerified || isAdminAccount(email))) {
       toast("Sesión iniciada ✓");
     } else {
       toast("Revisá tu correo para confirmar la cuenta 📧");
