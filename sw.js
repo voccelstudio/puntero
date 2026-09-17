@@ -4,7 +4,7 @@
  * Permite uso offline en obra cuando no hay señal.
  */
 
-const CACHE_NAME = 'puntero-v9-demos';
+const CACHE_NAME = 'puntero-v10-computo';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

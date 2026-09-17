@@ -80,8 +80,10 @@
         <button id="btn-finances" class="nbtn" onclick="setSection('finances')">💰 Finanzas</button>
         <button id="btn-cajachica" class="nbtn" onclick="setSection('cajachica')">💵 Caja Chica</button>
         <button id="btn-performance" class="nbtn" onclick="setSection('performance')">📈 Desempeño</button>
+        <!-- [OCULTO] Secciones aún no listas para producción
         <button id="btn-documents" class="nbtn" onclick="setSection('documents')">📁 Planos y Fotos</button>
         <button id="btn-folder" class="nbtn" onclick="setSection('folder')">📂 Carpeta del Proyecto</button>
+        -->
         <button id="btn-suppliers" class="nbtn" onclick="setSection('suppliers')">🚛 Proveedores</button>
         <button id="btn-themes" class="nbtn" onclick="setSection('themes')">🎨 Temas Visuales</button>
         <button id="btn-accounts" class="nbtn" style="display:none" onclick="setSection('accounts')">🗝️ Cuentas (Admin)</button>
@@ -94,7 +96,7 @@
       <button id="auth-btn" class="btn full" onclick="showAuthModal()" style="margin-bottom:6px; font-size:0.8rem">🔐 Iniciar Sesión</button>
       <button class="btn ok-btn full" onclick="showModal('export_project')">📤 Enviar Proyecto</button>
       <button class="btn pdf-btn full" onclick="generarPDF()">📄 Generar PDF</button>
-      <button class="btn full" onclick="setSection('documents');setTimeout(function(){var e=document.getElementById('doc-upload');if(e)e.click()},300)" style="margin-top:4px;background:#059669;color:#fff">📁 Cargar Archivo</button>
+      <!-- [OCULTO] <button class="btn full" onclick="setSection('documents');setTimeout(function(){var e=document.getElementById('doc-upload');if(e)e.click()},300)" style="margin-top:4px;background:#059669;color:#fff">📁 Cargar Archivo</button> -->
     </div>
   </aside>
 
@@ -188,7 +190,7 @@
     <div class="mobile-fab-item" onclick="setSection('logs');closeFab()">📔 Libro de Obra</div>
     <div class="mobile-fab-item" onclick="setSection('materials');closeFab()">🧱 Materiales</div>
     <div class="mobile-fab-item" onclick="setSection('contractors');closeFab()">👷 Contratistas</div>
-    <div class="mobile-fab-item" onclick="setSection('documents');closeFab()">📁 Fotos</div>
+    <!-- [OCULTO] <div class="mobile-fab-item" onclick="setSection('documents');closeFab()">📁 Fotos</div> -->
     <div class="mobile-fab-item" onclick="generarPDF();closeFab()" style="color:var(--acc)">📄 PDF</div>
   </div>
   <button id="fab-btn" class="mobile-fab-main" onclick="toggleFab()" aria-label="Acciones rápidas">⚡</button>

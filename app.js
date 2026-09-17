@@ -202,7 +202,7 @@ let DB = buildDB();
 
 // ── STATE ──────────────────────────────────────────────────────────────
 let state = {
-  section: "budget", expandedCat: "ESTRUCTURAS", search: "", items: [],
+  section: "budget", computoView: "total", expandedCat: "ESTRUCTURAS", search: "", items: [],
   projectName: "Nuevo Proyecto", clientName: "", clientPhone: "", clientAddress: "",
   profitPct: 0, validDays: 30, budgetNum: 1, notes: "", pdfShowBreakdown: false,
   priceEditMode: "total", editPriceKey: null, editField: "total", activeBudgetId: null,
@@ -786,7 +786,7 @@ function renderGlobalDashboard() {
                         <button class="btn sm" onclick="event.stopPropagation(); openProjectSection('${pid}','schedule')">📅 Cronograma</button>
                         <button class="btn sm" onclick="event.stopPropagation(); openProjectSection('${pid}','ot')">📄 OT</button>
                         <button class="btn sm" onclick="event.stopPropagation(); openProjectSection('${pid}','contractors')">👷 Contratistas</button>
-                        <button class="btn sm" onclick="event.stopPropagation(); openProjectSection('${pid}','documents')">📁 Documentos</button>
+                        ${/* [OCULTO] Documentos <button class="btn sm" onclick="event.stopPropagation(); openProjectSection('${pid}','documents')">📁 Documentos</button> */""}
                         <button class="btn sm" onclick="event.stopPropagation(); openProjectSection('${pid}','materials')">🧱 Materiales</button>
                         <button class="btn sm" onclick="event.stopPropagation(); openProjectSection('${pid}','finances')">💰 Finanzas</button>
                         <button class="btn sm" onclick="event.stopPropagation(); openProjectSection('${pid}','logs')">📔 Libro</button>
@@ -889,20 +889,26 @@ function renderAftercare() {
     el.innerHTML = h;
 }
 
+function fmtMaterialQty(q) {
+    return Number.isInteger(q) ? q : fmtD(q, 2);
+}
+
 function renderComputoSection() {
     const el = document.getElementById("section-computo");
     if (!el) return;
     const p = getActiveProject();
     if (!p) { el.innerHTML = "<div class='empty'>Seleccioná un proyecto.</div>"; return; }
 
-    const mats = calcMaterials();
-    
+    const view = state.computoView === "rubros" ? "rubros" : "total";
+    const tab = (id, label) =>
+        `<button class="btn sm${view === id ? " primary" : ""}" onclick="state.computoView='${id}';renderComputoSection()">${label}</button>`;
+
     let h = `
     <div class="prices-wrap">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px">
             <div>
                 <h2 class="sec-lbl" style="margin:0">CÓMPUTO MÉTRICO DE MATERIALES</h2>
-                <p style="color:var(--tx3); font-size:0.9rem">Cantidades totales necesarias para la obra: <strong>${p.name}</strong></p>
+                <p style="color:var(--tx3); font-size:0.9rem">Materiales necesarios para la obra: <strong>${p.name}</strong></p>
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap">
                 <button class="btn sm" onclick="printComputo()">🖨️ PDF</button>
@@ -911,26 +917,92 @@ function renderComputoSection() {
             </div>
         </div>
 
+        <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap">
+            ${tab("total", "🧱 Todo junto")}
+            ${tab("rubros", "📦 Por rubro")}
+        </div>
+    `;
+
+    if (view === "total") {
+        const mats = calcMaterials();
+        h += `
         <div class="info-box" style="margin-bottom:20px">
-            <p>Este cómputo suma automáticamente los materiales de <strong>todas las adendas</strong> del proyecto. Ideal para planificación de compras generales.</p>
+            <p>Este cómputo suma los materiales de <strong>todas las adendas</strong> del proyecto. Ideal para planificación de compras generales.</p>
         </div>
 
         <div class="mat-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:15px">
             ${mats.map(m => {
                 const isCem = m.name.toLowerCase().includes("cemento");
                 const bolsas = isCem ? Math.ceil(m.qty / 50) : null;
-                const qty = Number.isInteger(m.qty) ? m.qty : fmtD(m.qty, 2);
                 return `
                 <div class="mat-card" style="background:var(--sur); padding:15px; border-radius:var(--rad); border:1px solid var(--bor)">
-                    <div class="mat-name" style="font-weight:700; font-size:1rem; margin-bottom:8px">${m.name}</div>
-                    <div class="mat-qty" style="font-size:1.2rem; color:var(--acc)"><strong>${qty}</strong> ${m.unit}</div>
+                    <div class="mat-name" style="font-weight:700; font-size:1rem; margin-bottom:8px">${escapeHtml(m.name)}</div>
+                    <div class="mat-qty" style="font-size:1.2rem; color:var(--acc)"><strong>${fmtMaterialQty(m.qty)}</strong> ${escapeHtml(m.unit)}</div>
                     ${bolsas ? `<div class="mat-bags" style="font-size:0.8rem; color:var(--tx3); margin-top:5px">≈ ${bolsas} bolsas de 50kg</div>` : ""}
                 </div>`;
             }).join("") || '<div class="fullcol empty">No hay materiales calculados. Agregá rubros al presupuesto.</div>'}
-        </div>
-    </div>`;
+        </div>`;
+    } else {
+        h += renderComputoPorRubro(p);
+    }
+
+    h += `</div>`;
 
     el.innerHTML = h;
+}
+
+function renderComputoPorRubro(p) {
+    let h = "";
+    (p.budgets || []).forEach(b => {
+        const items = (b.items || []).filter(i => (i.mats || []).length);
+        h += `<div style="margin-bottom:22px">
+            <h3 class="sec-lbl" style="margin-bottom:12px">📋 ${escapeHtml(b.name)}</h3>`;
+        if (!items.length) {
+            h += `<div class="empty" style="padding:14px">Sin desglose de materiales en esta adenda.</div></div>`;
+            return;
+        }
+        items.forEach(item => {
+            const mats = calcItemMaterials(item);
+            h += `<div class="card" style="margin-bottom:12px;padding:14px">
+                <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+                    <div>
+                        <div style="font-size:.72rem;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em">${escapeHtml(item.cat || "")}</div>
+                        <div style="font-weight:700">${escapeHtml(item.name)}</div>
+                    </div>
+                    <div class="ichip mat" style="align-self:center">${fmtMaterialQty(item.qty)} ${escapeHtml(item.unit || "")}</div>
+                </div>
+                ${mats.length
+                    ? `<table class="tbl"><thead><tr><th>Material</th><th style="text-align:right">Cantidad</th><th style="text-align:center">Unidad</th></tr></thead><tbody>
+                        ${mats.map(m => `<tr><td>${escapeHtml(m.name)}</td><td style="text-align:right;font-weight:600">${fmtMaterialQty(m.qty)}</td><td style="text-align:center;color:var(--tx3)">${escapeHtml(m.unit)}</td></tr>`).join("")}
+                    </tbody></table>`
+                    : `<div style="font-size:.8rem;color:var(--tx3)">Este ítem no tiene desglose de materiales.</div>`}
+            </div>`;
+        });
+        h += `</div>`;
+    });
+    return h || '<div class="empty" style="padding:20px">No hay rubros en el presupuesto.</div>';
+}
+
+function showItemMaterials(itemId) {
+    const adenda = getActiveAdenda();
+    const item = adenda && adenda.items.find(x => x.id == itemId);
+    if (!item) return;
+    const mats = calcItemMaterials(item);
+    const rows = mats.map(m => `<tr><td>${escapeHtml(m.name)}</td><td style="text-align:right;font-weight:600">${fmtMaterialQty(m.qty)}</td><td style="text-align:center;color:var(--tx3)">${escapeHtml(m.unit)}</td></tr>`).join("");
+    const el = document.getElementById("modal-area");
+    el.innerHTML = `<div class="overlay" style="z-index:600" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:520px">
+        <div class="modal-title">🧱 Cómputo del rubro<button class="delbtn" onclick="closeModal()">✕</button></div>
+        <div style="font-size:.72rem;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em">${escapeHtml(item.cat || "")}</div>
+        <div style="font-weight:700;margin-bottom:2px">${escapeHtml(item.name)}</div>
+        <div style="font-size:.85rem;color:var(--tx3);margin-bottom:12px">Cantidad del ítem: <strong>${fmtMaterialQty(item.qty)} ${escapeHtml(item.unit || "")}</strong></div>
+        ${mats.length
+            ? `<table class="tbl" style="width:100%"><thead><tr><th>Material</th><th style="text-align:right">Cantidad</th><th style="text-align:center">Unidad</th></tr></thead><tbody>${rows}</tbody></table>`
+            : '<div class="empty" style="padding:14px">Este ítem no tiene desglose de materiales.</div>'}
+        <div class="modal-acts" style="margin-top:14px">
+            <button class="btn" onclick="closeModal()">Cerrar</button>
+            <button class="btn primary" onclick="closeModal();setSection('computo')">🧱 Cómputo de toda la obra</button>
+        </div>
+    </div></div>`;
 }
 
 function printComputo() {
@@ -1491,6 +1563,11 @@ function toast(msg, ok = true) {
 }
 
 function setSection(s) {
+  // [OCULTO] Secciones aún no listas: Planos/Fotos y Carpeta del Proyecto
+  if (s === "documents" || s === "folder") {
+    if (typeof toast === "function") toast("Esa sección estará disponible próximamente", false);
+    s = "global_dashboard";
+  }
   state.section = s;
   // Cerrar drawer automáticamente al navegar (UX mobile)
   if (typeof closeSidebar === 'function') closeSidebar();
@@ -1544,10 +1621,10 @@ function setSection(s) {
   if (s === "finances") renderFinances();
   if (s === "cajachica") renderCajaChica();
   if (s === "performance") renderPerformance();
-  if (s === "documents") renderDocuments();
+  // [OCULTO] if (s === "documents") renderDocuments();
   if (s === "suppliers") renderSuppliers();
   if (s === "resources") renderResources();
-  if (s === "folder") renderFolder();
+  // [OCULTO] if (s === "folder") renderFolder();
   if (s === "accounts") renderAccountsSettings();
   // [CLOUD OFF] desactivado: reactivar quitando el comentario
   // if (s === "cloud") renderCloudSettings();
@@ -1729,7 +1806,7 @@ function renderDashboard() {
                 </div>`;
             }).join("") || '<div style="grid-column: 1/-1; text-align:center; padding:20px; color:var(--tx3); font-size:0.85rem">Sin fotos registradas aún.</div>'}
         </div>
-        <button class="btn sm full" style="margin-top:10px" onclick="setSection('documents')">Ver Galería Completa</button>
+        <!-- [OCULTO] <button class="btn sm full" style="margin-top:10px" onclick="setSection('documents')">Ver Galería Completa</button> -->
     </div>
   </div>`;
 }
@@ -2215,6 +2292,20 @@ function getBreakdown() {
   }));
 }
 
+function calcItemMaterials(item) {
+  const out = [];
+  if (!item || !item.mats) return out;
+  for (const mat of item.mats) {
+    // Soportar ambos formatos: el compacto {n,q,u} de la DB y el extendido {name,qty,unit}
+    const name = mat.name || mat.n;
+    const unit = mat.unit || mat.u;
+    const qty = mat.qty != null ? mat.qty : mat.q;
+    if (!name || qty == null) continue;
+    out.push({ name, unit: unit || "", qty: qty * (item.qty || 0) });
+  }
+  return out;
+}
+
 function calcMaterials() {
   const p = getActiveProject();
   if (!p) return [];
@@ -2222,16 +2313,10 @@ function calcMaterials() {
   const allItems = p.budgets.flatMap(b => b.items);
   const m = {};
   for (const item of allItems) {
-    if (!item.mats) continue;
-    for (const mat of item.mats) {
-      // Soportar ambos formatos: el compacto {n,q,u} de la DB y el extendido {name,qty,unit}
-      const name = mat.name || mat.n;
-      const unit = mat.unit || mat.u;
-      const qty = mat.qty != null ? mat.qty : mat.q;
-      if (!name || qty == null) continue;
-      const key = name + "|" + (unit || "");
-      if (!m[key]) m[key] = { name, unit: unit || "", qty: 0 };
-      m[key].qty += (qty * (item.qty || 0));
+    for (const mat of calcItemMaterials(item)) {
+      const key = mat.name + "|" + mat.unit;
+      if (!m[key]) m[key] = { name: mat.name, unit: mat.unit, qty: 0 };
+      m[key].qty += mat.qty;
     }
   }
   return Object.values(m).sort((a, b) => a.name.localeCompare(b.name));
@@ -2348,7 +2433,10 @@ function renderTable() {
         <td data-label="P. Unit." style="font-size:.875rem;color:var(--tx3)">₲${fmt(ep)}</td>
         ${adenda.ivaEnabled ? `<td data-label="IVA" style="font-size:.95rem;color:var(--iva);font-weight:600">₲${fmt(iva)}</td>` : ""}
         <td data-label="Total" style="font-weight:700;color:var(--acc);font-size:1rem">₲${fmt(totalItem)}</td>
-        <td data-label=""><button class="delbtn" onclick="removeItem(${item.id})">✕</button></td>
+        <td data-label="">
+          ${(item.mats && item.mats.length) ? `<button class="btn sm" title="Ver cómputo de materiales de este rubro" onclick="showItemMaterials(${item.id})">🧱</button>` : ""}
+          <button class="delbtn" onclick="removeItem(${item.id})">✕</button>
+        </td>
       </tr>`;
     }
     // Banda destacada de subtotal al cierre de la categoría
@@ -3399,18 +3487,7 @@ function showModal(type, arg) {
         <div class="fullcol"><label class="stat-lbl">Ubicación / Dirección</label><input id="np-addr" placeholder="Ciudad, Barrio..."></div>
         <div><label class="stat-lbl">Superficie (m²)</label><input id="np-m2" type="number" placeholder="0"></div>
       </div>
-      ${supportsFileSystemAccess() ? `
-      <div style="margin-top:16px;padding:14px;background:var(--sur2);border-radius:var(--rad);border:1px solid var(--bor)">
-        <label class="stat-lbl" style="margin-bottom:8px">📁 Carpeta del Proyecto</label>
-        <p style="font-size:0.8rem;color:var(--tx3);margin-bottom:10px">Elegí una carpeta en tu PC donde se guardarán fotos, planos, PDFs y archivos de esta obra. Se crearán subcarpetas automáticamente.</p>
-        <div id="np-folder-status" style="display:flex;align-items:center;gap:8px">
-          <button class="btn" onclick="selectNewProjectFolder()" id="np-folder-btn">📂 Elegir carpeta en mi PC</button>
-          <span id="np-folder-name" style="font-size:0.85rem;color:var(--tx3)"></span>
-        </div>
-      </div>` : `
-      <div style="margin-top:16px;padding:14px;background:var(--sur2);border-radius:var(--rad);border:1px solid var(--bor)">
-        <p style="font-size:0.8rem;color:var(--tx3)">📁 Tu navegador no soporta carpetas en disco. Los archivos se guardarán en el navegador. Usá Chrome o Edge para la experiencia completa.</p>
-      </div>`}
+      <!-- [OCULTO] Selector de Carpeta del Proyecto deshabilitado temporalmente -->
       <div class="modal-acts">
         <button class="btn" onclick="closeModal()">Cancelar</button>
         <button class="btn primary" onclick="createProject()">Crear e Iniciar 🚀</button>
