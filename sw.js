@@ -4,7 +4,7 @@
  * Permite uso offline en obra cuando no hay señal.
  */
 
-const CACHE_NAME = 'puntero-v11-xlsx';
+const CACHE_NAME = 'puntero-v12-nomsp';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
