@@ -2755,198 +2755,142 @@ function exportJornalerosCSV() {
   toast("Jornaleros exportados ✓");
 }
 
-// ── EXPORT GOOGLE SHEETS (.xlsx XML Spreadsheet) ─────────────────────
+// ── EXPORT GOOGLE SHEETS (.xlsx real, OOXML) ─────────────────────────
 function exportToGoogleSheets() {
   const p = getActiveProject();
   const adenda = getActiveAdenda();
   if (!p || !adenda) return toast("Sin proyecto activo", false);
   if (!adenda.items.length) return toast("El presupuesto está vacío", false);
+  if (typeof XLSXWriter === 'undefined') return toast("No se pudo cargar el generador de Excel", false);
 
-  toast("Generando archivo formateado...");
+  toast("Generando archivo Excel...");
 
   const { totalMats, totalLabor, subtotal, ivaMat, ivaLab, ivaTotal, profitAmt, total } = getTotals();
   const grouped = getGrouped();
   const ivaOn = adenda.ivaEnabled;
+  const totalCols = ivaOn ? 13 : 10;
 
-  const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-
-  // Helpers de celdas con estilo
-  const cell = (v, type, style) => {
-    const st = style ? ` ss:StyleID="${style}"` : '';
-    return `<Cell${st}><Data ss:Type="${type}">${type === 'String' ? esc(v) : v}</Data></Cell>`;
-  };
-  const sC = (v, st) => cell(v, 'String', st || 'd');
-  const nC = (v, st) => cell(v, 'Number', st || 'num');
-
-  // ── Borders XML reutilizable ──
-  const bAll = `<Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/></Borders>`;
-  const bThick = `<Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#1E293B"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#1E293B"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#1E293B"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#1E293B"/></Borders>`;
-  const bAccent = `<Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#D97706"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D97706"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D97706"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#D97706"/></Borders>`;
-  const numFmt = `<NumberFormat ss:Format="#,##0"/>`;
-
-  // ── Column widths ──
-  const colW = ivaOn
-    ? [160, 280, 50, 70, 50, 110, 110, 110, 100, 100, 100, 130, 180]
-    : [160, 280, 50, 70, 50, 110, 110, 110, 130, 180];
-  const colXml = colW.map(w => `<Column ss:Width="${w}"/>`).join('');
-
-  let rows = '';
+  const wb = XLSXWriter.createWorkbook();
+  const ws = wb.addSheet('Presupuesto', {
+    cols: ivaOn
+      ? [160, 280, 50, 70, 50, 110, 110, 110, 100, 100, 100, 130, 180]
+      : [160, 280, 50, 70, 50, 110, 110, 110, 130, 180]
+  });
 
   // ── HEADER del presupuesto ──
-  rows += `<Row ss:Height="28">${sC('PRESUPUESTO DE OBRA','title')}${sC(adenda.name,'titleVal')}</Row>`;
-  rows += `<Row ss:Height="20">${sC('Proyecto','lbl')}${sC(p.name,'val')}</Row>`;
-  rows += `<Row ss:Height="20">${sC('Cliente','lbl')}${sC(p.client || '-','val')}</Row>`;
-  rows += `<Row ss:Height="20">${sC('Dirección','lbl')}${sC(p.address || '-','val')}</Row>`;
-  rows += `<Row ss:Height="20">${sC('Superficie','lbl')}${sC((p.m2Area || '-') + ' m²','val')}</Row>`;
-  rows += `<Row ss:Height="20">${sC('Fecha','lbl')}${sC(formatDatePY(new Date()),'val')}</Row>`;
+  ws.row([{ v: 'PRESUPUESTO DE OBRA', s: 'title' }, { v: adenda.name, s: 'titleVal' }], { h: 28 });
+  ws.row([{ v: 'Proyecto', s: 'lbl' }, { v: p.name, s: 'val' }]);
+  ws.row([{ v: 'Cliente', s: 'lbl' }, { v: p.client || '-', s: 'val' }]);
+  ws.row([{ v: 'Dirección', s: 'lbl' }, { v: p.address || '-', s: 'val' }]);
+  ws.row([{ v: 'Superficie', s: 'lbl' }, { v: (p.m2Area || '-') + ' m²', s: 'val' }]);
+  ws.row([{ v: 'Fecha', s: 'lbl' }, { v: formatDatePY(new Date()), s: 'val' }]);
   if ((adenda.profitPct || 0) > 0)
-    rows += `<Row ss:Height="20">${sC('Honorarios','lbl')}${sC(adenda.profitPct + '%','val')}</Row>`;
-  rows += `<Row ss:Height="8"></Row>`;
+    ws.row([{ v: 'Honorarios', s: 'lbl' }, { v: adenda.profitPct + '%', s: 'val' }]);
+  ws.row([], { h: 8 });
 
   // ── ENCABEZADOS de tabla ──
-  let hdrCells = `${sC('CATEGORÍA','hdr')}${sC('DESCRIPCIÓN','hdr')}${sC('UND','hdrC')}${sC('CANT.','hdrC')}${sC('DESC.%','hdrC')}${sC('MATERIALES (Gs.)','hdrR')}${sC('MANO OBRA (Gs.)','hdrR')}${sC('P.UNIT (Gs.)','hdrR')}`;
-  if (ivaOn) hdrCells += `${sC('IVA Mat (Gs.)','hdrR')}${sC('IVA MO (Gs.)','hdrR')}${sC('IVA Total (Gs.)','hdrR')}`;
-  hdrCells += `${sC('TOTAL (Gs.)','hdrR')}${sC('NOTA INTERNA','hdr')}`;
-  rows += `<Row ss:Height="24">${hdrCells}</Row>`;
+  const hdr = [
+    { v: 'CATEGORÍA', s: 'hdr' }, { v: 'DESCRIPCIÓN', s: 'hdr' },
+    { v: 'UND', s: 'hdrC' }, { v: 'CANT.', s: 'hdrC' }, { v: 'DESC.%', s: 'hdrC' },
+    { v: 'MATERIALES (Gs.)', s: 'hdrR' }, { v: 'MANO OBRA (Gs.)', s: 'hdrR' }, { v: 'P.UNIT (Gs.)', s: 'hdrR' }
+  ];
+  if (ivaOn) hdr.push({ v: 'IVA Mat (Gs.)', s: 'hdrR' }, { v: 'IVA MO (Gs.)', s: 'hdrR' }, { v: 'IVA Total (Gs.)', s: 'hdrR' });
+  hdr.push({ v: 'TOTAL (Gs.)', s: 'hdrR' }, { v: 'NOTA INTERNA', s: 'hdr' });
+  ws.row(hdr, { h: 24 });
 
   // ── ITEMS por categoría ──
-  let lastCat = '';
   for (const [cat, items] of Object.entries(grouped)) {
-    if (cat !== lastCat) {
-      const totalCols = ivaOn ? 13 : 10;
-      rows += `<Row ss:Height="22">${sC(cat,'catRow')}${'<Cell ss:StyleID="catRow"/>'.repeat(totalCols - 1)}</Row>`;
-      lastCat = cat;
-    }
+    const catCells = [{ v: cat, s: 'catRow' }];
+    for (let i = 1; i < totalCols; i++) catCells.push({ s: 'catRow' });
+    ws.row(catCells, { h: 22 });
+
     for (const item of items) {
       const ep = effPrice(item);
       const { ivaMat: im, ivaLab: il, ivaTotal: it } = calcIVA(item.matCost, item.laborCost, item.qty);
       const totalItem = ep * item.qty + it;
-      let cells = `${sC(cat,'d')}${sC(item.name,'dBold')}${sC(item.unit,'dc')}${nC(item.qty,'numC')}${nC(item.disc || 0,'numC')}${nC(Math.round(item.matCost),'num')}${nC(Math.round(item.laborCost),'num')}${nC(Math.round(ep),'num')}`;
-      if (ivaOn) cells += `${nC(Math.round(im),'numIva')}${nC(Math.round(il),'numIva')}${nC(Math.round(it),'numIva')}`;
-      cells += `${nC(Math.round(totalItem),'numTotal')}${sC(item.note || '','dNote')}`;
-      rows += `<Row ss:Height="20">${cells}</Row>`;
+      const cells = [
+        { v: cat, s: 'd' }, { v: item.name, s: 'dBold' }, { v: item.unit, s: 'dc' },
+        { v: item.qty, s: 'numC' }, { v: item.disc || 0, s: 'numC' },
+        { v: Math.round(item.matCost), s: 'num' }, { v: Math.round(item.laborCost), s: 'num' }, { v: Math.round(ep), s: 'num' }
+      ];
+      if (ivaOn) cells.push({ v: Math.round(im), s: 'numIva' }, { v: Math.round(il), s: 'numIva' }, { v: Math.round(it), s: 'numIva' });
+      cells.push({ v: Math.round(totalItem), s: 'numTotal' }, { v: item.note || '', s: 'dNote' });
+      ws.row(cells);
     }
   }
 
   // ── RESUMEN ──
-  rows += `<Row ss:Height="8"></Row>`;
-  const totalCols = ivaOn ? 13 : 10;
+  ws.row([], { h: 8 });
   const sumLabelSpan = totalCols - 2;
-
   const sumRow = (label, val, st) => {
-    const cells = [sC(label, st || 'sumLbl')];
-    for (let i = 0; i < sumLabelSpan - 1; i++) cells.push(`<Cell ss:StyleID="${st || 'sumLbl'}"/>`);
-    cells.push(nC(Math.round(val), st === 'totalLbl' ? 'totalNum' : 'sumNum'));
-    // Add missing cells for internal notes column
-    if (totalCols > (sumLabelSpan + 1)) {
-        for (let i = 0; i < (totalCols - (sumLabelSpan + 1)); i++) cells.push(`<Cell ss:StyleID="${st || 'sumLbl'}"/>`);
+    const style = st || 'sumLbl';
+    const cells = [{ v: label, s: style }];
+    for (let i = 0; i < sumLabelSpan - 1; i++) cells.push({ s: style });
+    cells.push({ v: Math.round(val), s: style === 'totalLbl' ? 'totalNum' : 'sumNum' });
+    if (totalCols > sumLabelSpan + 1) {
+      for (let i = 0; i < totalCols - (sumLabelSpan + 1); i++) cells.push({ s: style });
     }
-    return `<Row ss:Height="22">${cells.join('')}</Row>`;
+    ws.row(cells, { h: 22 });
   };
 
-  rows += sumRow('Costo Materiales', totalMats);
-  rows += sumRow('Costo Mano de Obra', totalLabor);
-  rows += sumRow('Costo Directo (Subtotal)', subtotal);
+  sumRow('Costo Materiales', totalMats);
+  sumRow('Costo Mano de Obra', totalLabor);
+  sumRow('Costo Directo (Subtotal)', subtotal);
   if (ivaOn) {
-    rows += sumRow('IVA Materiales (10%)', ivaMat, 'ivaLbl');
-    rows += sumRow('IVA Mano de Obra (5%)', ivaLab, 'ivaLbl');
-    rows += sumRow('Total IVA', ivaTotal);
+    sumRow('IVA Materiales (10%)', ivaMat, 'ivaLbl');
+    sumRow('IVA Mano de Obra (5%)', ivaLab, 'ivaLbl');
+    sumRow('Total IVA', ivaTotal);
   }
   if ((adenda.profitPct || 0) > 0)
-    rows += sumRow('Honorarios Profesionales (' + adenda.profitPct + '%)', profitAmt);
-  rows += sumRow('TOTAL GENERAL' + (ivaOn ? ' (IVA incluido)' : ''), total, 'totalLbl');
+    sumRow('Honorarios Profesionales (' + adenda.profitPct + '%)', profitAmt);
+  sumRow('TOTAL GENERAL' + (ivaOn ? ' (IVA incluido)' : ''), total, 'totalLbl');
 
   // ── NOTAS ──
   if ((adenda.notes || '').trim()) {
-    rows += `<Row ss:Height="8"></Row>`;
-    rows += `<Row ss:Height="22">${sC('NOTAS / CONDICIONES','catRow')}${'<Cell ss:StyleID="catRow"/>'.repeat(totalCols - 1)}</Row>`;
-    rows += `<Row ss:Height="40">${sC(adenda.notes,'d')}${'<Cell ss:StyleID="d"/>'.repeat(totalCols - 1)}</Row>`;
+    ws.row([], { h: 8 });
+    const noteHdr = [{ v: 'NOTAS / CONDICIONES', s: 'catRow' }];
+    for (let i = 1; i < totalCols; i++) noteHdr.push({ s: 'catRow' });
+    ws.row(noteHdr, { h: 22 });
+    const noteCells = [{ v: adenda.notes, s: 'd' }];
+    for (let i = 1; i < totalCols; i++) noteCells.push({ s: 'd' });
+    ws.row(noteCells, { h: 40 });
   }
 
   // ── HOJA 2: Cómputo de Materiales ──
   const mats = calcMaterials();
-  const matColXml = `<Column ss:Width="250"/><Column ss:Width="100"/><Column ss:Width="80"/><Column ss:Width="100"/>`;
-  let matRows = `<Row ss:Height="24">${sC('MATERIAL','hdr')}${sC('CANTIDAD','hdrR')}${sC('UNIDAD','hdrC')}${sC('BOLSAS 50kg','hdrC')}</Row>`;
+  const ws2 = wb.addSheet('Computo Materiales', { cols: [250, 100, 80, 100] });
+  ws2.row([
+    { v: 'MATERIAL', s: 'hdr' }, { v: 'CANTIDAD', s: 'hdrR' },
+    { v: 'UNIDAD', s: 'hdrC' }, { v: 'BOLSAS 50kg', s: 'hdrC' }
+  ], { h: 24 });
   for (const m of mats) {
     const isCem = m.name.toLowerCase().includes("cemento");
-    matRows += `<Row ss:Height="20">${sC(m.name,'d')}${nC(parseFloat(fmtD(m.qty, 3)),'num')}${sC(m.unit,'dc')}${isCem ? nC(Math.ceil(m.qty / 50),'numC') : '<Cell ss:StyleID="d"/>'}</Row>`;
+    ws2.row([
+      { v: m.name, s: 'd' },
+      { v: parseFloat(fmtD(m.qty, 3)), s: 'num' },
+      { v: m.unit, s: 'dc' },
+      isCem ? { v: Math.ceil(m.qty / 50), s: 'numC' } : { s: 'd' }
+    ]);
   }
 
   // ── HOJA 3: Costo por m² ──
-  let m2Sheet = '';
   if (p.m2Area && p.m2Area > 0) {
-    const m2ColXml = `<Column ss:Width="200"/><Column ss:Width="150"/>`;
-    m2Sheet = `<Worksheet ss:Name="Costo x m2"><Table>${m2ColXml}
-<Row ss:Height="24">${sC('CONCEPTO','hdr')}${sC('VALOR','hdrR')}</Row>
-<Row ss:Height="20">${sC('Superficie (m²)','d')}${nC(p.m2Area,'numC')}</Row>
-<Row ss:Height="20">${sC('Costo Total (Gs.)','d')}${nC(Math.round(total),'numTotal')}</Row>
-<Row ss:Height="24">${sC('COSTO POR m² (Gs.)','totalLbl')}${nC(Math.round(total / p.m2Area),'totalNum')}</Row>
-</Table></Worksheet>`;
+    const ws3 = wb.addSheet('Costo x m2', { cols: [200, 150] });
+    ws3.row([{ v: 'CONCEPTO', s: 'hdr' }, { v: 'VALOR', s: 'hdrR' }], { h: 24 });
+    ws3.row([{ v: 'Superficie (m²)', s: 'd' }, { v: p.m2Area, s: 'numC' }]);
+    ws3.row([{ v: 'Costo Total (Gs.)', s: 'd' }, { v: Math.round(total), s: 'numTotal' }]);
+    ws3.row([{ v: 'COSTO POR m² (Gs.)', s: 'totalLbl' }, { v: Math.round(total / p.m2Area), s: 'totalNum' }], { h: 24 });
   }
 
-  // ══════════════════════════════════════════════════════════════════════
-  // STYLES — Formateado profesional con bordes, colores y tipografía
-  // ══════════════════════════════════════════════════════════════════════
-  const styles = `<Styles>
- <!-- Base -->
- <Style ss:ID="Default"><Font ss:FontName="Calibri" ss:Size="10" ss:Color="#1E293B"/>${bAll}</Style>
-
- <!-- Title row -->
- <Style ss:ID="title"><Font ss:FontName="Calibri" ss:Size="14" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#0F172A" ss:Pattern="Solid"/>${bThick}<Alignment ss:Vertical="Center"/></Style>
- <Style ss:ID="titleVal"><Font ss:FontName="Calibri" ss:Size="12" ss:Bold="1" ss:Color="#F59E0B"/><Interior ss:Color="#0F172A" ss:Pattern="Solid"/>${bThick}<Alignment ss:Vertical="Center"/></Style>
-
- <!-- Header info labels -->
- <Style ss:ID="lbl"><Font ss:FontName="Calibri" ss:Size="10" ss:Bold="1" ss:Color="#475569"/><Interior ss:Color="#F8FAFC" ss:Pattern="Solid"/>${bAll}<Alignment ss:Vertical="Center"/></Style>
- <Style ss:ID="val"><Font ss:FontName="Calibri" ss:Size="10" ss:Color="#0F172A"/><Interior ss:Color="#F8FAFC" ss:Pattern="Solid"/>${bAll}<Alignment ss:Vertical="Center"/></Style>
-
- <!-- Table headers -->
- <Style ss:ID="hdr"><Font ss:FontName="Calibri" ss:Size="9" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#1E293B" ss:Pattern="Solid"/>${bThick}<Alignment ss:Horizontal="Left" ss:Vertical="Center" ss:WrapText="1"/></Style>
- <Style ss:ID="hdrC"><Font ss:FontName="Calibri" ss:Size="9" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#1E293B" ss:Pattern="Solid"/>${bThick}<Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/></Style>
- <Style ss:ID="hdrR"><Font ss:FontName="Calibri" ss:Size="9" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#1E293B" ss:Pattern="Solid"/>${bThick}<Alignment ss:Horizontal="Right" ss:Vertical="Center" ss:WrapText="1"/></Style>
-
- <!-- Category separator -->
- <Style ss:ID="catRow"><Font ss:FontName="Calibri" ss:Size="10" ss:Bold="1" ss:Color="#0F172A"/><Interior ss:Color="#E2E8F0" ss:Pattern="Solid"/>${bAll}<Alignment ss:Vertical="Center"/></Style>
-
- <!-- Data cells -->
- <Style ss:ID="d"><Font ss:FontName="Calibri" ss:Size="10" ss:Color="#334155"/>${bAll}<Alignment ss:Vertical="Center"/></Style>
- <Style ss:ID="dBold"><Font ss:FontName="Calibri" ss:Size="10" ss:Bold="1" ss:Color="#0F172A"/>${bAll}<Alignment ss:Vertical="Center"/></Style>
- <Style ss:ID="dc"><Font ss:FontName="Calibri" ss:Size="10" ss:Color="#334155"/>${bAll}<Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style>
- <Style ss:ID="dNote"><Font ss:FontName="Calibri" ss:Size="9" ss:Italic="1" ss:Color="#94A3B8"/>${bAll}<Alignment ss:Vertical="Center"/></Style>
-
- <!-- Number cells -->
- <Style ss:ID="num"><Font ss:FontName="Calibri" ss:Size="10" ss:Color="#334155"/>${bAll}<Alignment ss:Horizontal="Right" ss:Vertical="Center"/>${numFmt}</Style>
- <Style ss:ID="numC"><Font ss:FontName="Calibri" ss:Size="10" ss:Color="#334155"/>${bAll}<Alignment ss:Horizontal="Center" ss:Vertical="Center"/>${numFmt}</Style>
- <Style ss:ID="numIva"><Font ss:FontName="Calibri" ss:Size="10" ss:Color="#059669"/>${bAll}<Alignment ss:Horizontal="Right" ss:Vertical="Center"/>${numFmt}</Style>
- <Style ss:ID="numTotal"><Font ss:FontName="Calibri" ss:Size="10" ss:Bold="1" ss:Color="#0F172A"/>${bAll}<Alignment ss:Horizontal="Right" ss:Vertical="Center"/>${numFmt}</Style>
-
- <!-- Summary rows -->
- <Style ss:ID="sumLbl"><Font ss:FontName="Calibri" ss:Size="10" ss:Bold="1" ss:Color="#334155"/><Interior ss:Color="#F1F5F9" ss:Pattern="Solid"/>${bAll}<Alignment ss:Vertical="Center"/></Style>
- <Style ss:ID="sumNum"><Font ss:FontName="Calibri" ss:Size="10" ss:Bold="1" ss:Color="#0F172A"/><Interior ss:Color="#F1F5F9" ss:Pattern="Solid"/>${bAll}<Alignment ss:Horizontal="Right" ss:Vertical="Center"/>${numFmt}</Style>
- <Style ss:ID="ivaLbl"><Font ss:FontName="Calibri" ss:Size="10" ss:Color="#059669"/><Interior ss:Color="#F0FDF4" ss:Pattern="Solid"/>${bAll}<Alignment ss:Vertical="Center"/></Style>
-
- <!-- Grand total -->
- <Style ss:ID="totalLbl"><Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#D97706" ss:Pattern="Solid"/>${bAccent}<Alignment ss:Vertical="Center"/></Style>
- <Style ss:ID="totalNum"><Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#D97706" ss:Pattern="Solid"/>${bAccent}<Alignment ss:Horizontal="Right" ss:Vertical="Center"/>${numFmt}</Style>
-</Styles>`;
-
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<?mso-application progid="Excel.Sheet"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
-${styles}
-<Worksheet ss:Name="Presupuesto"><Table ss:DefaultRowHeight="20">${colXml}${rows}</Table></Worksheet>
-<Worksheet ss:Name="Computo Materiales"><Table ss:DefaultRowHeight="20">${matColXml}${matRows}</Table></Worksheet>
-${m2Sheet}
-</Workbook>`;
-
-  const blob = new Blob([xml], { type: 'application/vnd.ms-excel' });
+  const blob = wb.toBlob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   const safe = (p.client || p.name || 'Proyecto').replace(/\s+/g, '_');
   a.href = url;
-  a.download = `Presupuesto_${safe}_${formatDatePY(new Date()).replace(/\//g,'-')}.xlsx`;
+  a.download = `Presupuesto_${safe}_${formatDatePY(new Date()).replace(/\//g, '-')}.xlsx`;
   a.click();
-  URL.revokeObjectURL(url);
-  toast("✓ Presupuesto exportado con formato profesional");
+  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  toast("✓ Excel generado. Subilo a Google Sheets para editarlo");
 }
 
 // ── EXPORT MS PROJECT (XML) ─────────────────────────────────────────
