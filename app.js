@@ -1306,16 +1306,16 @@ function shareProjectWhatsApp(id) {
     toast("Compartiendo por WhatsApp...");
 }
 
-// Recordatorio de Backup (cada 3 días de uso)
+// Recordatorio no intrusivo de Backup (cada 3 días). Nunca descarga archivos solo.
 function checkBackupReminder() {
   const last = localStorage.getItem("ppy_last_backup") || 0;
   const now = Date.now();
   if (now - last > 3 * 24 * 60 * 60 * 1000) {
     setTimeout(() => {
-      if (confirm("🔋 Recordatorio de Seguridad: ¿Deseas realizar un backup de toda tu base de datos? Es recomendable guardarlo fuera de tu computadora.")) {
-        exportDB();
-        localStorage.setItem("ppy_last_backup", Date.now());
-      }
+      var u = window._currentUser;
+      if (!u || u.isGuest === true) { return; }
+      if (state._requireAccount !== false && !masteredOrVerified(u)) { return; }
+      toast("💾 Hacé tu backup en ☁️ Cloud > Backup y Datos. Nunca se descarga solo.", false);
     }, 3000);
   }
 }
@@ -4031,7 +4031,7 @@ function initFirebaseAuth() {
     // Identidad técnica de sincronización del admin: no afecta la sesión de la app
     if (user && user.email === ADMIN_SYNC_EMAIL) {
       window._isAdminSyncUser = true;
-      _pullAccounts();
+      pullAccounts();
       if (localStorage.getItem("pte_master_session") === "1") {
         window._currentUser = { uid: "master", email: "martin@puntero.local", isMaster: true };
         applyAppLock();
@@ -4144,16 +4144,23 @@ async function login() {
     ensureAdminSync();
     return;
   }
+  // Refrescar el registro de cuentas del admin (best-effort) para que las cuentas
+  // demo/permanentes/VIP funcionen en cualquier dispositivo, no solo en el del admin.
+  try { await pullAccounts(); } catch (e) {}
   // Cuentas demo (72h): creadas por el admin, usuario + contraseña propias
   var demoAcc = findDemoAccountByUsername(email);
   if (demoAcc) {
     if (demoAcc.expiresAt <= Date.now()) {
-      adminDeleteAccount(demoAcc.id);
+      removeAccountLocal(demoAcc.id);
+      if (window._isAdminSyncUser) pushAccountsSync();
       var errD = document.getElementById("auth-error");
       if (errD) { errD.textContent = "La cuenta demo venció (72h). Pedile una nueva al administrador."; errD.style.display = ""; }
       return;
     }
-    if (pass.trim() !== demoAcc.password) {
+    var okDemo = demoAcc.passwordHash
+      ? ((await hashAccountPassword(pass.trim())) === demoAcc.passwordHash)
+      : (pass.trim() === demoAcc.password);
+    if (!okDemo) {
       var errD2 = document.getElementById("auth-error");
       if (errD2) { errD2.textContent = "Usuario o contraseña incorrectos"; errD2.style.display = ""; }
       return;
@@ -4163,12 +4170,14 @@ async function login() {
   }
   if (!window._AUTH) return toast("Sin conexión. Usá el modo invitado.", false);
   try {
-    await window._AUTH.signInWithEmailAndPassword(email, pass);
+    var cred = await window._AUTH.signInWithEmailAndPassword(email, pass);
+    if (!cred.user) return;
     deleteGuestSession();
     closeModal();
     // El registro público está bloqueado: toda cuenta de Firebase fue creada por
     // el admin, así que entra sin necesidad de confirmar el correo.
     toast("Sesión iniciada ✓");
+    try { await pullAccounts(); } catch (e) {}
   } catch (e) {
     var errEl = document.getElementById("auth-error");
     if (errEl) { errEl.textContent = e.message; errEl.style.display = ""; }
@@ -4248,6 +4257,10 @@ async function logout() {
   if (window._currentUser && window._currentUser.isMaster) {
     localStorage.removeItem("pte_master_session");
     window._currentUser = null;
+    window._isAdminSyncUser = false;
+    window._lastAccountSync = 0;
+    // Cerrar también la identidad técnica de sincronización si estaba activa
+    try { if (window._AUTH && window._AUTH.currentUser) await window._AUTH.signOut(); } catch (e) {}
     applyAppLock();
     closeModal();
     toast("Sesión cerrada ✓");
@@ -4295,6 +4308,11 @@ function accUserNameSlug(u) {
 }
 
 function startDemoSession(acc) {
+  // Si hay una sesión Firebase activa (ej: cuenta permanente del mismo dispositivo),
+  // cerrarla para que onAuthStateChanged no pise la sesión demo.
+  try {
+    if (window._AUTH && window._AUTH.currentUser) window._AUTH.signOut();
+  } catch (e) {}
   var slug = accUserNameSlug(acc.username);
   localStorage.setItem("pte_guest_session", JSON.stringify({
     uid: "guest-" + slug,
@@ -4420,7 +4438,7 @@ function renderAccountsSettings() {
     el.innerHTML = "<div class='empty'>🔒 Solo el administrador gestiona las cuentas.</div>";
     return;
   }
-  if (window._isAdminSyncUser) _pullAccounts();
+  pullAccounts();
   // Reasegurar las demos base y podar las vencidas (las base se renuevan solas)
   seedDemoAccounts();
   // Podar demos vencidas
@@ -4447,7 +4465,7 @@ function renderAccountsSettings() {
       '<div style="font-weight:700">' + a.username + '</div>' +
       '<div style="font-size:0.8rem;color:var(--tx3)">' + badge + ' · ' + estado + '</div>' +
       '</div>' +
-      '<div style="font-size:0.8rem;color:var(--tx3);min-width:110px;text-align:right">' + (a.password || "") + '</div>' +
+      '<div style="font-size:0.8rem;color:var(--tx3);min-width:110px;text-align:right">' + (a.password || (a.type === "demo" ? "🔒" : "")) + '</div>' +
       '<div style="display:flex;gap:6px">' + copiar + resend + del + '</div>' +
       '</div>';
   }).join("");
@@ -4503,10 +4521,11 @@ async function adminCreateTab() {
   if (type === "demo") {
     if (findDemoAccountByUsername(user)) return toast("Ya existe una cuenta demo con ese usuario", false);
     var list = getAccounts();
-    list.push({ id: "acc-" + Date.now().toString(36), username: user, password: pass, type: "demo", created: Date.now(), expiresAt: Date.now() + GUEST_TTL_MS, firebase: false });
+    list.push({ id: "acc-" + Date.now().toString(36), username: user, password: pass, passwordHash: await hashAccountPassword(pass), type: "demo", created: Date.now(), updatedAt: Date.now(), expiresAt: Date.now() + GUEST_TTL_MS, firebase: false });
     setAccounts(list);
     toast("Cuenta demo creada · 72h ✓");
-    pushAccountsSync();
+    await ensureAdminSync();
+    await pushAccountsSync();
     renderAccountsSettings();
     return;
   }
@@ -4515,12 +4534,14 @@ async function adminCreateTab() {
   try {
     var cred = await window._AUTH.createUserWithEmailAndPassword(user, pass);
     var list2 = getAccounts();
-    list2.push({ id: "acc-" + Date.now().toString(36), username: user, password: pass, type: type, created: Date.now(), expiresAt: null, firebase: true, uid: cred.user.uid });
+    list2.push({ id: "acc-" + Date.now().toString(36), username: user, password: pass, type: type, created: Date.now(), updatedAt: Date.now(), expiresAt: null, firebase: true, uid: cred.user.uid });
     setAccounts(list2);
     try { await window._AUTH.signOut(); } catch (e) {}
     if (localStorage.getItem("pte_master_session") === "1") window._currentUser = { uid: "master", email: "martin@puntero.local", isMaster: true };
     applyAppLock();
-    pushAccountsSync();
+    // reactivar la identidad técnica para que el ledger llegue a Firestore
+    await ensureAdminSync();
+    await pushAccountsSync();
     toast("Cuenta " + type + " creada ✓ · entra sin confirmar correo");
     renderAccountsSettings();
   } catch (e) { toast((e && e.message) || "No se pudo crear la cuenta", false); }
@@ -4556,28 +4577,87 @@ function adminDeleteAccount(id) {
   if (!a) return;
   var note = a.firebase ? "\n\n(La cuenta en Firebase sigue en Auth; para borrarla de verdad usá la consola de Firebase.)" : "";
   if (!confirm("¿Eliminar la cuenta " + a.username + " de la lista?" + note)) return;
-  setAccounts(getAccounts().filter(function (x) { return x.id !== id; }));
-  pushAccountsSync();
+  removeAccountLocal(id);
+  ensureAdminSync().then(function () { pushAccountsSync(); });
   renderAccountsSettings();
   toast("Cuenta quitada de la lista ✓");
 }
 
 // ── SINCRONIZACIÓN DEL REGISTRO DE CUENTAS (ADMIN) ─────────────────────────
-// Permite que la lista de cuentas creadas aparezca en TODOS los dispositivos
-// del administrador. Usa una identidad técnica propia (admin.sync@puntero.local)
-// como transporte a Firestore; no reemplaza la sesión local de la app.
+// El ledger vive en Firestore (accounts/ledger) para que las cuentas creadas
+// por el admin funcionen en CUALQUIER dispositivo: el amigo/cliente puede usar
+// una demo (lee el ledger) o una permanente/VIP (Firebase Auth).
+// Las contraseñas NUNCA viajan en claro por Firestore: las demos guardan un
+// SHA-256 (passwordHash) y las permanentes/VIP validan contra Firebase Auth.
 var ADMIN_SYNC_EMAIL = "admin.sync@puntero.local";
 var ADMIN_SYNC_PASS = "K7xPq9wZ2mVb4rN6"; // solo transporte de sincronización
 window._isAdminSyncUser = false;
+window._lastAccountSync = 0;
 
 function _accountsMaxUpdatedAt(list) {
   return (list || []).reduce(function (m, a) { return Math.max(m, a.updatedAt || 0); }, 0);
 }
 
+// SHA-256 hex de una contraseña (para el ledger compartido)
+function hashAccountPassword(pass) {
+  if (!pass) return Promise.resolve("");
+  if (!(window.crypto && crypto.subtle && crypto.subtle.digest)) return Promise.resolve("");
+  var data = new TextEncoder().encode(String(pass));
+  return crypto.subtle.digest("SHA-256", data).then(function (buf) {
+    var bytes = new Uint8Array(buf);
+    var hex = "";
+    for (var i = 0; i < bytes.length; i++) hex += ("0" + bytes[i].toString(16)).slice(-2);
+    return hex;
+  });
+}
+
+// Quita una cuenta de la lista local (sin dialogo)
+function removeAccountLocal(id) {
+  if (!id) return;
+  setAccounts(getAccounts().filter(function (a) { return a.id !== id; }));
+}
+
+// Versión del ledger apta para Firestore: sin contraseña en claro; las demos
+// llevan el hash (o lo calculan al vuelo).
+async function _sanitizeAccountForLedger(a) {
+  var copy = {};
+  Object.keys(a).forEach(function (k) { if (k !== "password") copy[k] = a[k]; });
+  if (a.type === "demo" && !copy.passwordHash) {
+    copy.passwordHash = await hashAccountPassword(a.password || "");
+  }
+  return copy;
+}
+
+function _pruneExpiredDemos(list) {
+  return (list || []).filter(function (a) { return a.type !== "demo" || (a.expiresAt || 0) > Date.now(); });
+}
+
+// Mezcla remoto + local sin perder datos:
+// - remoto gana (base del resultado), conservando el password en claro local
+//   cuando corresponde (el admin nunca "descarga" secretos).
+// - cuentas locales que NO están en remoto solo sobreviven si fueron tocadas
+//   DESPUÉS de la última escritura remota (cambios offline del admin);
+//   si no, son eliminaciones que ya se propagaron.
+function _mergeRemoteAccounts(remote, local, remoteTs) {
+  var byLocal = {};
+  (local || []).forEach(function (a) { byLocal[a.id] = a; });
+  var merged = (remote || []).map(function (r) {
+    var l = byLocal[r.id];
+    if (l && l.password && !r.password) r = Object.assign({}, r, { password: l.password });
+    return r;
+  });
+  var mergedIds = {};
+  merged.forEach(function (m) { mergedIds[m.id] = true; });
+  (local || []).forEach(function (l) {
+    if (!mergedIds[l.id] && (l.updatedAt || 0) > (remoteTs || 0)) merged.push(l);
+  });
+  return merged;
+}
+
 async function ensureAdminSync() {
   if (!window._AUTH || !window._FIRESTORE) return;
   if (navigator && navigator.onLine === false) return;
-  if (window._isAdminSyncUser) return _pullAccounts();
+  if (window._isAdminSyncUser) return pullAccounts();
   try {
     try {
       await window._AUTH.signInWithEmailAndPassword(ADMIN_SYNC_EMAIL, ADMIN_SYNC_PASS);
@@ -4590,23 +4670,29 @@ async function ensureAdminSync() {
       } else { throw e; }
     }
     window._isAdminSyncUser = true;
-    _pullAccounts();
+    pullAccounts();
   } catch (e) { console.warn("Sync cuentas:", e.code || e.message); }
 }
 
-async function _pullAccounts() {
+// Trae el ledger a CUALQUIER dispositivo (lectura pública). Con merge inteligente.
+async function pullAccounts() {
   if (!window._FIRESTORE) return;
+  var now = Date.now();
+  if (now - window._lastAccountSync < 15000) return;
+  window._lastAccountSync = now;
   try {
     var ref = window._FIRESTORE.collection("accounts").doc("ledger");
     var snap = await ref.get();
     var data = snap.exists ? snap.data() : null;
-    var remote = data && Array.isArray(data.list) ? data.list : null;
+    var remote = (data && Array.isArray(data.list)) ? _pruneExpiredDemos(data.list) : null;
     var local = getAccounts();
     var remoteTs = data ? (data.updatedAt || 0) : 0;
     if (remote && remote.length && remoteTs >= _accountsMaxUpdatedAt(local)) {
-      setAccounts(remote);
-    } else if ((!remote || !remote.length) && local.length) {
-      await ref.set({ list: local.map(function (a) { return Object.assign({}, a, { updatedAt: a.updatedAt || Date.now() }); }), updatedAt: Date.now() });
+      setAccounts(_pruneExpiredDemos(_mergeRemoteAccounts(remote, getAccounts(), remoteTs)));
+      // El admin auto-repara el ledger (borra demos vencidas)
+      if (window._isAdminSyncUser) pushAccountsSync();
+    } else if ((!remote || !remote.length) && local.length && window._isAdminSyncUser) {
+      await pushAccountsSync();
     }
     // Reasegurar las demos base por si el remoto no las traía
     seedDemoAccounts();
@@ -4619,9 +4705,14 @@ async function pushAccountsSync() {
   if (!window._isAdminSyncUser || !window._FIRESTORE) return;
   try {
     var now = Date.now();
-    var list = getAccounts().map(function (a) { return Object.assign({}, a, { updatedAt: a.updatedAt || now }); });
-    setAccounts(list);
-    await window._FIRESTORE.collection("accounts").doc("ledger").set({ list: list, updatedAt: now });
+    var local = getAccounts().map(function (a) { return Object.assign({}, a, { updatedAt: a.updatedAt || now }); });
+    setAccounts(local);
+    var sanitized = [];
+    for (var i = 0; i < local.length; i++) {
+      sanitized.push(await _sanitizeAccountForLedger(local[i]));
+    }
+    sanitized = _pruneExpiredDemos(sanitized);
+    await window._FIRESTORE.collection("accounts").doc("ledger").set({ list: sanitized, updatedAt: now });
   } catch (e) { console.warn("push cuentas:", e.code || e.message); }
 }
 
