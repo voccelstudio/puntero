@@ -247,6 +247,11 @@ let state = {
   activeAdendaId: null,  
   migratedV6: false, 
   migratedV7: false, // [NUEVO] Flag para geoloc y jornaleros
+  clients: [],       // [NUEVO] Base de datos de clientes
+  migratedClients: false, // [NUEVO] Flag de migración de clientes
+  clientFilter: "",  // [NUEVO] Filtro de la sección Clientes
+  clientFilterProj: null, // [NUEVO] Filtro de proyectos por cliente
+  phaseIdSeq: 1,     // [NUEVO] Secuencia de ids de fases
 };
 
 // Load state from localStorage (fast cache)
@@ -259,12 +264,14 @@ try {
   }
   state.isPro = true;
   migrateToMultiProject();
+  if (typeof ensureClients === "function") ensureClients();
 } catch (e) { }
 
 // Init Dexie and try to load authoritative data from IndexedDB
 initDexie();
 dexieLoad(function () {
   // Dexie loaded, re-render if needed
+  if (typeof ensureClients === "function") ensureClients();
   if (typeof setSection === "function" && state.section) {
     setSection(state.section);
   }
@@ -1199,13 +1206,15 @@ function renderProjects() {
 
     let filtered = [...state.projects].filter(p => {
         if (!state.projectShowArchived && p.archived) return false;
+        if (state.clientFilterProj && p.clientId !== state.clientFilterProj) return false;
+        const cname = clientName(p);
         return p.name.toLowerCase().includes(state.projectFilter.toLowerCase()) || 
-            (p.client && p.client.toLowerCase().includes(state.projectFilter.toLowerCase()));
+            (cname && cname.toLowerCase().includes(state.projectFilter.toLowerCase()));
     });
 
     filtered.sort((a, b) => {
         if (state.projectSort === 'name') return a.name.localeCompare(b.name);
-        if (state.projectSort === 'client') return (a.client || "").localeCompare(b.client || "");
+        if (state.projectSort === 'client') return clientName(a).localeCompare(clientName(b));
         if (state.projectSort === 'amount') {
             const getT = (p) => p.budgets.reduce((s, b) => s + b.items.reduce((ss, i) => ss + (i.unitPrice * i.qty), 0), 0);
             return getT(b) - getT(a);
@@ -1237,6 +1246,9 @@ function renderProjects() {
             <button class="btn sm ${state.projectSort === 'client' ? 'primary' : ''}" onclick="state.projectSort='client'; renderProjects()">👤 Cliente</button>
             <button class="btn sm ${state.projectSort === 'amount' ? 'primary' : ''}" onclick="state.projectSort='amount'; renderProjects()">💰 Monto</button>
             <span style="width:1px;height:20px;background:var(--bor);margin:0 4px"></span>
+            <span style="font-size:0.8rem; color:var(--tx3); font-weight:700; text-transform:uppercase; white-space:nowrap">Cliente:</span>
+            <select onchange="state.clientFilterProj=this.value||null; renderProjects()">${clientOptionsHtml(state.clientFilterProj || "")}</select>
+            <span style="width:1px;height:20px;background:var(--bor);margin:0 4px"></span>
             <button class="btn sm ${state.projectShowArchived ? 'primary' : ''}" onclick="state.projectShowArchived=!state.projectShowArchived; renderProjects()">📦 Archivados ${archivedCount > 0 ? `(${archivedCount})` : ''}</button>
         </div>
 
@@ -1259,7 +1271,7 @@ function renderProjects() {
                     
                     <div style="margin-bottom:10px">
                         <div style="font-size:0.7rem; color:var(--tx3); font-weight:700; text-transform:uppercase; margin-bottom:2px">Cliente</div>
-                        <div style="font-size:0.95rem; font-weight:600; color:var(--tx2)">${p.client || '—'}</div>
+                        <div style="font-size:0.95rem; font-weight:600; color:var(--tx2)">${clientName(p) || '—'}</div>
                     </div>
 
                     <div style="background:var(--sur2); padding:10px; border-radius:var(--rad); margin-bottom:12px">
@@ -1430,7 +1442,7 @@ window.addEventListener("beforeunload", function () {
 
 // ── WORKSPACE / COLLABORATION ──────────────────────────────────────────
 var _workspaceListenerUnsub = null;
-var WORKSPACE_FIELDS = ['projects','contractors','suppliers','jornaleros','roles','contratos'];
+var WORKSPACE_FIELDS = ['projects','contractors','suppliers','jornaleros','roles','contratos','clients'];
 
 function extractWorkspaceData() {
   var data = {};
@@ -1589,6 +1601,7 @@ function setSection(s) {
     contratos: "Contratos Legales",
     resources: "Biblioteca y Recursos",
     projects: "Gestión de Proyectos",
+    clients: "Base de Clientes",
     folder: "Carpeta del Proyecto",
     cajachica: "Caja Chica",
     accounts: "Gestión de Cuentas",
@@ -1597,7 +1610,7 @@ function setSection(s) {
   const vtitle = document.getElementById("view-title");
   if (vtitle) vtitle.textContent = titles[s] || "Puntero";
 
-  ["global_dashboard", "budget", "ot", "schedule", "contractors", "jornaleros", "contratos", "prices", "dashboard", "themes", "logs", "materials", "finances", "cajachica", "performance", "documents", "suppliers", "resources", "projects", "aftercare", "computo", "folder", "accounts", "cloud"].forEach(x => {
+  ["global_dashboard", "budget", "ot", "schedule", "contractors", "jornaleros", "contratos", "prices", "dashboard", "themes", "logs", "materials", "finances", "cajachica", "performance", "documents", "suppliers", "resources", "projects", "clients", "aftercare", "computo", "folder", "accounts", "cloud"].forEach(x => {
     const el = document.getElementById("section-" + x);
     if (el) el.style.display = s === x ? "" : "none";
     const b = document.getElementById("btn-" + x);
@@ -1605,6 +1618,7 @@ function setSection(s) {
   });
   if (s === "global_dashboard") renderGlobalDashboard();
   if (s === "projects") renderProjects();
+  if (s === "clients") renderClients();
   if (s === "budget") renderBudget();
   if (s === "ot") renderOT();
   if (s === "computo") renderComputoSection();
@@ -2141,10 +2155,10 @@ function updateQty(id, val) {
       const startDate = new Date(sch.start);
       sch.end = new Date(startDate.getTime() + (days - 1) * 86400000).toISOString().split('T')[0];
     }
-    renderTotals(); save();
+    renderTotals(); applyItemTotals(id); save();
   }
 }
-function updateDisc(id, v) { const adenda = getActiveAdenda(); if (!adenda) return; const i = adenda.items.find(x => x.id == id); if (i) { i.disc = Math.max(0, Math.min(100, parseFloat(v) || 0)); renderTotals(); save(); } }
+function updateDisc(id, v) { const adenda = getActiveAdenda(); if (!adenda) return; const i = adenda.items.find(x => x.id == id); if (i) { i.disc = Math.max(0, Math.min(100, parseFloat(v) || 0)); renderTotals(); applyItemTotals(id); save(); } }
 function removeItem(id) {
   const adenda = getActiveAdenda();
   const p = getActiveProject();
@@ -2230,20 +2244,27 @@ function deleteVersion(id) {
 }
 
 // ── TOTALS ──────────────────────────────────────────────────────────
-function effPrice(i) { return i.unitPrice * (1 - (i.disc || 0) / 100); }
+function effPrice(i) { return (Number(i.unitPrice) || 0) * (1 - (i.disc || 0) / 100); }
+// Total de una línea de ítem (importe neto + IVA si corresponde).
+function itemLineTotal(item, ivaEnabled) {
+  const ep = effPrice(item);
+  const qty = Number(item.qty) || 0;
+  const iva = ivaEnabled ? calcIVA(Number(item.matCost) || 0, Number(item.laborCost) || 0, qty).ivaTotal : 0;
+  return ep * qty + iva;
+}
 function getTotals() {
   const adenda = getActiveAdenda();
   if (!adenda) return { totalMats:0, totalLabor:0, subtotal:0, ivaMat:0, ivaLab:0, ivaTotal:0, profitAmt:0, total:0 };
   
-  const totalMats = adenda.items.reduce((s, i) => s + (i.matCost || 0) * (1 - (i.disc || 0) / 100) * i.qty, 0);
-  const totalLabor = adenda.items.reduce((s, i) => s + (i.laborCost || 0) * (1 - (i.disc || 0) / 100) * i.qty, 0);
-  const subtotal = adenda.items.reduce((s, i) => s + (i.unitPrice * (1 - (i.disc || 0) / 100)) * i.qty, 0);
+  const totalMats = adenda.items.reduce((s, i) => s + (Number(i.matCost) || 0) * (1 - (i.disc || 0) / 100) * (Number(i.qty) || 0), 0);
+  const totalLabor = adenda.items.reduce((s, i) => s + (Number(i.laborCost) || 0) * (1 - (i.disc || 0) / 100) * (Number(i.qty) || 0), 0);
+  const subtotal = adenda.items.reduce((s, i) => s + (Number(i.unitPrice) || 0) * (1 - (i.disc || 0) / 100) * (Number(i.qty) || 0), 0);
   
   let ivaMat = 0, ivaLab = 0;
   if (adenda.ivaEnabled) {
       adenda.items.forEach(i => {
-          ivaMat += Math.round((i.matCost || 0) * i.qty * 0.10);
-          ivaLab += Math.round((i.laborCost || 0) * i.qty * 0.05);
+          ivaMat += Math.round((Number(i.matCost) || 0) * (Number(i.qty) || 0) * 0.10);
+          ivaLab += Math.round((Number(i.laborCost) || 0) * (Number(i.qty) || 0) * 0.05);
       });
   }
   const ivaTotal = ivaMat + ivaLab;
@@ -2286,9 +2307,9 @@ function getGrouped() {
 function getBreakdown() {
   return Object.entries(getGrouped()).map(([cat, ci]) => ({
     cat,
-    matCost: ci.reduce((s, i) => s + (i.matCost || 0) * i.qty, 0),
-    laborCost: ci.reduce((s, i) => s + (i.laborCost || 0) * i.qty, 0),
-    total: ci.reduce((s, i) => s + i.unitPrice * i.qty, 0)
+    matCost: ci.reduce((s, i) => s + (Number(i.matCost) || 0) * (1 - (i.disc || 0) / 100) * (Number(i.qty) || 0), 0),
+    laborCost: ci.reduce((s, i) => s + (Number(i.laborCost) || 0) * (1 - (i.disc || 0) / 100) * (Number(i.qty) || 0), 0),
+    total: ci.reduce((s, i) => s + effPrice(i) * (Number(i.qty) || 0), 0)
   }));
 }
 
@@ -2381,41 +2402,140 @@ function renderTotals() {
 }
 
 // ── TABLE RENDER ─────────────────────────────────────────────────────
+// Configuración de fases de un presupuesto (adenda).
+function getPhaseConfig(adenda) {
+  if (!adenda || !Array.isArray(adenda.phases)) return [];
+  return adenda.phases;
+}
+
+// Layout por fases: [{ id, name, items }]. Sin fases configuradas ni ítems
+// asignados devuelve null (se mantiene el agrupado solo por categoría).
+function getPhaseLayout(adenda) {
+  if (!adenda) return null;
+  const phases = getPhaseConfig(adenda);
+  const anyAssigned = (adenda.items || []).some(i => i.phase);
+  if (phases.length === 0 && !anyAssigned) return null;
+  const groups = [];
+  const map = {};
+  phases.forEach(p => { map[p.id] = { id: p.id, name: p.name, items: [] }; groups.push(map[p.id]); });
+  map[""] = map[""] || { id: "", name: "Etapa final / otros", items: [] };
+  if (!phases.some(p => p.id === "")) groups.push(map[""]);
+  (adenda.items || []).forEach(i => {
+    const ph = phases.some(p => p.id === i.phase) ? i.phase : "";
+    map[ph].items.push(i);
+  });
+  return groups.filter(g => g.items.length);
+}
+
+function phaseSubtotalIn(adenda, phaseId) {
+  const layout = getPhaseLayout(adenda);
+  if (!layout) return 0;
+  const phases = getPhaseConfig(adenda);
+  let s = 0;
+  (adenda.items || []).forEach(i => {
+    const ph = phases.some(p => p.id === i.phase) ? i.phase : "";
+    if (ph === (phaseId || "")) s += itemLineTotal(i, adenda.ivaEnabled);
+  });
+  return s;
+}
+
+function catSubtotalIn(adenda, phaseId, cat) {
+  const layout = getPhaseLayout(adenda);
+  const phases = getPhaseConfig(adenda);
+  let s = 0;
+  (adenda.items || []).forEach(i => {
+    if (i.cat !== cat) return;
+    const inPhase = layout ? (phases.some(p => p.id === i.phase) ? i.phase : "") : "";
+    if (!layout || inPhase === (phaseId || "")) s += itemLineTotal(i, adenda.ivaEnabled);
+  });
+  return s;
+}
+
+// Actualiza en vivo totales de una fila + subtotales + panel m² sin perder foco.
+function applyItemTotals(id) {
+  const adenda = getActiveAdenda(); if (!adenda) return;
+  const item = adenda.items.find(x => x.id == id); if (!item) return;
+  const ep = effPrice(item);
+  const iva = adenda.ivaEnabled ? calcIVA(Number(item.matCost) || 0, Number(item.laborCost) || 0, Number(item.qty) || 0).ivaTotal : 0;
+  const totalItem = ep * (Number(item.qty) || 0) + iva;
+  const totEl = document.getElementById("it-tot-" + id);
+  if (totEl) totEl.textContent = "₲" + fmt(totalItem);
+  const uniEl = document.getElementById("it-uni-" + id);
+  if (uniEl) uniEl.textContent = "₲" + fmt(ep);
+  const ivaEl = document.getElementById("it-iva-" + id);
+  if (ivaEl) ivaEl.textContent = "₲" + fmt(iva);
+  document.querySelectorAll('td[data-role="catsub"]').forEach(td => {
+    const ph = td.getAttribute("data-phase") || "";
+    const cat = td.getAttribute("data-cat") || "";
+    td.textContent = "₲" + fmt(catSubtotalIn(adenda, ph, cat));
+  });
+  document.querySelectorAll('td[data-role="phasesub"]').forEach(td => {
+    const ph = td.getAttribute("data-phase") || "";
+    td.textContent = "₲" + fmt(phaseSubtotalIn(adenda, ph));
+  });
+  renderM2Panel();
+}
+
+function renderM2Panel() {
+  const pane = document.getElementById("m2-panel-area");
+  if (!pane) return;
+  const m2Area = getActiveProject()?.m2Area || 0;
+  const totals = getTotals();
+  pane.innerHTML = m2Area > 0
+    ? `<div class="m2-panel">
+        <div><div class="m2-val">₲ ${fmt(Math.round(totals.total / m2Area))}/m²</div><div class="m2-lbl">Costo por metro cuadrado</div></div>
+        <div class="m2-ref">Sup: <span>${m2Area} m²</span></div>
+        <div class="m2-ref">Total: <span>₲ ${fmt(totals.total)}</span></div>
+      </div>`
+    : "";
+}
+
+function setItemPhase(id, phase) {
+  const adenda = getActiveAdenda();
+  if (!adenda) return;
+  const i = adenda.items.find(x => x.id == id);
+  if (!i) return;
+  i.phase = phase;
+  renderTable(); save();
+}
+
+function phaseOptions(phases, current) {
+  let h = '<option value=""' + (current ? "" : " selected") + '>Sin fase</option>';
+  (phases || []).forEach(p => {
+    h += '<option value="' + escapeHtml(p.id) + '"' + (current === p.id ? " selected" : "") + ">" + escapeHtml(p.name) + "</option>";
+  });
+  return h;
+}
+
 function renderTable() {
   const el = document.getElementById("table-area"); if (!el) return;
   const adenda = getActiveAdenda();
   if (!adenda || adenda.items.length === 0) {
     el.innerHTML = `<div class="empty"><div class="empty-ico">📋</div><div>Seleccioná rubros del catálogo</div></div>`;
-    document.getElementById("totals-area").innerHTML = ""; return;
+    const ta = document.getElementById("totals-area"); if (ta) ta.innerHTML = "";
+    const mp = document.getElementById("m2-panel-area"); if (mp) mp.innerHTML = "";
+    return;
   }
-  const grouped = {};
-  for (const i of adenda.items) { if (!grouped[i.cat]) grouped[i.cat] = []; grouped[i.cat].push(i); }
-  
-  // Panel M²
-  const m2Area = getActiveProject()?.m2Area || 0;
-  const totals = getTotals();
-  const m2html = m2Area > 0 ? `<div class="m2-panel">
-    <div><div class="m2-val">₲ ${fmt(Math.round(totals.total / m2Area))}/m²</div><div class="m2-lbl">Costo por metro cuadrado</div></div>
-    <div class="m2-ref">Sup: <span>${m2Area} m²</span></div>
-    <div class="m2-ref">Total: <span>₲ ${fmt(totals.total)}</span></div>
-  </div>` : "";
+  const ivaEnabled = adenda.ivaEnabled;
+  const colSpanFull = ivaEnabled ? 8 : 7;
+  const layout = getPhaseLayout(adenda);
+  const phases = getPhaseConfig(adenda);
 
-  let h = m2html + `<div class="bud-hdr">
+  let h = `<div id="m2-panel-area"></div><div class="bud-hdr">
     <span style="font-size:.95rem;color:var(--tx3)">${adenda.items.length} ítem${adenda.items.length !== 1 ? "s" : ""}</span>
     <div style="flex:1"></div>
     <button class="btn sm" onclick="setSection('computo')">🧱 Ver Cómputo</button>
     <button class="btn sm" onclick="showModal('breakdown')">📊 Desglose</button>
   </div>
-  <table class="tbl budget-tbl"><thead><tr><th>Descripción</th><th>U.</th><th>Cant.</th><th>Desc.%</th><th>P. Unit.</th>${adenda.ivaEnabled ? "<th style='color:var(--iva)'>IVA</th>" : ""}<th>Total</th><th></th></tr></thead><tbody>`;
-  const colSpanFull = adenda.ivaEnabled ? 8 : 7;
-  for (const [cat, ci] of Object.entries(grouped)) {
+  <table class="tbl budget-tbl"><thead><tr><th>Descripción</th><th>U.</th><th>Cant.</th><th>Desc.%</th><th>P. Unit.</th>${ivaEnabled ? "<th style='color:var(--iva)'>IVA</th>" : ""}<th>Total</th><th></th></tr></thead><tbody>`;
+
+  const renderCat = (cat, ci, phaseId) => {
     h += `<tr class="tbl-cat cat-row"><td colspan="${colSpanFull}">${cat}</td></tr>`;
     let catSubtotal = 0;
     for (const item of ci) {
-      const mf = item.unitPrice > 0 ? item.matCost / item.unitPrice : 0.5;
-      const ep = item.unitPrice * (1 - (item.disc || 0) / 100);
-      const iva = adenda.ivaEnabled ? calcIVA(item.matCost, item.laborCost, item.qty).ivaTotal : 0;
-      const totalItem = (ep * item.qty) + iva;
+      const ep = effPrice(item);
+      const iva = ivaEnabled ? calcIVA(Number(item.matCost) || 0, Number(item.laborCost) || 0, Number(item.qty) || 0).ivaTotal : 0;
+      const totalItem = ep * (Number(item.qty) || 0) + iva;
       catSubtotal += totalItem;
       h += `<tr>
         <td data-label="Item">
@@ -2426,24 +2546,45 @@ function renderTable() {
             ${item.disc > 0 ? `<span class="disc-badge">-${item.disc}%</span>` : ""}
           </div>
           <textarea class="item-note-input" rows="1" placeholder="Nota interna..." oninput="const i=getActiveAdenda().items.find(x=>x.id==${item.id});if(i){i.note=this.value;save();}">${item.note || ""}</textarea>
+          ${phases.length ? `<select class="ph-sel" onchange="setItemPhase(${item.id},this.value)">${phaseOptions(phases, item.phase || "")}</select>` : ""}
         </td>
         <td data-label="Unid."><span class="utag">${item.unit}</span></td>
         <td data-label="Cant."><input class="qty-in" type="number" min="0" step="0.5" value="${item.qty}" oninput="updateQty(${item.id},this.value)"></td>
         <td data-label="Desc.%"><input class="qty-in disc" type="number" min="0" max="100" step="1" value="${item.disc || 0}" oninput="updateDisc(${item.id},this.value)"></td>
-        <td data-label="P. Unit." style="font-size:.875rem;color:var(--tx3)">₲${fmt(ep)}</td>
-        ${adenda.ivaEnabled ? `<td data-label="IVA" style="font-size:.95rem;color:var(--iva);font-weight:600">₲${fmt(iva)}</td>` : ""}
-        <td data-label="Total" style="font-weight:700;color:var(--acc);font-size:1rem">₲${fmt(totalItem)}</td>
+        <td data-label="P. Unit." style="font-size:.875rem;color:var(--tx3)"><span id="it-uni-${item.id}">₲${fmt(ep)}</span></td>
+        ${ivaEnabled ? `<td data-label="IVA" style="font-size:.95rem;color:var(--iva);font-weight:600"><span id="it-iva-${item.id}">₲${fmt(iva)}</span></td>` : ""}
+        <td data-label="Total" style="font-weight:700;color:var(--acc);font-size:1rem"><span id="it-tot-${item.id}">₲${fmt(totalItem)}</span></td>
         <td data-label="">
           ${(item.mats && item.mats.length) ? `<button class="btn sm" title="Ver cómputo de materiales de este rubro" onclick="showItemMaterials(${item.id})">🧱</button>` : ""}
           <button class="delbtn" onclick="removeItem(${item.id})">✕</button>
         </td>
       </tr>`;
     }
-    // Banda destacada de subtotal al cierre de la categoría
-    h += `<tr class="tbl-subtotal subtotal-row"><td colspan="${colSpanFull - 2}" style="text-align:right">Subtotal ${cat}</td><td style="text-align:right">₲${fmt(catSubtotal)}</td><td></td></tr>`;
+    h += `<tr class="tbl-subtotal subtotal-row"><td colspan="${colSpanFull - 2}" style="text-align:right">Subtotal ${cat}</td><td data-role="catsub" data-phase="${phaseId || ""}" data-cat="${escapeHtml(cat)}" style="text-align:right">₲${fmt(catSubtotal)}</td><td></td></tr>`;
+  };
+
+  if (layout) {
+    for (const phase of layout) {
+      h += `<tr class="tbl-phase phase-row"><td colspan="${colSpanFull}"><span class="ph-flag">FASE</span> ${escapeHtml(phase.name)}</td></tr>`;
+      const cats = {};
+      for (const i of phase.items) { if (!cats[i.cat]) cats[i.cat] = []; cats[i.cat].push(i); }
+      let phaseSum = 0;
+      const phaseCatTotals = [];
+      for (const [cat, ci] of Object.entries(cats)) {
+        renderCat(cat, ci, phase.id);
+        phaseCatTotals.push(catSubtotalIn(adenda, phase.id, cat));
+      }
+      phaseSum = phaseCatTotals.reduce((s, v) => s + v, 0);
+      h += `<tr class="tbl-phase-sub phase-subtotal-row"><td colspan="${colSpanFull - 2}" style="text-align:right">Subtotal ${escapeHtml(phase.name)}</td><td data-role="phasesub" data-phase="${phase.id}" style="text-align:right">₲${fmt(phaseSum)}</td><td></td></tr>`;
+    }
+  } else {
+    const cats = {};
+    for (const i of adenda.items) { if (!cats[i.cat]) cats[i.cat] = []; cats[i.cat].push(i); }
+    for (const [cat, ci] of Object.entries(cats)) renderCat(cat, ci, "");
   }
+
   h += `</tbody></table>`;
-  el.innerHTML = h; renderTotals();
+  el.innerHTML = h; renderM2Panel(); renderTotals();
 }
 
 // ── BUDGET SECTION ────────────────────────────────────────────────────
@@ -2474,7 +2615,13 @@ function renderBudget() {
           <div class="fullcol flex gap6">
             <input placeholder="Nombre de este presupuesto" value="${adenda.name.replace(/"/g, '&quot;')}" oninput="getActiveAdenda().name=this.value;save()" style="flex:1">
           </div>
-          <div style="font-size:0.85rem; color:var(--tx3)">Proyecto: <strong>${p.name}</strong> | Cliente: ${p.client || '—'}</div>
+          <div>
+            <div style="font-size:0.7rem;color:var(--tx3);font-weight:700;text-transform:uppercase;margin-bottom:3px">Cliente (este presupuesto)</div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <select id="bd-client-id" style="flex:1" onchange="setBudgetClient(this.value)">${clientOptionsHtml((resolveBudgetClient(p, adenda) || {}).id || "")}</select>
+              <button class="btn sm" title="Agregar / gestionar clientes" onclick="openClientForm()">＋</button>
+            </div>
+          </div>
         </div>
         <div class="prof-row">
           <span style="font-size:.875rem;font-weight:600;white-space:nowrap">Honorarios:</span>
@@ -2489,6 +2636,16 @@ function renderBudget() {
             <span class="toggle"><input type="checkbox" ${adenda.ivaEnabled ? "checked" : ""} onchange="getActiveAdenda().ivaEnabled=this.checked;renderTable();save()"><span class="tslider"></span></span>
             <span style="font-size:.875rem;color:var(--iva)">Incluir IVA</span>
           </label>
+        </div>
+        <div class="phases-row">
+          <div style="display:flex;align-items:center;gap:7px;margin-bottom:7px">
+            <span style="font-size:.875rem;font-weight:600;white-space:nowrap">Fases de obra:</span>
+            <div class="phase-chips" id="phase-chips">${phaseChipsHtml(adenda)}</div>
+          </div>
+          <div style="display:flex;gap:5px;align-items:center">
+            <input id="new-phase-name" class="sm" placeholder="Nombre de la fase (ej: Instalación básica, Terminaciones)..." style="flex:1" onkeydown="if(event.key==='Enter')addPhase()">
+            <button class="btn sm" onclick="addPhase()">+ Fase</button>
+          </div>
         </div>
       </div>
       <div class="card">
@@ -2508,6 +2665,34 @@ function renderBudget() {
     </div>
   </div>`;
   renderCatalog(); renderTable(); updateBadge();
+}
+
+function phaseChipsHtml(adenda) {
+  const phases = getPhaseConfig(adenda);
+  if (!phases.length) return '<span style="font-size:.8rem;color:var(--tx3)">Sin fases — dividí el presupuesto en etapas de obra.</span>';
+  return phases.map(p => `<span class="phase-chip"><span class="chp">${escapeHtml(p.name)}</span><button class="chx" onclick="removePhase('${p.id}')" title="Quitar fase">✕</button></span>`).join("");
+}
+function addPhase() {
+  const adenda = getActiveAdenda(); if (!adenda) return;
+  const inp = document.getElementById("new-phase-name");
+  const name = (inp ? inp.value : "").trim();
+  if (!name) return toast("Ingresá un nombre para la fase", false);
+  if (!Array.isArray(adenda.phases)) adenda.phases = [];
+  adenda.phases.push({ id: "ph" + (state.phaseIdSeq++), name: name });
+  renderBudget(); save();
+}
+function removePhase(id) {
+  const adenda = getActiveAdenda(); if (!adenda) return;
+  if (!Array.isArray(adenda.phases)) return;
+  adenda.phases = adenda.phases.filter(p => p.id !== id);
+  (adenda.items || []).forEach(i => { if (i.phase === id) i.phase = ""; });
+  if (!adenda.phases.length) delete adenda.phases;
+  renderBudget(); save();
+}
+function setBudgetClient(id) {
+  const adenda = getActiveAdenda(); if (!adenda) return;
+  adenda.clientId = id || null;
+  save(); renderBudget();
 }
 
 // ── PRICES SECTION ────────────────────────────────────────────────────
@@ -2661,24 +2846,37 @@ function exportXLS() {
 
   const { totalMats, totalLabor, subtotal, ivaMat, ivaLab, ivaTotal, profitAmt, total } = getTotals();
   const grouped = getGrouped();
+  const cli = resolveBudgetClient(p, adenda);
+  const csvClient = cli ? cli.name : (p.client || "-");
   const BOM = "\uFEFF", nl = "\r\n", q = v => `"${String(v).replace(/"/g, '""')}"`;
+  const csvCols = adenda.ivaEnabled ? 13 : 10;
   let csv = BOM;
   csv += q("PRESUPUESTO") + "," + q(adenda.name) + nl;
   csv += q("Proyecto") + "," + q(p.name) + nl;
-  csv += q("Cliente") + "," + q(p.client || "-") + nl;
-  csv += q("Dirección") + "," + q(p.address || "-") + nl;
+  csv += q("Cliente") + "," + q(csvClient) + nl;
+  csv += q("Dirección") + "," + q((cli && cli.address) || p.address || "-") + nl;
   csv += q("Fecha") + "," + q(formatDatePY(new Date())) + nl;
   csv += nl;
   const ivaHeader = adenda.ivaEnabled ? q("IVA mat (₲)") + "," + q("IVA MO (₲)") + "," + q("IVA Total (₲)") + "," : "";
   csv += q("CATEGORÍA") + "," + q("DESCRIPCIÓN") + "," + q("UNIDAD") + "," + q("CANTIDAD") + "," + q("DESC.%") + "," + q("MATERIALES (₲)") + "," + q("MANO DE OBRA (₲)") + "," + q("P. UNITARIO (₲)") + "," + ivaHeader + q("TOTAL (₲)") + "," + q("NOTA INTERNA") + nl;
-  for (const [cat, ci] of Object.entries(grouped)) {
-    for (const item of ci) {
-      const ep = effPrice(item);
-      const { ivaMat, ivaLab, ivaTotal } = calcIVA(item.matCost, item.laborCost, item.qty);
-      const totalItem = ep * item.qty + ivaTotal;
-      const ivaRow = adenda.ivaEnabled ? q(Math.round(ivaMat)) + "," + q(Math.round(ivaLab)) + "," + q(Math.round(ivaTotal)) + "," : "";
-      csv += q(cat) + "," + q(item.name) + "," + q(item.unit) + "," + q(item.qty) + "," + q(item.disc || 0) + "," + q(Math.round(item.matCost)) + "," + q(Math.round(item.laborCost)) + "," + q(Math.round(ep)) + "," + ivaRow + q(Math.round(totalItem)) + "," + q(item.note || "") + nl;
+  const csvItem = (cat, item) => {
+    const ep = effPrice(item);
+    const { ivaMat, ivaLab, ivaTotal } = calcIVA(Number(item.matCost) || 0, Number(item.laborCost) || 0, Number(item.qty) || 0);
+    const totalItem = ep * (Number(item.qty) || 0) + ivaTotal;
+    const ivaRow = adenda.ivaEnabled ? q(Math.round(ivaMat)) + "," + q(Math.round(ivaLab)) + "," + q(Math.round(ivaTotal)) + "," : "";
+    csv += q(cat) + "," + q(item.name) + "," + q(item.unit) + "," + q(item.qty) + "," + q(item.disc || 0) + "," + q(Math.round(item.matCost)) + "," + q(Math.round(item.laborCost)) + "," + q(Math.round(ep)) + "," + ivaRow + q(Math.round(totalItem)) + "," + q(item.note || "") + nl;
+  };
+  const csvBlank = (label) => { const cells = [q(label)]; for (let i = 1; i < csvCols; i++) cells.push('""'); csv += cells.join(",") + nl; };
+  const layout = getPhaseLayout(adenda);
+  if (layout) {
+    for (const phase of layout) {
+      csvBlank("FASE: " + phase.name);
+      const pcat = {};
+      for (const i of phase.items) { if (!pcat[i.cat]) pcat[i.cat] = []; pcat[i.cat].push(i); }
+      for (const [cat, ci] of Object.entries(pcat)) for (const item of ci) csvItem(cat, item);
     }
+  } else {
+    for (const [cat, ci] of Object.entries(grouped)) for (const item of ci) csvItem(cat, item);
   }
   csv += nl;
   csv += q("RESUMEN") + nl;
@@ -2705,7 +2903,7 @@ function exportXLS() {
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  const safeClient = (p.client || p.name || "Proyecto").replace(/\s+/g, "_");
+  const safeClient = (csvClient || p.name || "Proyecto").replace(/\s+/g, "_");
   const csvFn = `Presupuesto_${String(state.budgetNum || 1).padStart(4, "0")}_${safeClient}.csv`;
   a.href = url; a.download = csvFn;
   a.click(); URL.revokeObjectURL(url);
@@ -2769,6 +2967,8 @@ function exportToGoogleSheets() {
   const grouped = getGrouped();
   const ivaOn = adenda.ivaEnabled;
   const totalCols = ivaOn ? 13 : 10;
+  const cli = resolveBudgetClient(p, adenda);
+  const xlClient = cli ? cli.name : (p.client || '-');
 
   const wb = XLSXWriter.createWorkbook();
   const ws = wb.addSheet('Presupuesto', {
@@ -2780,8 +2980,8 @@ function exportToGoogleSheets() {
   // ── HEADER del presupuesto ──
   ws.row([{ v: 'PRESUPUESTO DE OBRA', s: 'title' }, { v: adenda.name, s: 'titleVal' }], { h: 28 });
   ws.row([{ v: 'Proyecto', s: 'lbl' }, { v: p.name, s: 'val' }]);
-  ws.row([{ v: 'Cliente', s: 'lbl' }, { v: p.client || '-', s: 'val' }]);
-  ws.row([{ v: 'Dirección', s: 'lbl' }, { v: p.address || '-', s: 'val' }]);
+  ws.row([{ v: 'Cliente', s: 'lbl' }, { v: xlClient, s: 'val' }]);
+  ws.row([{ v: 'Dirección', s: 'lbl' }, { v: (cli && cli.address) || p.address || '-', s: 'val' }]);
   ws.row([{ v: 'Superficie', s: 'lbl' }, { v: (p.m2Area || '-') + ' m²', s: 'val' }]);
   ws.row([{ v: 'Fecha', s: 'lbl' }, { v: formatDatePY(new Date()), s: 'val' }]);
   if ((adenda.profitPct || 0) > 0)
@@ -2798,24 +2998,44 @@ function exportToGoogleSheets() {
   hdr.push({ v: 'TOTAL (Gs.)', s: 'hdrR' }, { v: 'NOTA INTERNA', s: 'hdr' });
   ws.row(hdr, { h: 24 });
 
-  // ── ITEMS por categoría ──
-  for (const [cat, items] of Object.entries(grouped)) {
-    const catCells = [{ v: cat, s: 'catRow' }];
-    for (let i = 1; i < totalCols; i++) catCells.push({ s: 'catRow' });
-    ws.row(catCells, { h: 22 });
-
-    for (const item of items) {
-      const ep = effPrice(item);
-      const { ivaMat: im, ivaLab: il, ivaTotal: it } = calcIVA(item.matCost, item.laborCost, item.qty);
-      const totalItem = ep * item.qty + it;
-      const cells = [
-        { v: cat, s: 'd' }, { v: item.name, s: 'dBold' }, { v: item.unit, s: 'dc' },
-        { v: item.qty, s: 'numC' }, { v: item.disc || 0, s: 'numC' },
-        { v: Math.round(item.matCost), s: 'num' }, { v: Math.round(item.laborCost), s: 'num' }, { v: Math.round(ep), s: 'num' }
-      ];
-      if (ivaOn) cells.push({ v: Math.round(im), s: 'numIva' }, { v: Math.round(il), s: 'numIva' }, { v: Math.round(it), s: 'numIva' });
-      cells.push({ v: Math.round(totalItem), s: 'numTotal' }, { v: item.note || '', s: 'dNote' });
-      ws.row(cells);
+  // ── ITEMS por fase/categoría ──
+  const xlItems = (cat, item) => {
+    const ep = effPrice(item);
+    const { ivaMat: im, ivaLab: il, ivaTotal: it } = calcIVA(Number(item.matCost) || 0, Number(item.laborCost) || 0, Number(item.qty) || 0);
+    const totalItem = ep * (Number(item.qty) || 0) + it;
+    const cells = [
+      { v: cat, s: 'd' }, { v: item.name, s: 'dBold' }, { v: item.unit, s: 'dc' },
+      { v: item.qty, s: 'numC' }, { v: item.disc || 0, s: 'numC' },
+      { v: Math.round(item.matCost), s: 'num' }, { v: Math.round(item.laborCost), s: 'num' }, { v: Math.round(ep), s: 'num' }
+    ];
+    if (ivaOn) cells.push({ v: Math.round(im), s: 'numIva' }, { v: Math.round(il), s: 'numIva' }, { v: Math.round(it), s: 'numIva' });
+    cells.push({ v: Math.round(totalItem), s: 'numTotal' }, { v: item.note || '', s: 'dNote' });
+    ws.row(cells);
+  };
+  const xlPhaseRow = (label) => {
+    const cells = [{ v: label, s: 'phaseRow' }];
+    for (let i = 1; i < totalCols; i++) cells.push({ s: 'phaseRow' });
+    ws.row(cells, { h: 22 });
+  };
+  const layout = getPhaseLayout(adenda);
+  if (layout) {
+    for (const phase of layout) {
+      xlPhaseRow('FASE: ' + phase.name);
+      const pcat = {};
+      for (const i of phase.items) { if (!pcat[i.cat]) pcat[i.cat] = []; pcat[i.cat].push(i); }
+      for (const [cat, items] of Object.entries(pcat)) {
+        const catCells = [{ v: cat, s: 'catRow' }];
+        for (let i = 1; i < totalCols; i++) catCells.push({ s: 'catRow' });
+        ws.row(catCells, { h: 22 });
+        for (const item of items) xlItems(cat, item);
+      }
+    }
+  } else {
+    for (const [cat, items] of Object.entries(grouped)) {
+      const catCells = [{ v: cat, s: 'catRow' }];
+      for (let i = 1; i < totalCols; i++) catCells.push({ s: 'catRow' });
+      ws.row(catCells, { h: 22 });
+      for (const item of items) xlItems(cat, item);
     }
   }
 
@@ -2885,7 +3105,7 @@ function exportToGoogleSheets() {
   const blob = wb.toBlob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  const safe = (p.client || p.name || 'Proyecto').replace(/\s+/g, '_');
+  const safe = (xlClient || p.name || 'Proyecto').replace(/\s+/g, '_');
   a.href = url;
   a.download = `Presupuesto_${safe}_${formatDatePY(new Date()).replace(/\//g, '-')}.xlsx`;
   a.click();
@@ -2978,9 +3198,11 @@ function generarPDF() {
   const validDays = state.validDays || 30;
   const budgetNum = state.budgetNum || 1;
   const projectName = proj.name || "";
-  const clientName = proj.client || "";
-  const clientAddress = proj.address || "";
-  const clientPhone = proj.phone || "";
+  const cliPdf = resolveBudgetClient(proj, adenda);
+  const clientName = cliPdf ? cliPdf.name : (proj.client || "");
+  const clientAddress = (cliPdf && cliPdf.address) || proj.address || "";
+  const clientPhone = (cliPdf && cliPdf.phone) || proj.phone || "";
+  const clientRuc = (cliPdf && cliPdf.ruc) || "";
   const notes = adenda.notes || "";
   const { subtotal, ivaMat, ivaLab, ivaTotal, profitAmt, total } = getTotals();
   const grouped = getGrouped();
@@ -3042,7 +3264,7 @@ function generarPDF() {
   y = 45;
   // ── CLIENT & PROJECT CARDS ──
   const colW = (W - M * 2 - 6) / 2;
-  const cardH = 28;
+  const cardH = 27;
   // Client card
   doc.setFillColor(...C.altRow); doc.roundedRect(M, y, colW, cardH, 3, 3, "F");
   doc.setDrawColor(...C.borderC); doc.setLineWidth(0.3); doc.roundedRect(M, y, colW, cardH, 3, 3, "S");
@@ -3050,12 +3272,13 @@ function generarPDF() {
   doc.setFontSize(6.5); doc.setFont("helvetica", "bold"); doc.setTextColor(...C.accentBg);
   doc.text("CLIENTE", M + 6, y + 6);
   doc.setFont("helvetica", "normal"); doc.setTextColor(...C.bodyTx); doc.setFontSize(9);
-  doc.text(pdfTxt(clientName) || "-", M + 8, y + 13, { maxWidth: colW - 14 });
+  doc.text(pdfTxt(clientName) || "-", M + 8, y + 12, { maxWidth: colW - 14 });
   doc.setFontSize(7); doc.setTextColor(...C.mutedTx);
   const clientExtra = [];
   if (clientAddress) clientExtra.push(clientAddress);
   if (clientPhone) clientExtra.push("Tel: " + clientPhone);
-  clientExtra.forEach((txt, i) => doc.text(txt, M + 8, y + 19 + i * 4.2, { maxWidth: colW - 14 }));
+  if (clientRuc) clientExtra.push("RUC: " + clientRuc);
+  clientExtra.forEach((txt, i) => doc.text(txt, M + 8, y + 17 + i * 3.6, { maxWidth: colW - 14 }));
   // Project card
   const c2 = M + colW + 6;
   doc.setFillColor(...C.altRow); doc.roundedRect(c2, y, colW, cardH, 3, 3, "F");
@@ -3064,11 +3287,11 @@ function generarPDF() {
   doc.setFontSize(6.5); doc.setFont("helvetica", "bold"); doc.setTextColor(...C.accentBg);
   doc.text("PROYECTO / OBRA", c2 + 6, y + 6);
   doc.setFont("helvetica", "normal"); doc.setTextColor(...C.bodyTx); doc.setFontSize(9);
-  doc.text(pdfTxt(projectName) || "-", c2 + 8, y + 13, { maxWidth: colW - 14 });
+  doc.text(pdfTxt(projectName) || "-", c2 + 8, y + 12, { maxWidth: colW - 14 });
   doc.setFontSize(7); doc.setTextColor(...C.mutedTx);
-  doc.text("Validez: " + validDays + " dias desde emision", c2 + 8, y + 19, { maxWidth: colW - 14 });
-  doc.text("Adenda: " + (adenda.name || "-"), c2 + 8, y + 23.2, { maxWidth: colW - 14 });
-  y += cardH + 8;
+  doc.text("Validez: " + validDays + " dias desde emision", c2 + 8, y + 17, { maxWidth: colW - 14 });
+  doc.text("Adenda: " + (adenda.name || "-"), c2 + 8, y + 20.6, { maxWidth: colW - 14 });
+  y += cardH + 6;
   // ── INFO STRIP ──
   const stripMsg = ivaEnabled
     ? "Precios unitarios incluyen materiales y mano de obra  |  IVA incluido (10% mat / 5% MO)  |  Valores en Guaran\u00EDes (Gs.)"
@@ -3076,33 +3299,49 @@ function generarPDF() {
   doc.setFillColor(...C.catBg); doc.roundedRect(M, y, W - M * 2, 5, 1.5, 1.5, "F");
   doc.setFontSize(6.5); doc.setFont("helvetica", "normal"); doc.setTextColor(...C.catTx);
   doc.text("  " + stripMsg, M + 3, y + 4.4);
-  y += 10.5;
+  y += 9;
   // ── ITEMS TABLE ──
   const rows = []; let catNum = 0;
-  for (const [cat, ci] of Object.entries(grouped)) {
+  const renderPdfCat = (cat, ci) => {
     catNum++;
     rows.push([{ content: pdfTxt(cat), colSpan: 6, styles: { fillColor: C.catBg, textColor: C.catTx, fontStyle: "bold", fontSize: 7.5, cellPadding: { top: 3.5, bottom: 3.5, left: 5, right: 4 } } }]);
     let catSubtotal = 0; let itemNum = 0;
     for (const item of ci) {
       itemNum++;
-      const { ivaTotal: ivaItem } = calcIVA(item.matCost, item.laborCost, item.qty);
-      const ep = item.unitPrice * (1 - (item.disc || 0) / 100);
-      const totalItem = ep * item.qty + (ivaEnabled ? ivaItem : 0);
+      const { ivaTotal: ivaItem } = calcIVA(Number(item.matCost) || 0, Number(item.laborCost) || 0, Number(item.qty) || 0);
+      const ep = effPrice(item);
+      const totalItem = ep * (Number(item.qty) || 0) + (ivaEnabled ? ivaItem : 0);
       catSubtotal += totalItem;
       rows.push([
         { content: catNum + "." + itemNum, styles: { halign: "center", fontSize: 7.5, textColor: C.mutedTx } },
         { content: pdfTxt(item.name), styles: { fontSize: 8 } },
         { content: pdfTxt(item.unit), styles: { halign: "center", fontSize: 8 } },
         { content: String(item.qty), styles: { halign: "center", fontSize: 8 } },
-        { content: "Gs. " + fmt(ep + (ivaEnabled ? Math.round(ivaItem / item.qty) : 0)), styles: { halign: "right", fontSize: 7.5 } },
+        { content: "Gs. " + fmt(ep + (ivaEnabled && item.qty ? Math.round(ivaItem / item.qty) : 0)), styles: { halign: "right", fontSize: 7.5 } },
         { content: "Gs. " + fmt(totalItem), styles: { halign: "right", fontStyle: "bold", fontSize: 7.5 } },
       ]);
     }
-    // Subtotal row per category
     rows.push([
       { content: "Subtotal " + pdfTxt(cat), colSpan: 5, styles: { halign: "right", fontStyle: "bold", fontSize: 8, fillColor: C.accentBg, textColor: C.accentTx, cellPadding: { top: 4, bottom: 4, left: 4, right: 4 } } },
       { content: "Gs. " + fmt(catSubtotal), styles: { halign: "right", fontStyle: "bold", fontSize: 9, fillColor: C.accentBg, textColor: C.accentTx, cellPadding: { top: 4, bottom: 4, left: 4, right: 4 } } },
     ]);
+    return catSubtotal;
+  };
+  const pdfLayout = getPhaseLayout(adenda);
+  if (pdfLayout) {
+    for (const phase of pdfLayout) {
+      rows.push([{ content: "FASE — " + pdfTxt(phase.name), colSpan: 6, _type: "phase", styles: { fillColor: C.accentBg, textColor: C.accentTx, fontStyle: "bold", fontSize: 8, cellPadding: { top: 4, bottom: 4, left: 5, right: 4 } } }]);
+      const pcat = {};
+      for (const i of phase.items) { if (!pcat[i.cat]) pcat[i.cat] = []; pcat[i.cat].push(i); }
+      let phaseSum = 0;
+      for (const [cat, ci] of Object.entries(pcat)) phaseSum += renderPdfCat(cat, ci);
+      rows.push([
+        { content: "Subtotal " + pdfTxt(phase.name), colSpan: 5, _type: "phasesub", styles: { halign: "right", fontStyle: "bold", fontSize: 8, fillColor: C.hdrBg, textColor: C.hdrTx, cellPadding: { top: 4.5, bottom: 4.5, left: 4, right: 4 } } },
+        { content: "Gs. " + fmt(phaseSum), styles: { halign: "right", fontStyle: "bold", fontSize: 9, fillColor: C.hdrBg, textColor: C.hdrTx, cellPadding: { top: 4.5, bottom: 4.5, left: 4, right: 4 } } },
+      ]);
+    }
+  } else {
+    for (const [cat, ci] of Object.entries(grouped)) renderPdfCat(cat, ci);
   }
   doc.autoTable({
     startY: y,
@@ -3115,8 +3354,11 @@ function generarPDF() {
     margin: { left: M, right: M },
     tableWidth: "wrap",
     didParseCell: data => {
-      if (data.row.raw?.[0]?.colSpan === 6) { data.cell.styles.fillColor = C.catBg; data.cell.styles.textColor = C.catTx; data.cell.styles.fontStyle = "bold"; }
-      if (data.row.raw?.[0]?.colSpan === 5) { data.cell.styles.fillColor = C.accentBg; data.cell.styles.textColor = C.accentTx; data.cell.styles.fontStyle = "bold"; }
+      const raw0 = data.row.raw?.[0];
+      if (raw0?._type === "phase") { data.cell.styles.fillColor = C.accentBg; data.cell.styles.textColor = C.accentTx; data.cell.styles.fontStyle = "bold"; }
+      else if (raw0?._type === "phasesub") { data.cell.styles.fillColor = C.hdrBg; data.cell.styles.textColor = C.hdrTx; data.cell.styles.fontStyle = "bold"; }
+      else if (raw0?.colSpan === 6) { data.cell.styles.fillColor = C.catBg; data.cell.styles.textColor = C.catTx; data.cell.styles.fontStyle = "bold"; }
+      else if (raw0?.colSpan === 5) { data.cell.styles.fillColor = C.accentBg; data.cell.styles.textColor = C.accentTx; data.cell.styles.fontStyle = "bold"; }
     },
   });
   y = doc.lastAutoTable.finalY + 10;
@@ -3179,6 +3421,17 @@ function generarPDF() {
 }
 
 // ── MODALS ────────────────────────────────────────────────────────────
+function pickClientForProject(clientId, prefix) {
+  var c = getClients().find(function (x) { return x.id === clientId; });
+  var nameEl = document.getElementById(prefix + "-client");
+  var phoneEl = document.getElementById(prefix + "-phone");
+  var addrEl = document.getElementById(prefix + "-addr");
+  if (!nameEl) return;
+  nameEl.value = c ? c.name : "";
+  if (phoneEl) phoneEl.value = c ? (c.phone || "") : "";
+  if (addrEl) addrEl.value = c ? (c.address || "") : "";
+}
+
 function createProject() {
     const name = document.getElementById("np-name").value.trim();
     if (!name) return toast("El nombre es obligatorio", false);
@@ -3235,12 +3488,17 @@ function createProject() {
     }
 
     folderPromise.then(function() {
-        state.projects.push(newP);
-        state.activeProjectId = newP.id;
-        state.activeAdendaId = 'main';
-        _pendingFolderHandle = null;
-        _pendingFolderName = '';
-        save();
+state.projects.push(newP);
+    state.activeProjectId = newP.id;
+    state.activeAdendaId = 'main';
+    _pendingFolderHandle = null;
+    _pendingFolderName = '';
+    if (typeof ensureClients === "function") syncProjectClient(newP, {
+      name: newP.client || "",
+      phone: newP.phone || "",
+      address: newP.address || ""
+    });
+    save();
         closeModal();
         setSection('budget');
         toast(newP.execution.folderHandle ? "Proyecto creado con carpeta vinculada ✓" : "Proyecto creado ✓");
@@ -3273,9 +3531,11 @@ function saveEditProject(id) {
     const name = document.getElementById("ep-name").value.trim();
     if (!name) return toast("El nombre es obligatorio", false);
     p.name = name;
-    p.client = document.getElementById("ep-client").value;
-    p.phone = document.getElementById("ep-phone").value;
-    p.address = document.getElementById("ep-addr").value;
+    if (typeof ensureClients === "function") syncProjectClient(p, {
+      name: document.getElementById("ep-client").value,
+      phone: document.getElementById("ep-phone").value,
+      address: document.getElementById("ep-addr").value
+    });
     p.m2Area = parseFloat(document.getElementById("ep-m2").value) || 0;
     save(); closeModal(); renderProjects();
     toast("Proyecto actualizado ✓");
@@ -3350,7 +3610,8 @@ function showModal(type, arg) {
       <div class="modal-title">Crear Nuevo Proyecto<button class="delbtn" onclick="closeModal()">✕</button></div>
       <div class="grid2">
         <div class="fullcol"><label class="stat-lbl">Nombre de la Obra</label><input id="np-name" placeholder="Ej: Residencia Martinez"></div>
-        <div><label class="stat-lbl">Cliente</label><input id="np-client" placeholder="Nombre completo"></div>
+        <div><label class="stat-lbl">Cliente (base de datos)</label><select id="np-client-id" onchange="pickClientForProject(this.value,'np')"><option value="">— Buscar en la base —</option>${clientOptionsHtml("")}</select></div>
+        <div><label class="stat-lbl">Nombre del cliente</label><input id="np-client" placeholder="Nombre completo"></div>
         <div><label class="stat-lbl">Teléfono</label><input id="np-phone" placeholder="WhatsApp"></div>
         <div class="fullcol"><label class="stat-lbl">Ubicación / Dirección</label><input id="np-addr" placeholder="Ciudad, Barrio..."></div>
         <div><label class="stat-lbl">Superficie (m²)</label><input id="np-m2" type="number" placeholder="0"></div>
@@ -3370,9 +3631,10 @@ function showModal(type, arg) {
       <div class="modal-title">Modificar Proyecto<button class="delbtn" onclick="closeModal()">✕</button></div>
       <div class="grid2">
         <div class="fullcol"><label class="stat-lbl">Nombre de la Obra</label><input id="ep-name" value="${p.name.replace(/"/g, '&quot;')}"></div>
-        <div><label class="stat-lbl">Cliente</label><input id="ep-client" value="${(p.client || '').replace(/"/g, '&quot;')}"></div>
-        <div><label class="stat-lbl">Teléfono</label><input id="ep-phone" value="${(p.phone || '').replace(/"/g, '&quot;')}"></div>
-        <div class="fullcol"><label class="stat-lbl">Ubicación / Dirección</label><input id="ep-addr" value="${(p.address || '').replace(/"/g, '&quot;')}"></div>
+        <div><label class="stat-lbl">Cliente (base de datos)</label><select id="ep-client-id" onchange="pickClientForProject(this.value,'ep')">${clientOptionsHtml((resolveClient(p) || {}).id)}</select></div>
+        <div><label class="stat-lbl">Nombre del cliente</label><input id="ep-client" value="${escapeHtml(p.client || '')}"></div>
+        <div><label class="stat-lbl">Teléfono</label><input id="ep-phone" value="${escapeHtml(p.phone || '')}"></div>
+        <div class="fullcol"><label class="stat-lbl">Ubicación / Dirección</label><input id="ep-addr" value="${escapeHtml(p.address || '')}"></div>
         <div><label class="stat-lbl">Superficie (m²)</label><input id="ep-m2" type="number" value="${p.m2Area || 0}"></div>
       </div>
       <div class="modal-acts">

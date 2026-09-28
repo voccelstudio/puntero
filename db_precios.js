@@ -11,8 +11,8 @@
  * Actualizado: Marzo 2026
  */
 
-const DB_VERSION = "2026-05-ampliacion-cercos-veredas-herreria-pinturas-durlock";
-const DB_FECHA   = "Mayo 2026 (+ tabiques 70mm/curvo/Superboard + cercos + veredas + pinturas industriales + herrería ornamental)";
+const DB_VERSION = "2026-09-clientes-fases-colocacion-artefactos";
+const DB_FECHA   = "Septiembre 2026 (+ institución de colocación de artefactos con MO explícita)";
 
 // ── PRECIOS UNITARIOS DE MATERIALES (referencia interna) ──────────────────
 // Rango A-B documentado en comentarios para transparencia interna
@@ -605,6 +605,8 @@ const LABOR_PCT = {
   "PINTURAS INDUSTRIALES":   45,
   // Herrería ornamental: fabricación, soldadura, pintura, montaje → ~40%
   "HERRERÍA ORNAMENTAL":     40,
+  // Colocación de artefactos: precio del artefacto domina; la MO es explícita (l) → 28 (respaldo)
+  "INSTALACIÓN Y COLOCACIÓN DE ARTEFACTOS": 28,
 };
 
 // ── IVA POR TIPO ──────────────────────────────────────────────────────────
@@ -4260,6 +4262,87 @@ const DB_RAW = {
   },
 },
 
+"INSTALACIÓN Y COLOCACIÓN DE ARTEFACTOS": {
+  // Colocación de artefactos sanitarios y de instalaciones.
+  // m = artefacto por unidad · l = mano de obra de colocación (explícita) · y = rendimiento por día
+  "Inodoro con tanque bajo (completo)": {
+    u:"un", m:620000, l:250000, y:3,
+    mats:[]
+  },
+  "Inodoro con fluxor (válvula)": {
+    u:"un", m:850000, l:280000, y:2,
+    mats:[]
+  },
+  "Bidé": {
+    u:"un", m:380000, l:180000, y:4,
+    mats:[]
+  },
+  "Lavatorio de colgar (con pedestal)": {
+    u:"un", m:420000, l:150000, y:4,
+    mats:[]
+  },
+  "Bacha de cocina (acero inoxidable)": {
+    u:"un", m:350000, l:130000, y:4,
+    mats:[]
+  },
+  "Grifería de lavatorio": {
+    u:"un", m:220000, l:90000, y:6,
+    mats:[]
+  },
+  "Grifería de cocina": {
+    u:"un", m:250000, l:100000, y:6,
+    mats:[]
+  },
+  "Grifería de ducha (monocomando)": {
+    u:"un", m:260000, l:100000, y:5,
+    mats:[]
+  },
+  "Ducha eléctrica": {
+    u:"un", m:280000, l:120000, y:6,
+    mats:[]
+  },
+  "Termocalefón (80 L)": {
+    u:"un", m:1200000, l:300000, y:2,
+    mats:[]
+  },
+  "Tanque de reserva (500 L)": {
+    u:"un", m:650000, l:260000, y:3,
+    mats:[]
+  },
+  "Punto de agua (llave de paso)": {
+    u:"un", m:90000, l:150000, y:6,
+    mats:[]
+  },
+  "Punto de desagüe": {
+    u:"un", m:80000, l:160000, y:6,
+    mats:[]
+  },
+  "Rejilla de piso con sifón": {
+    u:"un", m:45000, l:55000, y:8,
+    mats:[]
+  },
+  "Limpieza / desobstrucción sanitaria": {
+    u:"un", m:0, l:200000, y:4,
+    mats:[]
+  },
+  "Biombo de ducha": {
+    u:"un", m:190000, l:140000, y:3,
+    mats:[]
+  },
+  "Artefacto de luz (aplique / plafón)": {
+    u:"un", m:60000, l:90000, y:8,
+    mats:[]
+  },
+  "Llave de paso general": {
+    u:"un", m:75000, l:70000, y:8,
+    mats:[]
+  },
+  "Pileta exterior de lavar ropa": {
+    u:"un", m:280000, l:180000, y:3,
+    mats:[]
+  },
+},
+
 }; // fin DB_RAW
 
 // ── FUNCIÓN CONSTRUCTORA ──────────────────────────────────────────────
@@ -4269,7 +4352,7 @@ function buildDB(raw = DB_RAW, laborPct = LABOR_PCT) {
     db[cat] = {};
     const pct = laborPct[cat] || 30;
     for (const [name, item] of Object.entries(items)) {
-      const lab = Math.round(item.m * pct / 100);
+      const lab = (item.l == null) ? Math.round(item.m * pct / 100) : item.l;
       db[cat][name] = {
         unit:      item.u,
         matCost:   item.m,

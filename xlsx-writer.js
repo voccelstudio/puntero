@@ -138,6 +138,7 @@
     '<font><sz val="10"/><color rgb="FF059669"/><name val="Calibri"/></font>',                      // 9 numIva
     '<font><sz val="11"/><b/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>',                  // 10 total
     '<font><sz val="10"/><b/><color rgb="FF334155"/><name val="Calibri"/></font>'                   // 11 sumLbl
+    , '<font><sz val="10"/><b/><color rgb="FFB45309"/><name val="Calibri"/></font>'                 // 12 phase
   ];
 
   const FILLS = [
@@ -150,6 +151,7 @@
     '<fill><patternFill patternType="solid"><fgColor rgb="FFF1F5F9"/><bgColor indexed="64"/></patternFill></fill>', // 6
     '<fill><patternFill patternType="solid"><fgColor rgb="FFF0FDF4"/><bgColor indexed="64"/></patternFill></fill>', // 7
     '<fill><patternFill patternType="solid"><fgColor rgb="FFD97706"/><bgColor indexed="64"/></patternFill></fill>'  // 8
+    , '<fill><patternFill patternType="solid"><fgColor rgb="FFFEF3C7"/><bgColor indexed="64"/></patternFill></fill>' // 9
   ];
 
   const noBorder = '<left/><right/><top/><bottom/><diagonal/>';
@@ -190,7 +192,9 @@
     ['sumNum', 6, 6, 1, true, 'rc'],
     ['ivaLbl', 9, 7, 1, null, 'vc'],
     ['totalLbl', 10, 8, 3, null, 'vc'],
-    ['totalNum', 10, 8, 3, true, 'rc']
+    ['totalNum', 10, 8, 3, true, 'rc'],
+    ['phaseRow', 12, 9, 1, null, 'vc'],
+    ['phaseNum', 12, 9, 1, true, 'rc']
   ];
 
   const STYLE_INDEX = {};
