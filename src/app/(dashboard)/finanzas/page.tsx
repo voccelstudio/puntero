@@ -16,7 +16,8 @@ import {
   Th,
   Tabla,
 } from "@/components/ui";
-import { FASES_PRESUPUESTO, OBRA, PARAMETROS_FINANCIEROS } from "@/lib/data/obra";
+import { OBRA, PARAMETROS_FINANCIEROS } from "@/lib/data/obra";
+import { FASES_PRESUPUESTO } from "@/lib/data/presupuesto-base";
 import { calcularPresupuesto } from "@/lib/calculo";
 import {
   FLUJO_SEMANAL,
@@ -624,7 +625,10 @@ export default function FinanzasObra() {
               </span>
             </div>
           </div>
-          <Chip tono="primario">IVA {formatPct(PARAMETROS_FINANCIEROS.iva, 0)}</Chip>
+            <Chip tono="primario">
+              IVA mat. {formatPct(PARAMETROS_FINANCIEROS.ivaMateriales, 0)} · MO{" "}
+              {formatPct(PARAMETROS_FINANCIEROS.ivaManoObra, 0)}
+            </Chip>
         </CardAcento>
       </div>
     </div>

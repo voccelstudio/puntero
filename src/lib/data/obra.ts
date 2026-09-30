@@ -3,7 +3,6 @@ import type {
   CertificadoObra,
   Cuadrilla,
   EntradaBitacora,
-  FasePresupuesto,
   Hito,
   ItemComputo,
   Obra,
@@ -16,10 +15,15 @@ import type {
 /* Parámetros financieros Paraguay                                       */
 /* ------------------------------------------------------------------ */
 
+import { IVA_LAB, IVA_MAT } from "@/lib/data/precios";
+
 export const PARAMETROS_FINANCIEROS: ParametrosFinancieros = {
   gastosGenerales: 0.08,
   beneficio: 0.15,
-  iva: 0.1,
+  // El IVA va partido: materiales al 10%, mano de obra al 5%. Las tasas salen
+  // de la base de precios para que no puedan desincronizarse.
+  ivaMateriales: IVA_MAT,
+  ivaManoObra: IVA_LAB,
 };
 
 /* ------------------------------------------------------------------ */
@@ -207,103 +211,6 @@ export const CONTROLES_EPP: ControlEPP[] = [
 /* ------------------------------------------------------------------ */
 /* Presupuesto                                                         */
 /* ------------------------------------------------------------------ */
-
-export const FASES_PRESUPUESTO: FasePresupuesto[] = [
-  {
-    id: "fase-1",
-    numero: 1,
-    nombre: "Demolición y movimiento de suelos",
-    items: [
-      {
-        id: "it-1",
-        codigo: "RUB-SUEL-01",
-        descripcion: "Limpieza y descapote manual de terreno",
-        nota: "Retiro de raíces con cuadrilla de 3 operarios",
-        unidad: "m2",
-        cantidad: 450,
-        cantidadEjecutada: 450,
-        precioMaterial: 0,
-        precioManoObra: 3200,
-        estado: "EJECUTADO",
-      },
-      {
-        id: "it-2",
-        codigo: "RUB-SUEL-04",
-        descripcion: "Excavación para cimientos corridos y zapatas",
-        nota: "Profundidad media 1.80 m",
-        unidad: "m3",
-        cantidad: 185,
-        cantidadEjecutada: 185,
-        precioMaterial: 1500,
-        precioManoObra: 8500,
-        estado: "EJECUTADO",
-      },
-    ],
-  },
-  {
-    id: "fase-2",
-    numero: 2,
-    nombre: "Estructura de hormigón armado",
-    items: [
-      {
-        id: "it-3",
-        codigo: "RUB-EST-01",
-        descripcion: "Hormigón elaborado H-21 para bases y vigas",
-        nota: "Proveedor asignado: Cemento Guaraní, planta Villeta",
-        unidad: "m3",
-        cantidad: 92,
-        cantidadEjecutada: 54,
-        precioMaterial: 125000,
-        precioManoObra: 45000,
-        estado: "EN_EJECUCION",
-        proveedor: "Cemento Guaraní",
-      },
-      {
-        id: "it-4",
-        codigo: "RUB-EST-06",
-        descripcion: "Armadura de acero aletado ADN 420 cortado y doblado",
-        nota: "Barros Ø8 a Ø25 mm según plano de armaduras",
-        unidad: "kg",
-        cantidad: 8400,
-        cantidadEjecutada: 5120,
-        precioMaterial: 1450,
-        precioManoObra: 620,
-        estado: "EN_EJECUCION",
-      },
-      {
-        id: "it-5",
-        codigo: "RUB-EST-12",
-        descripcion: "Encofrado de madera fenólica para columnas y losas",
-        nota: "Placas de 18 mm con 3 amortizaciones calculadas",
-        unidad: "m2",
-        cantidad: 620,
-        cantidadEjecutada: 388,
-        precioMaterial: 8200,
-        precioManoObra: 11500,
-        estado: "EN_EJECUCION",
-      },
-      {
-        id: "it-6",
-        codigo: "AD-001",
-        descripcion: "[Adenda 01] Refuerzo losa sala de máquinas",
-        nota: "Solicitud de cambio AD-001 — mayor sobrecarga por grupo electrógeno",
-        unidad: "gl",
-        cantidad: 1,
-        cantidadEjecutada: 1,
-        precioMaterial: 3500000,
-        precioManoObra: 2100000,
-        adenda: "AD-001",
-        estado: "APROBADO",
-      },
-    ],
-  },
-  {
-    id: "fase-3",
-    numero: 3,
-    nombre: "Albañilería e instalaciones eléctricas y sanitarias",
-    items: [],
-  },
-];
 
 export const ADENDAS: Adenda[] = [
   {

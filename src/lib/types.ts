@@ -66,6 +66,15 @@ export interface ItemPresupuesto {
   precioMaterial: number;
   /** Precio unitario de mano de obra, en Gs. */
   precioManoObra: number;
+  /**
+   * Rubro de la base de precios del que sale este ítem, en formato
+   * `"CATEGORIA::Nombre"`. Ausente en los ítems cargados a mano.
+   */
+  rubroId?: string;
+  /** Categoría del rubro de origen, para agrupar el cómputo. */
+  rubroCategoria?: string;
+  /** Rendimiento por día del rubro, si la base lo trae. Permite calcular días. */
+  rendimiento?: number | null;
   /** Referencia a `Adenda.codigo` cuando el ítem proviene de una adenda. */
   adenda?: string;
   estado: "PENDIENTE" | "EN_EJECUCION" | "EJECUTADO" | "APROBADO";
@@ -98,8 +107,16 @@ export interface ParametrosFinancieros {
   gastosGenerales: number;
   /** Beneficio del constructor, fracción (0.15 = 15%). */
   beneficio: number;
-  /** IVA Paraguay, fracción (0.10 = 10%). */
-  iva: number;
+  /**
+   * IVA sobre materiales, fracción (0.10 = 10%).
+   *
+   * Paraguay grava los servicios de carácter personal —la mano de obra— al 5%
+   * y el resto al 10%, así que el impuesto se calcula partido y no como un
+   * porcentaje único sobre el total. Ver `lib/calculo.ts`.
+   */
+  ivaMateriales: number;
+  /** IVA sobre mano de obra, fracción (0.05 = 5%). */
+  ivaManoObra: number;
 }
 
 /* ------------------------------------------------------------------ */

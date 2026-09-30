@@ -16,7 +16,8 @@ import {
   Th,
   Tabla,
 } from "@/components/ui";
-import { ADENDAS, FASES_PRESUPUESTO, OBRA, PARAMETROS_FINANCIEROS } from "@/lib/data/obra";
+import { ADENDAS, OBRA, PARAMETROS_FINANCIEROS } from "@/lib/data/obra";
+import { FASES_PRESUPUESTO } from "@/lib/data/presupuesto-base";
 import {
   calcularPresupuesto,
   totalFase,
@@ -177,15 +178,21 @@ function FilaTotales({ resumen, fmt }: { resumen: ResumenPresupuesto; fmt: (n: n
           {fmt(resumen.subtotalNeto)}
         </span>
       </div>
-      <div className="flex items-center justify-between py-1 text-secondary">
-        <div className="flex items-center gap-1">
-          <span className="font-body-sm text-body-sm">IVA discriminado</span>
-          <span className="font-label-sm text-label-sm text-secondary">
-            ({formatPct(PARAMETROS_FINANCIEROS.iva, 1)})
-          </span>
+        <div className="flex items-center justify-between py-1 text-secondary">
+          <div className="flex flex-col gap-0.5">
+            <span className="font-body-sm text-body-sm">IVA discriminado</span>
+            <span className="font-label-sm text-label-sm text-secondary">
+              materiales {formatPct(PARAMETROS_FINANCIEROS.ivaMateriales, 1)} · mano de obra{" "}
+              {formatPct(PARAMETROS_FINANCIEROS.ivaManoObra, 1)}
+            </span>
+          </div>
+          <div className="flex flex-col items-end gap-0.5">
+            <span className="font-label-md text-label-md">{fmt(resumen.iva)}</span>
+            <span className="font-label-sm text-label-sm text-secondary">
+              mat. {fmt(resumen.ivaMateriales)} · MO {fmt(resumen.ivaManoObra)}
+            </span>
+          </div>
         </div>
-        <span className="font-label-md text-label-md">{fmt(resumen.iva)}</span>
-      </div>
     </div>
   );
 }

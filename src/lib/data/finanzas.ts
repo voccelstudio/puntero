@@ -74,7 +74,7 @@ export const LIQUIDACIONES_JORNAL: LiquidacionJornal[] = [
   },
   {
     id: "jo-3",
-    nombre: "Nelsongae Martínez",
+    nombre: "Nelsón Gaéz Martínez",
     ci: "4.556.201",
     oficio: "Ayudante",
     diasTrabajados: 5,

@@ -203,7 +203,7 @@ export const DOCUMENTOS: DocumentoLegal[] = [
 export const ACOPIOS: Acopio[] = [
   {
     id: "ac-1",
-    material: "Acero aleado ADN 420 assorted Ø",
+    material: "Acero aleado ADN 420 (barras Ø8 a Ø25 mm)",
     cantidad: 5120,
     unidad: "kg",
     fechaIngreso: "2024-10-14",

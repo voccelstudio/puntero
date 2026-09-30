@@ -22,7 +22,8 @@ import {
   HITOS,
   ORDENES_TRABAJO,
 } from "@/lib/data/obra";
-import { FASES_PRESUPUESTO, OBRA, PARAMETROS_FINANCIEROS } from "@/lib/data/obra";
+import { OBRA, PARAMETROS_FINANCIEROS } from "@/lib/data/obra";
+import { FASES_PRESUPUESTO } from "@/lib/data/presupuesto-base";
 import { calcularAvanceFisico, calcularDesvio, calcularPresupuesto } from "@/lib/calculo";
 import {
   formatFecha,
