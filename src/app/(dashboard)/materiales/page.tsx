@@ -15,6 +15,7 @@ import {
   Tabla,
 } from "@/components/ui";
 import { DOCUMENTOS, PEDIDOS, PRECIOS_REFERENCIA } from "@/lib/data/materiales";
+import { CatalogoRubros } from "@/components/catalogo-rubros";
 import { formatFecha, formatNumero, formatPct, formatPctSigno, formatUnidad } from "@/lib/format";
 import type { CategoriaMaterial, EstadoPedido } from "@/lib/types";
 
@@ -267,10 +268,13 @@ export default function MaterialesPedidos() {
         </Tabla>
       </Card>
 
-      {/* SecciÃ³n 2: catÃ¡logo de precios */}
+      {/* Sección 2: catálogo real de rubros, conectado a la base de precios */}
+      <CatalogoRubros />
+
+      {/* Sección 3: precios de referencia con control de stock de la obra */}
       <Card className="overflow-hidden">
         <SectionHeader
-          titulo="CatÃ¡logo y tabla de precios de referencia"
+          titulo="Precios de referencia y stock en obra"
           icono={<Icono name="request_quote" className="text-primary text-xl" />}
           acciones={
             <span className="font-label-sm text-label-sm text-secondary">
