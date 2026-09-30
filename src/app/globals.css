@@ -1,0 +1,244 @@
+@import "tailwindcss";
+@import "material-symbols/outlined.css";
+
+/* ============================================================
+   Puntero — Design System "Bauhaus / Material 3"
+   Tokens migrados 1:1 del tailwind.config generado por Stitch
+   ============================================================ */
+
+:root {
+  /* Marca / acentos */
+  --primary: #1a1a1a;
+  --primary-container: #ffcc00;
+  --primary-fixed: #ffcc00;
+  --primary-fixed-dim: #e6b800;
+  --on-primary: #ffffff;
+  --on-primary-container: #1a1a1a;
+  --on-primary-fixed: #1a1a1a;
+  --on-primary-fixed-variant: #1a1a1a;
+
+  --secondary: #e63b2e;
+  --secondary-container: #ffdad6;
+  --secondary-fixed: #ffdad6;
+  --secondary-fixed-dim: #ffb3ab;
+  --on-secondary: #1a1a1a;
+  --on-secondary-container: #1a1a1a;
+  --on-secondary-fixed: #1a1a1a;
+  --on-secondary-fixed-variant: #1a1a1a;
+
+  --tertiary: #0055ff;
+  --tertiary-container: #d6e3ff;
+  --tertiary-fixed: #d6e3ff;
+  --tertiary-fixed-dim: #a8c6ff;
+  --on-tertiary: #ffffff;
+  --on-tertiary-container: #1a1a1a;
+  --on-tertiary-fixed: #1a1a1a;
+  --on-tertiary-fixed-variant: #1a1a1a;
+
+  --error: #cc0000;
+  --error-container: #ffdad6;
+  --on-error: #ffffff;
+  --on-error-container: #93000a;
+
+  /* Superficies */
+  --background: #f5f0e8;
+  --surface: #f5f0e8;
+  --surface-dim: #d6d1c9;
+  --surface-bright: #faf7f2;
+  --surface-container-lowest: #ffffff;
+  --surface-container-low: #f2ede5;
+  --surface-container: #eee9e0;
+  --surface-container-high: #e8e3da;
+  --surface-container-highest: #e2ddd4;
+  --surface-variant: #e8e3da;
+  --surface-tint: #1a1a1a;
+
+  --on-background: #1a1a1a;
+  --on-surface: #1a1a1a;
+  --on-surface-variant: #4a4a4a;
+
+  --inverse-surface: #1a1a1a;
+  --inverse-on-surface: #f5f0e8;
+  --inverse-primary: #f5f0e8;
+
+  --outline: #1a1a1a;
+  --outline-variant: #d0cbc3;
+}
+
+@theme inline {
+  --color-primary: var(--primary);
+  --color-primary-container: var(--primary-container);
+  --color-primary-fixed: var(--primary-fixed);
+  --color-primary-fixed-dim: var(--primary-fixed-dim);
+  --color-on-primary: var(--on-primary);
+  --color-on-primary-container: var(--on-primary-container);
+  --color-on-primary-fixed: var(--on-primary-fixed);
+  --color-on-primary-fixed-variant: var(--on-primary-fixed-variant);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-container: var(--secondary-container);
+  --color-secondary-fixed: var(--secondary-fixed);
+  --color-secondary-fixed-dim: var(--secondary-fixed-dim);
+  --color-on-secondary: var(--on-secondary);
+  --color-on-secondary-container: var(--on-secondary-container);
+  --color-on-secondary-fixed: var(--on-secondary-fixed);
+  --color-on-secondary-fixed-variant: var(--on-secondary-fixed-variant);
+
+  --color-tertiary: var(--tertiary);
+  --color-tertiary-container: var(--tertiary-container);
+  --color-tertiary-fixed: var(--tertiary-fixed);
+  --color-tertiary-fixed-dim: var(--tertiary-fixed-dim);
+  --color-on-tertiary: var(--on-tertiary);
+  --color-on-tertiary-container: var(--on-tertiary-container);
+  --color-on-tertiary-fixed: var(--on-tertiary-fixed);
+  --color-on-tertiary-fixed-variant: var(--on-tertiary-fixed-variant);
+
+  --color-error: var(--error);
+  --color-error-container: var(--error-container);
+  --color-on-error: var(--on-error);
+  --color-on-error-container: var(--on-error-container);
+
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-dim: var(--surface-dim);
+  --color-surface-bright: var(--surface-bright);
+  --color-surface-container-lowest: var(--surface-container-lowest);
+  --color-surface-container-low: var(--surface-container-low);
+  --color-surface-container: var(--surface-container);
+  --color-surface-container-high: var(--surface-container-high);
+  --color-surface-container-highest: var(--surface-container-highest);
+  --color-surface-variant: var(--surface-variant);
+  --color-surface-tint: var(--surface-tint);
+
+  --color-on-background: var(--on-background);
+  --color-on-surface: var(--on-surface);
+  --color-on-surface-variant: var(--on-surface-variant);
+
+  --color-inverse-surface: var(--inverse-surface);
+  --color-inverse-on-surface: var(--inverse-on-surface);
+  --color-inverse-primary: var(--inverse-primary);
+
+  --color-outline: var(--outline);
+  --color-outline-variant: var(--outline-variant);
+
+  --font-headline: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-label: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, monospace;
+
+  --radius-xs: 0.125rem;
+  --radius-sm: 0.125rem;
+  --radius-DEFAULT: 0.125rem;
+  --radius-md: 0.25rem;
+  --radius-lg: 0.25rem;
+  --radius-xl: 0.5rem;
+  --radius-2xl: 0.75rem;
+
+  --spacing-gutter: 1rem;
+  --spacing-gutter-desktop: 1.5rem;
+  --spacing-space-xs: 0.25rem;
+  --spacing-space-sm: 0.5rem;
+  --spacing-space-md: 0.75rem;
+  --spacing-space-lg: 1.25rem;
+  --spacing-space-xl: 2rem;
+
+  --text-headline-xl: 2rem;
+  --text-headline-xl--line-height: 2.5rem;
+  --text-headline-xl--letter-spacing: -0.025em;
+  --text-headline-xl--font-weight: 700;
+
+  --text-headline-lg: 1.5rem;
+  --text-headline-lg--line-height: 2rem;
+  --text-headline-lg--letter-spacing: -0.02em;
+  --text-headline-lg--font-weight: 600;
+
+  --text-headline-md: 1.125rem;
+  --text-headline-md--line-height: 1.5rem;
+  --text-headline-md--letter-spacing: -0.015em;
+  --text-headline-md--font-weight: 600;
+
+  --text-headline-sm: 0.875rem;
+  --text-headline-sm--line-height: 1.25rem;
+  --text-headline-sm--letter-spacing: -0.01em;
+  --text-headline-sm--font-weight: 600;
+
+  --text-body-lg: 1rem;
+  --text-body-lg--line-height: 1.5rem;
+
+  --text-body-md: 0.875rem;
+  --text-body-md--line-height: 1.25rem;
+
+  --text-body-sm: 0.75rem;
+  --text-body-sm--line-height: 1rem;
+
+  --text-label-lg: 0.875rem;
+  --text-label-lg--line-height: 1.25rem;
+
+  --text-label-md: 0.75rem;
+  --text-label-md--line-height: 1rem;
+  --text-label-md--font-weight: 500;
+
+  --text-label-sm: 0.6875rem;
+  --text-label-sm--line-height: 0.875rem;
+  --text-label-sm--letter-spacing: 0.02em;
+  --text-label-sm--font-weight: 500;
+}
+
+/* Roles tipográficos nominales (mismo contrato que Stitch) */
+.font-headline-xl { font-family: var(--font-headline); font-size: 2rem; line-height: 2.5rem; letter-spacing: -0.025em; font-weight: 700; }
+.font-headline-lg { font-family: var(--font-headline); font-size: 1.5rem; line-height: 2rem; letter-spacing: -0.02em; font-weight: 600; }
+.font-headline-md { font-family: var(--font-headline); font-size: 1.125rem; line-height: 1.5rem; letter-spacing: -0.015em; font-weight: 600; }
+.font-headline-sm { font-family: var(--font-headline); font-size: 0.875rem; line-height: 1.25rem; letter-spacing: -0.01em; font-weight: 600; }
+.font-body-lg { font-family: var(--font-body); font-size: 1rem; line-height: 1.5rem; }
+.font-body-md { font-family: var(--font-body); font-size: 0.875rem; line-height: 1.25rem; }
+.font-body-sm { font-family: var(--font-body); font-size: 0.75rem; line-height: 1rem; }
+.font-label-lg { font-family: var(--font-mono); font-size: 0.875rem; line-height: 1.25rem; }
+.font-label-md { font-family: var(--font-mono); font-size: 0.75rem; line-height: 1rem; font-weight: 500; }
+.font-label-sm { font-family: var(--font-mono); font-size: 0.6875rem; line-height: 0.875rem; letter-spacing: 0.02em; font-weight: 500; }
+
+body {
+  background: var(--background);
+  color: var(--on-surface);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Material Symbols es una fuente variable: los ejeswght / FILL / opsz se
+   controlan por fuente-variation-settings. */
+.material-symbols-outlined {
+  font-variation-settings:
+    "FILL" 0,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 24;
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--surface-container); }
+::-webkit-scrollbar-thumb { background: var(--surface-dim); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--on-surface-variant); }
+
+/* Foco visible y accesible sobre fondos oscuros */
+:where(a, button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--tertiary);
+  outline-offset: 2px;
+}
+.bg-inverse-surface :where(a, button, input, select, textarea):focus-visible {
+  outline-color: var(--primary-fixed);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Impresión: عقود de certificado; se ocultan los controles */
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff; }
+  .print-break-avoid { break-inside: avoid; }
+}

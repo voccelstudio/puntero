@@ -1,19 +1,30 @@
 {
   "name": "puntero",
-  "version": "2.0.0",
-  "description": "Gestión de obra - Presupuestos, cronogramas y seguimiento",
+  "version": "4.0.0",
   "private": true,
+  "description": "Gestion de obra - presupuestos, cronograma, finanzas y materiales",
   "scripts": {
-    "lint": "eslint . --ext .js",
-    "format": "prettier --write \"**/*.{js,css,html}\"",
-    "format:check": "prettier --check \"**/*.{js,css,html}\"",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm run lint && npm run build"
+  },
+  "dependencies": {
+    "material-symbols": "^0.47.5",
+    "next": "16.3.7",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
   },
   "devDependencies": {
-    "eslint": "^8.57.0",
-    "jsdom": "^29.1.1",
-    "prettier": "^3.2.5",
-    "vitest": "^1.6.0"
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.7",
+    "tailwindcss": "^4",
+    "typescript": "^5"
   }
 }
