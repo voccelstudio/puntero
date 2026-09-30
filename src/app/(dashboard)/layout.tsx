@@ -3,11 +3,9 @@ import { MonedaProvider } from "@/components/moneda-provider";
 import { getCotizacion } from "@/lib/cotizacion";
 import { OBRA } from "@/lib/data/obra";
 
-/**
- * Toda la app depende de la cotización, así que se revalida entera cada hora
- * en lugar de dejar páginas congeladas con el tipo de cambio del build.
- */
-export const revalidate = 3600;
+// Sin `revalidate` a propósito: la revalidación incremental necesita un
+// servidor, y el export estático de GitHub Pages no la soporta. La cotización
+// se resuelve una vez en cada build — para tenerla al día hay que redesplegar.
 
 export default async function DashboardLayout({
   children,

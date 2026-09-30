@@ -33,11 +33,32 @@ npm run dev
 
 Abre <http://localhost:3000>.
 
+## Deploy
+
+La app se sirve en **GitHub Pages**:
+
+**https://voccelstudio.github.io/puntero/**
+
+El push a `v4-next-rewrite` dispara `.github/workflows/deploy.yml`, que compila el
+export estatico y lo publica. Para probarlo localmente igual que Pages:
+
+```bash
+NEXT_PUBLIC_BASE_PATH=/puntero npm run build
+# sirve la carpeta out/ bajo un subdirectorio /puntero
+```
+
+`NEXT_PUBLIC_BASE_PATH` tiene que estar seteado **antes** de compilar, porque Next lo graba
+en el HTML y en las URLs de los assets. En local queda vacio y todo corre en la raiz.
+
+Como no hay servidor, la **cotizacion queda congelada en el valor del ultimo build**. Para
+refrescarla hay que redesplegar (o pasar la tasa por variable de entorno). Tampoco hay
+Server Actions, asi que los formularios que hoy son estado local necesitan un backend.
+
 ## Scripts
 
 ```bash
 npm run dev        # servidor de desarrollo
-npm run build      # build de produccion
+npm run build      # build de produccion (genera out/)
 npm run start      # servir el build
 npm run typecheck  # tsc --noEmit
 npm run lint       # eslint
@@ -50,10 +71,10 @@ npm run check      # typecheck + lint + build
 mueve plata en obra — y el USD es derivado. El selector de la barra superior recalcula toda
 la interfaz entre `Gs.` y `US$`.
 
-**Cotizacion de referencia.** Se consume `open.er-api.com` con revalidacion cada hora y un
-respaldo offline (`7300` Gs/USD) para que la app no quede vacia si la API falla. Ojo: la API
-no es el Banco Central del Paraguay, asi que para produccion hay que enchufar una fuente
-oficial.
+**Cotizacion de referencia.** Se consume `open.er-api.com` con respaldo offline
+(`7300` Gs/USD) para que la app no quede vacia si la API falla. No es el Banco Central del
+Paraguay: es un agregador, y la pantalla lo rotula como "referencia, no oficial". Para
+producion hay que enchufar una fuente oficial.
 
 **IVA 10%** (Paraguay). Los gastos generales se aplican sobre el costo directo, no sobre el
 costo ya cargado con beneficio, para no duplicar la base de calculo.

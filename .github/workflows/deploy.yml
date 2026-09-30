@@ -1,0 +1,66 @@
+name: Deploy a GitHub Pages
+
+on:
+  push:
+    branches: [v4-next-rewrite]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Solo un deploy a la vez; los pushes siguientes cancelan al anterior.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      # Pages sirve el repo en voccelstudio.github.io/puntero, no en la raiz del
+      # dominio. El prefijo tiene que estar seteado antes de compilar, porque
+      # Next lo graba en el HTML y en las URLs de los assets.
+      - name: Build estatico
+        run: npm run build
+        env:
+          NEXT_PUBLIC_BASE_PATH: /puntero
+
+      - name: Configurar Pages
+        uses: actions/configure-pages@v5
+
+      - name: Subir artefacto
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Desplegar
+        id: deployment
+        uses: actions/deploy-pages@v4

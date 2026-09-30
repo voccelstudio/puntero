@@ -31,7 +31,6 @@ const COTIZACION_FALLBACK: Cotizacion = {
 };
 
 const API_URL = "https://open.er-api.com/v6/latest/USD";
-const REVALIDATE_SEGUNDOS = 3600;
 
 interface RespuestaER {
   result: string;
@@ -41,10 +40,9 @@ interface RespuestaER {
 
 async function consultar(): Promise<Cotizacion> {
   try {
+    // Sin `next.revalidate`: la revalidación incremental no existe en el export
+    // estático. En Pages esto corre una vez por build.
     const res = await fetch(API_URL, {
-      // La tasa se revalida cada hora: alcanza para el día y evita pegarle
-      // al proveedor en cada render.
-      next: { revalidate: REVALIDATE_SEGUNDOS },
       signal: AbortSignal.timeout(5000),
     });
 
@@ -61,7 +59,7 @@ async function consultar(): Promise<Cotizacion> {
       pygPorUsd: valor,
       fecha: data.time_last_update_utc,
       base: "USD",
-      fuente: "Banco Central del Paraguay (vía open.er-api.com)",
+      fuente: "open.er-api.com (referencia, no oficial)",
       estimada: false,
     };
   } catch {
@@ -75,23 +73,3 @@ async function consultar(): Promise<Cotizacion> {
  */
 export const getCotizacion = cache(consultar);
 
-/** Igual que `getCotizacion` pero garantiza salida fresca. Útil tras una
- *  acción del usuario que depende del tipo de cambio del momento. */
-export async function getCotizacionActualizada() {
-  const res = await fetch(`${API_URL}?t=${Date.now()}`, {
-    cache: "no-store",
-    signal: AbortSignal.timeout(5000),
-  });
-  const data = (await res.json()) as RespuestaER;
-  const valor = data.rates?.PYG;
-  if (typeof valor !== "number" || !Number.isFinite(valor) || valor <= 0) {
-    return COTIZACION_FALLBACK;
-  }
-  return {
-    pygPorUsd: valor,
-    fecha: data.time_last_update_utc,
-    base: "USD" as const,
-    fuente: "Banco Central del Paraguay (vía open.er-api.com)",
-    estimada: false,
-  };
-}
