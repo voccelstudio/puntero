@@ -14,7 +14,8 @@ import {
   Th,
   Tabla,
 } from "@/components/ui";
-import { DOCUMENTOS, PEDIDOS, PRECIOS_REFERENCIA } from "@/lib/data/materiales";
+import { useObra } from "@/components/obra-provider";
+import { useColeccion } from "@/lib/datos/almacen";
 import { CatalogoRubros } from "@/components/catalogo-rubros";
 import { formatFecha, formatNumero, formatPct, formatPctSigno, formatUnidad } from "@/lib/format";
 import type { CategoriaMaterial, EstadoPedido } from "@/lib/types";
@@ -22,8 +23,8 @@ import type { CategoriaMaterial, EstadoPedido } from "@/lib/types";
 const CATEGORIAS: { id: CategoriaMaterial | "TODAS"; label: string }[] = [
   { id: "TODAS", label: "Todas" },
   { id: "ESTRUCTURAL", label: "Estructural" },
-  { id: "METALICOS", label: "MetÃ¡licos" },
-  { id: "MAMPOSTERIA", label: "MamposterÃ­a" },
+  { id: "METALICOS", label: "Metálicos" },
+  { id: "MAMPOSTERIA", label: "Mampostería" },
   { id: "INSTALACIONES", label: "Instalaciones" },
   { id: "TERMINACIONES", label: "Terminaciones" },
 ];
@@ -40,19 +41,29 @@ const DOC_CATEGORIA: Record<string, { label: string; tono: "primario" | "tertiar
   PLIEGO: { label: "Pliego", tono: "tertiary" },
   SEGUROS: { label: "Seguro", tono: "exito" },
   NORMATIVA: { label: "Normativa", tono: "secondary" },
-  LICITACION: { label: "LicitaciÃ³n", tono: "neutro" },
+  LICITACION: { label: "Licitación", tono: "neutro" },
 };
 
 export default function MaterialesPedidos() {
   const { fmt, fmtUsd, tipoCambio } = useMoneda();
+  const { obra, semilla } = useObra();
   const [categoria, setCategoria] = useState<CategoriaMaterial | "TODAS">("TODAS");
+
+  const { datos: datosMateriales } = useColeccion(
+    obra.id,
+    "materiales",
+    semilla.materiales,
+  );
+
+  const { pedidos: PEDIDOS, preciosReferencia: PRECIOS_REFERENCIA, documentos: DOCUMENTOS } =
+    datosMateriales;
 
   const precios = useMemo(
     () =>
       categoria === "TODAS"
         ? PRECIOS_REFERENCIA
         : PRECIOS_REFERENCIA.filter((p) => p.categoria === categoria),
-    [categoria],
+    [categoria, PRECIOS_REFERENCIA],
   );
 
   const enCamino = PEDIDOS.filter((p) => p.estado === "EN_CAMINO").length;
@@ -67,10 +78,10 @@ export default function MaterialesPedidos() {
       <div className="flex flex-wrap items-center justify-between gap-space-md rounded bg-surface-container-low p-space-lg shadow-sm">
         <div className="space-y-space-xs">
           <span className="font-label-sm text-label-sm uppercase tracking-widest text-secondary">
-            Abastecimiento Â· LogÃ­sticas Â· Biblioteca tÃ©cnica
+            Abastecimiento · Logística · Biblioteca técnica
           </span>
           <h1 className="font-headline-xl text-headline-xl text-on-surface">
-            GestiÃ³n de materiales, acopios y pedidos
+            Gestión de materiales, acopios y pedidos
           </h1>
           <p className="font-body-sm text-body-sm text-on-surface-variant">
             Control de compras en curso, tabla de precios de referencia con variaciones de mercado y
@@ -101,14 +112,14 @@ export default function MaterialesPedidos() {
             <span className="font-label-sm text-label-sm text-secondary">en curso</span>
           </div>
           <p className="font-body-sm text-body-sm text-on-surface-variant">
-            {enCamino} en camino Â· {entregados} entregados
+            {enCamino} en camino · {entregados} entregados
           </p>
         </div>
 
         <div className="relative overflow-hidden rounded-lg bg-surface-container-lowest p-space-md shadow-sm">
           <div className="absolute inset-x-0 top-0 h-1 bg-tertiary" />
           <span className="font-label-sm text-label-sm uppercase tracking-wider text-secondary">
-            Stock bajo mÃ­nimo
+            Stock bajo mínimo
           </span>
           <div className="mt-1 flex items-baseline gap-1">
             <span
@@ -121,7 +132,7 @@ export default function MaterialesPedidos() {
             <span className="font-label-sm text-label-sm text-secondary">rubros</span>
           </div>
           <p className="font-body-sm text-body-sm text-on-surface-variant">
-            {stockCritico.length > 0 ? "Requieren reposiciÃ³n inmediata" : "Todo el stock por encima del mÃ­nimo"}
+            {stockCritico.length > 0 ? "Requieren reposición inmediata" : "Todo el stock por encima del mínimo"}
           </p>
         </div>
 
@@ -157,7 +168,7 @@ export default function MaterialesPedidos() {
         </div>
       </section>
 
-      {/* Aviso de stock crÃ­tico */}
+      {/* Aviso de stock crítico */}
       {stockCritico.length > 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-space-sm rounded bg-error-container/40 p-space-md">
           <div className="flex items-center gap-space-sm">
@@ -165,25 +176,25 @@ export default function MaterialesPedidos() {
             <div>
               <span className="block font-headline-sm text-headline-sm text-on-error-container">
                 {stockCritico.length} rubro{stockCritico.length > 1 ? "s" : ""} por debajo del
-                stock mÃ­nimo
+                stock mínimo
               </span>
               <span className="font-body-sm text-body-sm text-on-surface-variant">
-                {stockCritico.map((p) => `${p.descripcion} (${formatNumero(p.stockObra)}/${formatNumero(p.stockMinimo)} ${formatUnidad(p.unidad)})`).join(" Â· ")}
+                {stockCritico.map((p) => `${p.descripcion} (${formatNumero(p.stockObra)}/${formatNumero(p.stockMinimo)} ${formatUnidad(p.unidad)})`).join(" · ")}
               </span>
             </div>
           </div>
-          <Button variante="secundario">Generar OC de reposiciÃ³n</Button>
+          <Button variante="secundario">Generar OC de reposición</Button>
         </div>
       ) : null}
 
-      {/* SecciÃ³n 1: control de pedidos */}
+      {/* Sección 1: control de pedidos */}
       <Card className="overflow-hidden">
         <SectionHeader
           titulo="Control de pedidos y entregas en obra"
           icono={<Icono name="local_shipping" className="text-primary text-xl" />}
           acciones={
             <>
-              <Chip tono="primario">{PEDIDOS.length} Ã³rdenes de compra</Chip>
+              <Chip tono="primario">{PEDIDOS.length} órdenes de compra</Chip>
               <Button variante="secundario" tamano="sm">
                 <Icono name="tune" tamano="sm" />Filtros
               </Button>
@@ -197,7 +208,7 @@ export default function MaterialesPedidos() {
               <Th>Proveedor</Th>
               <Th align="right">Cantidad</Th>
               <Th>Entrega</Th>
-              <Th className="min-w-40">Avance logÃ­stica</Th>
+              <Th className="min-w-40">Avance logística</Th>
               <Th align="center">Estado</Th>
             </tr>
           </thead>
@@ -232,7 +243,7 @@ export default function MaterialesPedidos() {
                   <Td>
                     <span className="font-body-sm text-body-sm text-on-surface">{p.proveedor}</span>
                     <span className="block font-label-sm text-label-sm text-secondary">
-                      RecepciÃ³n: {p.responsableRecepcion}
+                      Recepción: {p.responsableRecepcion}
                     </span>
                   </Td>
                   <Td align="right" className="font-label-md text-label-md text-on-surface">
@@ -278,7 +289,7 @@ export default function MaterialesPedidos() {
           icono={<Icono name="request_quote" className="text-primary text-xl" />}
           acciones={
             <span className="font-label-sm text-label-sm text-secondary">
-              Precios en Gs Â· 1 US$ = {fmt(tipoCambio)}
+              Precios en Gs · 1 US$ = {fmt(tipoCambio)}
             </span>
           }
         />
@@ -311,18 +322,18 @@ export default function MaterialesPedidos() {
 
         {precios.length === 0 ? (
           <EmptyState
-            titulo="Sin rubros en esta categorÃ­a"
-            detalle="AgregÃ¡ rubros al catÃ¡logo o elegÃ­ otra categorÃ­a."
+            titulo="Sin rubros en esta categoría"
+            detalle="Agregá rubros al catálogo o elegí otra categoría."
           />
         ) : (
           <Tabla>
             <thead className="bg-surface-container-low text-secondary">
               <tr>
-                <Th>CÃ³digo / descripciÃ³n</Th>
+                <Th>Código / descripción</Th>
                 <Th align="center">Unidad</Th>
                 <Th align="right">Precio (Gs)</Th>
                 <Th align="right">Equiv. USD</Th>
-                <Th align="right">VariaciÃ³n</Th>
+                <Th align="right">Variación</Th>
                 <Th align="right">Stock obra</Th>
                 <Th>Proveedor</Th>
               </tr>
@@ -344,11 +355,11 @@ export default function MaterialesPedidos() {
                         </span>
                         {bajoMinimo ? <Chip tono="error">Stock bajo</Chip> : null}
                         {Math.abs(p.variacionPct) >= 0.05 ? (
-                          <Chip tono="primario">RevisiÃ³n de precio</Chip>
+                          <Chip tono="primario">Revisión de precio</Chip>
                         ) : null}
                       </div>
                       <span className="font-label-sm text-label-sm text-secondary">
-                        {p.codigo} Â· act. {formatFecha(p.ultimaActualizacion)}
+                        {p.codigo} · act. {formatFecha(p.ultimaActualizacion)}
                       </span>
                     </Td>
                     <Td align="center" className="font-label-sm text-label-sm text-secondary">
@@ -382,7 +393,7 @@ export default function MaterialesPedidos() {
                         {formatNumero(p.stockObra)}
                       </span>
                       <span className="block font-label-sm text-label-sm text-secondary">
-                        mÃ­n. {formatNumero(p.stockMinimo)}
+                        mín. {formatNumero(p.stockMinimo)}
                       </span>
                     </Td>
                     <Td className="font-body-sm text-body-sm text-on-surface-variant">
@@ -395,7 +406,7 @@ export default function MaterialesPedidos() {
             <tfoot>
               <tr className="border-t-2 border-outline bg-surface-container-low font-semibold">
                 <Td className="font-headline-sm text-headline-sm" colSpan={5}>
-                  {precios.length} rubros Â· variaciones promedio{" "}
+                  {precios.length} rubros · variaciones promedio{" "}
                   {formatPctSigno(
                     precios.reduce((a, p) => a + p.variacionPct, 0) / Math.max(1, precios.length),
                   )}
@@ -410,7 +421,7 @@ export default function MaterialesPedidos() {
         )}
       </Card>
 
-      {/* SecciÃ³n 3: biblioteca tÃ©cnica */}
+      {/* Sección 3: biblioteca técnica */}
       <Card className="overflow-hidden">
         <SectionHeader
           titulo="Biblioteca de recursos y contratos legales de obra"
@@ -439,7 +450,7 @@ export default function MaterialesPedidos() {
                     {doc.nombre}
                   </h3>
                   <p className="font-label-sm text-label-sm text-secondary">
-                    {doc.numero} Â· {formatFecha(doc.fecha)}
+                    {doc.numero} · {formatFecha(doc.fecha)}
                   </p>
                 </div>
                 <p className="flex-1 font-body-sm text-body-sm text-on-surface-variant">

@@ -32,10 +32,23 @@ export type FaseObra =
   | "INSTALACIONES"
   | "TERMINACIONES";
 
+export type EstadoObra = "PLANIFICACION" | "EN_CURSO" | "FINALIZADA" | "SUSPENDIDA";
+
+export type TipoObra =
+  | "RESIDENCIAL"
+  | "COMERCIAL"
+  | "INDUSTRIAL"
+  | "REFORMA"
+  | "INFRAESTRUCTURA";
+
 export interface Obra {
   id: string;
   codigo: string;
   nombre: string;
+  tipo: TipoObra;
+  estado: EstadoObra;
+  /** Etapa de obra en la que está, para el color del chip en la navegación. */
+  fase: FaseObra;
   empConstructora: string;
   comitente: string;
   ubicacion: string;
@@ -48,6 +61,8 @@ export interface Obra {
   /** Semana actual del cronograma (1-indexada). */
   semanaActual: number;
   semanasTotales: number;
+  /** Una línea para identificar la obra de un vistazo en el selector. */
+  resumen: string;
 }
 
 /* ------------------------------------------------------------------ */
@@ -139,6 +154,8 @@ export type IconoMaterial =
   | "speed"
   | "groups"
   | "pending_actions"
+  | "bolt"
+  | "plumbing"
   | "inventory"
   | "local_shipping"
   | "point_of_sale"
@@ -387,4 +404,46 @@ export interface Acopio {
   unidad: Unidad;
   fechaIngreso: string;
   destinoRubros: string[];
+}
+
+/* ------------------------------------------------------------------ */
+/* Colecciones editables                                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Cada módulo de la app guarda lo suyo en una colección aparte, versionada en el
+ * navegador. Los tipos de abajo son la forma de cada una: la semilla de una
+ * obra tiene que cumplirlos, y lo guardado también, así que un cambio de
+ * formato se ve al compilar y no recién en pantalla.
+ */
+
+export interface DatosPresupuesto {
+  fases: FasePresupuesto[];
+  adendas: Adenda[];
+  parametros: ParametrosFinancieros;
+  monedaContrato: Moneda;
+}
+
+export interface DatosMateriales {
+  pedidos: Pedido[];
+  preciosReferencia: PrecioReferencia[];
+  documentos: DocumentoLegal[];
+  acopios: Acopio[];
+}
+
+export interface DatosFinanzas {
+  movimientos: MovimientoCaja[];
+  jornaleros: LiquidacionJornal[];
+  subcontratos: Subcontrato[];
+  flujo: SemanaFlujo[];
+  certificados: CertificadoObra[];
+}
+
+export interface DatosComando {
+  hitos: Hito[];
+  ordenesTrabajo: OrdenTrabajo[];
+  bitacora: EntradaBitacora[];
+  cuadrillas: Cuadrilla[];
+  computo: ItemComputo[];
+  controlesEPP: ControlEPP[];
 }

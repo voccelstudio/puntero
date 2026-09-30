@@ -1,7 +1,7 @@
 import { AppShell } from "@/components/app-shell";
 import { MonedaProvider } from "@/components/moneda-provider";
+import { ObraProvider } from "@/components/obra-provider";
 import { getCotizacion } from "@/lib/cotizacion";
-import { OBRA } from "@/lib/data/obra";
 
 // Sin `revalidate` a propósito: la revalidación incremental necesita un
 // servidor, y el export estático de GitHub Pages no la soporta. La cotización
@@ -19,14 +19,12 @@ export default async function DashboardLayout({
       fuente={cotizacion.fuente}
       estimada={cotizacion.estimada}
     >
-      <AppShell
-        obraNombre={OBRA.nombre}
-        obraCodigo={OBRA.codigo}
-        semana={OBRA.semanaActual}
-        semanasTotales={OBRA.semanasTotales}
-      >
-        {children}
-      </AppShell>
+      {/* `ObraProvider` no necesita `Suspense`: lee `window.location` después
+          del montaje, no `useSearchParams`. Así las cuatro páginas siguen
+          pre-renderizándose y el HTML de GitHub Pages llega con los datos. */}
+      <ObraProvider>
+        <AppShell>{children}</AppShell>
+      </ObraProvider>
     </MonedaProvider>
   );
 }

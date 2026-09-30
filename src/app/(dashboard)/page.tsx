@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useMoneda } from "@/components/moneda-provider";
 import {
   Button,
@@ -14,16 +15,8 @@ import {
   Td,
   Tabla,
 } from "@/components/ui";
-import {
-  COMPUTO,
-  CONTROLES_EPP,
-  CUADRILLAS,
-  ENTRADAS_BITACORA,
-  HITOS,
-  ORDENES_TRABAJO,
-} from "@/lib/data/obra";
-import { OBRA, PARAMETROS_FINANCIEROS } from "@/lib/data/obra";
-import { FASES_PRESUPUESTO } from "@/lib/data/presupuesto-base";
+import { useObra } from "@/components/obra-provider";
+import { useColeccion } from "@/lib/datos/almacen";
 import { calcularAvanceFisico, calcularDesvio, calcularPresupuesto } from "@/lib/calculo";
 import {
   formatFecha,
@@ -34,18 +27,6 @@ import {
 } from "@/lib/format";
 import type { CriticidadHito, Hito } from "@/lib/types";
 import { Icono } from "@/components/icono";
-const todosLosItems = FASES_PRESUPUESTO.flatMap((f) => f.items);
-const presupuesto = calcularPresupuesto(todosLosItems, PARAMETROS_FINANCIEROS);
-const avanceFisico = calcularAvanceFisico(todosLosItems);
-const desvio = calcularDesvio(todosLosItems);
-const diasRestantes = Math.max(
-  0,
-  Math.round(
-    (new Date(OBRA.finEstimado + "T00:00:00Z").getTime() -
-      new Date("2024-10-16T00:00:00Z").getTime()) /
-      86_400_000,
-  ),
-);
 
 const TONO_HITO: Record<CriticidadHito, string> = {
   CRITICO: "bg-error-container/40",
@@ -137,12 +118,39 @@ function Milestone({ hito }: { hito: Hito }) {
 
 export default function CentroDeComando() {
   const { fmt, fmtGs, moneda, tipoCambio } = useMoneda();
+  const { obra, semilla } = useObra();
 
-  const precioPromedio = CUADRILLAS.reduce(
-    (acc, c) => acc + c.rendimientoPct,
-    0,
-  ) / CUADRILLAS.length;
-  const horasImproductivas = CUADRILLAS.reduce((acc, c) => acc + c.horasImproductivas, 0);
+  const { datos: presupuestoDatos, guardar: guardarPresupuesto } = useColeccion(
+    obra.id,
+    "presupuesto",
+    semilla.presupuesto,
+  );
+  const { datos: comando } = useColeccion(obra.id, "comando", semilla.comando);
+
+  const todosLosItems = presupuestoDatos.fases.flatMap((f) => f.items);
+  const presupuesto = calcularPresupuesto(
+    todosLosItems,
+    presupuestoDatos.parametros,
+  );
+  const avanceFisico = calcularAvanceFisico(todosLosItems);
+  const desvio = calcularDesvio(todosLosItems);
+
+  const cuadrillas = comando.cuadrillas;
+  const precioPromedio =
+    cuadrillas.length > 0
+      ? cuadrillas.reduce((acc, c) => acc + c.rendimientoPct, 0) / cuadrillas.length
+      : 0;
+  const horasImproductivas = cuadrillas.reduce((acc, c) => acc + c.horasImproductivas, 0);
+
+  // Los dias restantes se miden contra la fecha del navegador: la app es
+  // estatica y no hay servidor que sepa que dia es.
+  const diasRestantes = useMemo(() => {
+    const hoy = new Date();
+    const fin = new Date(obra.finEstimado + "T00:00:00");
+    if (Number.isNaN(fin.getTime())) return 0;
+    return Math.max(0, Math.round((fin.getTime() - hoy.getTime()) / 86_400_000));
+  }, [obra.finEstimado]);
+  void guardarPresupuesto;
 
   return (
     <div className="space-y-space-lg">
@@ -154,16 +162,16 @@ export default function CentroDeComando() {
               <Chip tono="exito">Fase estructural</Chip>
               <span className="flex items-center gap-1 font-label-sm text-label-sm text-on-surface-variant">
                 <Icono name="location_on" className="text-sm" />
-                {OBRA.ubicacion}
+                {obra.ubicacion}
               </span>
               <span className="text-surface-dim">•</span>
               <span className="font-label-sm text-label-sm text-on-surface-variant">
-                {OBRA.codigo}
+                {obra.codigo}
               </span>
             </div>
             <div className="flex flex-wrap items-baseline gap-space-md">
               <h2 className="font-headline-lg text-headline-lg tracking-tight text-on-surface">
-                {OBRA.nombre}
+                {obra.nombre}
               </h2>
               <div className="flex items-center gap-space-xs rounded bg-tertiary-container/30 px-space-sm py-0.5">
                 <span className="h-2 w-2 animate-pulse rounded-full bg-tertiary" />
@@ -179,13 +187,13 @@ export default function CentroDeComando() {
               <div className="flex flex-col border-r border-surface-container pr-space-sm">
                 <span className="font-label-sm text-label-sm text-secondary">Inicio</span>
                 <span className="font-label-md text-label-md font-semibold text-on-surface">
-                  {formatFecha(OBRA.inicio)}
+                  {formatFecha(obra.inicio)}
                 </span>
               </div>
               <div className="flex flex-col border-r border-surface-container pr-space-sm">
                 <span className="font-label-sm text-label-sm text-secondary">Fin estimado</span>
                 <span className="font-label-md text-label-md font-semibold text-on-surface">
-                  {formatFecha(OBRA.finEstimado)}
+                  {formatFecha(obra.finEstimado)}
                 </span>
               </div>
               <div className="flex flex-col">
@@ -265,7 +273,7 @@ export default function CentroDeComando() {
               acciones={
                 <>
                   <span className="rounded bg-surface-container-highest px-space-sm py-1 font-label-sm text-label-sm font-semibold text-on-surface">
-                    Semana {OBRA.semanaActual} / {OBRA.semanasTotales}
+                    Semana {obra.semanaActual} / {obra.semanasTotales}
                   </span>
                   <Button variante="fantasma" title="Ver Gantt completo">
                     <Icono name="open_in_new" className="text-base" />
@@ -274,7 +282,7 @@ export default function CentroDeComando() {
               }
             />
             <div className="flex flex-col gap-space-md p-space-md">
-              {HITOS.map((hito) => (
+              {comando.hitos.map((hito) => (
                 <Milestone key={hito.id} hito={hito} />
               ))}
             </div>
@@ -292,7 +300,7 @@ export default function CentroDeComando() {
               }
             />
             <div className="flex flex-col gap-space-lg p-space-md">
-              {ORDENES_TRABAJO.map((ot) => (
+              {comando.ordenesTrabajo.map((ot) => (
                 <div
                   key={ot.id}
                   className="flex flex-col gap-space-sm rounded bg-surface-container-lowest p-space-md shadow-sm print-break-avoid"
@@ -353,7 +361,7 @@ export default function CentroDeComando() {
                 </div>
               ))}
 
-              {ENTRADAS_BITACORA.map((entrada) => (
+              {comando.bitacora.map((entrada) => (
                 <div key={entrada.id} className="flex flex-col gap-space-sm">
                   <div className="flex flex-wrap items-center justify-between gap-space-xs">
                     <div className="flex items-center gap-space-xs text-on-surface">
@@ -414,7 +422,7 @@ export default function CentroDeComando() {
               <span className="font-label-sm text-label-sm text-secondary">Real vs. presup.</span>
             </div>
             <div className="flex flex-col gap-space-md p-space-md">
-              {COMPUTO.map((item) => {
+              {comando.computo.map((item) => {
                 const pct = item.presupuestado > 0 ? item.ejecutado / item.presupuestado : 0;
                 return (
                   <div
@@ -508,11 +516,11 @@ export default function CentroDeComando() {
                 <span className="font-label-sm text-label-sm uppercase tracking-wider text-secondary">
                   Control EPP matutino
                 </span>
-                {CONTROLES_EPP.map((control, i) => (
+                {comando.controlesEPP.map((control, i) => (
                   <div
                     key={control.id}
                     className={`flex items-center justify-between py-1 ${
-                      i < CONTROLES_EPP.length - 1 ? "border-b border-surface-container" : ""
+                      i < comando.controlesEPP.length - 1 ? "border-b border-surface-container" : ""
                     }`}
                   >
                     <div className="flex items-center gap-2">
@@ -555,9 +563,9 @@ export default function CentroDeComando() {
             <Tabla className="mt-space-sm">
               <tbody className="divide-y divide-surface-container-low">
                 {[
-                  ["Constructora", OBRA.empConstructora],
-                  ["Comitente", OBRA.comitente],
-                  ["Superficie", `${formatNumero(OBRA.superficie)} m²`],
+                  ["Constructora", obra.empConstructora],
+                  ["Comitente", obra.comitente],
+                  ["Superficie", `${formatNumero(obra.superficie)} m²`],
                   ["Moneda de contrato", "Guaraníes (PYG)"],
                 ].map(([k, v]) => (
                   <tr key={k}>

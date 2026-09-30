@@ -142,7 +142,7 @@ const DEFINICIONES: { nombre: string; partidas: [string, Partida][] }[] = [
     ],
   },
   {
-    nombre: "Instalaciones eléctricas, sanitaryas y de agua",
+    nombre: "Instalaciones eléctricas, sanitarias y de agua",
     partidas: [
       [
         "INSTALACIÓN ELÉCTRICA::Tablero principal 6 llaves TM",

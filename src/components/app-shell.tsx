@@ -3,35 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMoneda } from "@/components/moneda-provider";
+import { useObra } from "@/components/obra-provider";
+import { SelectorObra } from "@/components/selector-obra";
 import { Icono } from "@/components/icono";
+import { modulosPorGrupo } from "@/lib/modulos";
 import { formatGs } from "@/lib/format";
-
-const NAVEGACION = [
-  {
-    href: "/",
-    label: "Centro de comando",
-    corto: "Comando",
-    icon: "dashboard",
-  },
-  {
-    href: "/presupuesto",
-    label: "Constructor de presupuestos",
-    corto: "Presupuesto",
-    icon: "functions",
-  },
-  {
-    href: "/finanzas",
-    label: "Finanzas, caja y jornales",
-    corto: "Finanzas",
-    icon: "account_balance",
-  },
-  {
-    href: "/materiales",
-    label: "Materiales y pedidos",
-    corto: "Materiales",
-    icon: "inventory",
-  },
-] as const;
 
 function SelectorMoneda() {
   const { moneda, setMoneda, tipoCambio, estimada, fuente } = useMoneda();
@@ -59,10 +35,7 @@ function SelectorMoneda() {
           </button>
         ))}
       </div>
-      <span
-        className="px-1 font-label-sm text-label-sm text-secondary"
-        title={fuente}
-      >
+      <span className="px-1 font-label-sm text-label-sm text-secondary" title={fuente}>
         {estimada ? "~" : ""}
         {formatGs(tipoCambio)} / US$
       </span>
@@ -70,21 +43,15 @@ function SelectorMoneda() {
   );
 }
 
-export function AppShell({
-  children,
-  obraNombre,
-  obraCodigo,
-  semana,
-  semanasTotales,
-}: {
-  children: React.ReactNode;
-  obraNombre: string;
-  obraCodigo: string;
-  semana: number;
-  semanasTotales: number;
-}) {
+export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const avance = Math.round((semana / semanasTotales) * 100);
+  const { obra } = useObra();
+
+  const grupos = modulosPorGrupo();
+  const avance =
+    obra.semanasTotales > 0
+      ? Math.round((obra.semanaActual / obra.semanasTotales) * 100)
+      : 0;
 
   return (
     <div className="min-h-dvh">
@@ -103,15 +70,15 @@ export function AppShell({
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-space-sm px-gutter-desktop py-space-sm">
-          <div className="min-w-0">
-            <span className="font-label-sm text-label-sm uppercase tracking-widest text-secondary">
-              {obraCodigo}
-            </span>
-            <h1 className="truncate font-headline-sm text-on-surface">{obraNombre}</h1>
+          <div className="min-w-0 flex-1">
+            <SelectorObra />
+            <p className="mt-1 truncate font-body-sm text-body-sm text-secondary">
+              {obra.ubicacion} · {obra.empConstructora}
+            </p>
           </div>
           <div className="flex items-center gap-space-sm">
             <span className="font-label-sm text-label-sm text-secondary">
-              Semana {semana} / {semanasTotales}
+              Semana {obra.semanaActual} / {obra.semanasTotales}
             </span>
             <div className="h-1.5 w-24 overflow-hidden rounded-full bg-surface-container">
               <div className="h-full rounded-full bg-primary" style={{ width: `${avance}%` }} />
@@ -123,34 +90,43 @@ export function AppShell({
         </div>
       </header>
 
-      {/* Navegación */}
+      {/* Navegación horizontal, agrupada */}
       <nav
-        className="no-print sticky top-0 z-20 border-b border-outline-variant bg-surface-container-low px-gutter-desktop"
+        className="no-print sticky top-0 z-20 border-b border-outline-variant bg-surface-container-low"
         aria-label="Módulos"
       >
-        <ul className="-mx-1 flex gap-1 overflow-x-auto py-1">
-          {NAVEGACION.map((item) => {
-            const activo = pathname === item.href;
-            return (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  aria-current={activo ? "page" : undefined}
-                  className={`flex items-center gap-2 rounded px-space-md py-2 whitespace-nowrap transition-colors ${
-                    activo
-                      ? "bg-primary text-on-primary"
-                      : "text-on-surface-variant hover:bg-surface-container hover:text-on-surface"
-                  }`}
-                >
-                  <Icono name={item.icon} tamano="sm" />
-                  <span className="hidden font-headline-sm text-headline-sm sm:inline">
-                    {item.label}
-                  </span>
-                  <span className="font-label-sm text-label-sm sm:hidden">{item.corto}</span>
-                </Link>
-              </li>
-            );
-          })}
+        <ul className="flex flex-wrap items-center gap-x-1 gap-y-1 px-gutter-desktop py-1">
+          {grupos.map(({ grupo, modulos }, indice) => (
+            <li key={grupo} className="flex items-center gap-1">
+              <span className="px-1 font-label-sm text-label-sm uppercase tracking-widest text-secondary">
+                {grupo}
+              </span>
+              {modulos.map((item) => {
+                const activo = pathname === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    href={`${item.href}?obra=${obra.id}`}
+                    aria-current={activo ? "page" : undefined}
+                    title={item.etiqueta}
+                    className={`flex items-center gap-1.5 whitespace-nowrap rounded px-space-sm py-1.5 transition-colors ${
+                      activo
+                        ? "bg-primary text-on-primary"
+                        : "text-on-surface-variant hover:bg-surface-container hover:text-on-surface"
+                    }`}
+                  >
+                    <Icono name={item.icono} tamano="sm" />
+                    <span className="font-headline-sm text-headline-sm">{item.corto}</span>
+                  </Link>
+                );
+              })}
+              {indice < grupos.length - 1 ? (
+                <span aria-hidden className="ml-1 text-outline">
+                  |
+                </span>
+              ) : null}
+            </li>
+          ))}
         </ul>
       </nav>
 

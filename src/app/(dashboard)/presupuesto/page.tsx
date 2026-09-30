@@ -16,19 +16,14 @@ import {
   Th,
   Tabla,
 } from "@/components/ui";
-import { ADENDAS, OBRA, PARAMETROS_FINANCIEROS } from "@/lib/data/obra";
-import { FASES_PRESUPUESTO } from "@/lib/data/presupuesto-base";
+import { useObra } from "@/components/obra-provider";
+import { useColeccion } from "@/lib/datos/almacen";
 import {
-  calcularPresupuesto,
-  totalFase,
-  totalItem,
-  type ResumenPresupuesto,
+  calcularPresupuesto, totalFase, totalItem,
 } from "@/lib/calculo";
 import { formatFecha, formatNumero, formatPct, formatUnidad } from "@/lib/format";
-import type { ItemPresupuesto } from "@/lib/types";
-
-const TODOS = FASES_PRESUPUESTO.flatMap((f) => f.items);
-const RESUMEN_BASE = calcularPresupuesto(TODOS, PARAMETROS_FINANCIEROS);
+import type { DatosPresupuesto, ItemPresupuesto, Obra, ParametrosFinancieros } from "@/lib/types";
+import type { ResumenPresupuesto } from "@/lib/calculo";
 
 const FILA_ADENDA = "bg-primary/5 hover:bg-primary/10";
 
@@ -137,7 +132,15 @@ function LineaItem({
   );
 }
 
-function FilaTotales({ resumen, fmt }: { resumen: ResumenPresupuesto; fmt: (n: number) => string }) {
+function FilaTotales({
+  resumen,
+  params,
+  fmt,
+}: {
+  resumen: ResumenPresupuesto;
+  params: ParametrosFinancieros;
+  fmt: (n: number) => string;
+}) {
   return (
     <div className="space-y-space-sm">
       <div className="flex items-center justify-between py-1">
@@ -150,7 +153,7 @@ function FilaTotales({ resumen, fmt }: { resumen: ResumenPresupuesto; fmt: (n: n
         <div className="flex items-center gap-1">
           <span className="font-body-sm text-body-sm text-on-surface">Gastos generales / imprevistos</span>
           <span className="font-label-sm text-label-sm text-secondary">
-            ({formatPct(PARAMETROS_FINANCIEROS.gastosGenerales, 0)})
+            ({formatPct(params.gastosGenerales, 0)})
           </span>
         </div>
         <span className="font-label-md text-label-md text-on-surface">
@@ -163,7 +166,7 @@ function FilaTotales({ resumen, fmt }: { resumen: ResumenPresupuesto; fmt: (n: n
             Beneficio / margen del constructor
           </span>
           <span className="font-label-sm text-label-sm font-semibold text-primary">
-            ({formatPct(PARAMETROS_FINANCIEROS.beneficio, 0)})
+            ({formatPct(params.beneficio, 0)})
           </span>
         </div>
         <span className="font-label-md text-label-md font-semibold text-primary">
@@ -182,8 +185,8 @@ function FilaTotales({ resumen, fmt }: { resumen: ResumenPresupuesto; fmt: (n: n
           <div className="flex flex-col gap-0.5">
             <span className="font-body-sm text-body-sm">IVA discriminado</span>
             <span className="font-label-sm text-label-sm text-secondary">
-              materiales {formatPct(PARAMETROS_FINANCIEROS.ivaMateriales, 1)} · mano de obra{" "}
-              {formatPct(PARAMETROS_FINANCIEROS.ivaManoObra, 1)}
+              materiales {formatPct(params.ivaMateriales, 1)} · mano de obra{" "}
+              {formatPct(params.ivaManoObra, 1)}
             </span>
           </div>
           <div className="flex flex-col items-end gap-0.5">
@@ -198,20 +201,42 @@ function FilaTotales({ resumen, fmt }: { resumen: ResumenPresupuesto; fmt: (n: n
 }
 
 export default function ConstructorPresupuestos() {
+  const { obra, semilla } = useObra();
+  const { datos } = useColeccion(obra.id, "presupuesto", semilla.presupuesto);
+
+  // El `key` remonta la tabla al cambiar de obra: así las fases abiertas y la
+  // adenda seleccionada arrancan bien solas para la obra nueva, sin un efecto
+  // que tenga que corregir el estado después de pintar.
+  return <TablaPresupuesto key={obra.id} obra={obra} datos={datos} />;
+}
+
+function TablaPresupuesto({ obra, datos }: { obra: Obra; datos: DatosPresupuesto }) {
   const { fmt, fmtGs, fmtUsd, tipoCambio } = useMoneda();
 
+  const FASES_PRESUPUESTO = datos.fases;
+  const ADENDAS = datos.adendas;
+  const PARAMETROS_FINANCIEROS = datos.parametros;
+  const TODOS = FASES_PRESUPUESTO.flatMap((f) => f.items);
+
   const [fasesAbiertas, setFasesAbiertas] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(FASES_PRESUPUESTO.map((f) => [f.id, f.items.length > 0 && f.numero === 2])),
+    Object.fromEntries(datos.fases.map((f) => [f.id, f.items.length > 0 && f.numero === 2])),
   );
   const [vistaCliente, setVistaCliente] = useState(false);
-  const [adendaActiva, setAdendaActiva] = useState<string | null>(ADENDAS[0]?.codigo ?? null);
+  const [adendaActiva, setAdendaActiva] = useState<string | null>(
+    datos.adendas[0]?.codigo ?? null,
+  );
 
-  const totalItems = useMemo(() => TODOS.length, []);
+  const resumen = useMemo(
+    () => calcularPresupuesto(TODOS, PARAMETROS_FINANCIEROS),
+    [TODOS, PARAMETROS_FINANCIEROS],
+  );
+
+  const totalItems = useMemo(() => TODOS.length, [TODOS]);
   const avanceCertificado = useMemo(() => {
     const presup = TODOS.reduce((a, i) => a + totalItem(i), 0);
     const ejec = TODOS.reduce((a, i) => a + i.cantidadEjecutada * (i.precioMaterial + i.precioManoObra), 0);
     return presup > 0 ? Math.min(1, ejec / presup) : 0;
-  }, []);
+  }, [TODOS]);
 
   const alternarFase = (id: string) =>
     setFasesAbiertas((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -223,7 +248,7 @@ export default function ConstructorPresupuestos() {
         <div className="space-y-space-xs">
           <div className="flex flex-wrap items-center gap-space-sm">
             <span className="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">
-              {OBRA.empConstructora}
+              {obra.empConstructora}
             </span>
             <span className="text-secondary">•</span>
             <span className="rounded bg-tertiary-container/30 px-space-xs py-0.5 font-label-sm text-label-sm font-semibold text-tertiary">
@@ -236,7 +261,7 @@ export default function ConstructorPresupuestos() {
           </div>
           <div className="flex flex-wrap items-center gap-space-md">
             <h1 className="font-headline-xl text-headline-xl text-on-surface">
-              Presupuesto de obra: {OBRA.nombre.split("—")[1]?.trim() ?? OBRA.nombre}
+              Presupuesto de obra: {obra.nombre.split("—")[1]?.trim() ?? obra.nombre}
             </h1>
             <Button variante="secundario" tamano="sm">
               <Icono name="history_edu" tamano="sm" />
@@ -249,25 +274,25 @@ export default function ConstructorPresupuestos() {
           <div className="rounded bg-surface-container-lowest px-space-sm py-1 shadow-sm">
             <span className="block font-label-sm text-label-sm text-secondary">Costo directo</span>
             <span className="font-label-md text-label-md font-bold text-on-surface">
-              {fmt(RESUMEN_BASE.costoDirecto)}
+              {fmt(resumen.costoDirecto)}
             </span>
           </div>
           <div className="rounded bg-surface-container-lowest px-space-sm py-1 shadow-sm">
             <span className="block font-label-sm text-label-sm text-secondary">Mano de obra</span>
             <span className="font-label-md text-label-md font-semibold text-primary">
-              {formatPct(RESUMEN_BASE.pctManoObra, 0)}
+              {formatPct(resumen.pctManoObra, 0)}
             </span>
           </div>
           <div className="rounded bg-surface-container-lowest px-space-sm py-1 shadow-sm">
             <span className="block font-label-sm text-label-sm text-secondary">Materiales</span>
             <span className="font-label-md text-label-md font-semibold text-secondary">
-              {formatPct(RESUMEN_BASE.pctMateriales, 0)}
+              {formatPct(resumen.pctMateriales, 0)}
             </span>
           </div>
           <div className="rounded bg-inverse-surface px-space-sm py-1 shadow-sm">
             <span className="block font-label-sm text-label-sm text-surface-dim">Total c/ IVA</span>
             <span className="font-label-md text-label-md font-bold text-tertiary-fixed">
-              {fmt(RESUMEN_BASE.total)}
+              {fmt(resumen.total)}
             </span>
           </div>
         </div>
@@ -462,18 +487,18 @@ export default function ConstructorPresupuestos() {
               </span>
             </div>
 
-            <FilaTotales resumen={RESUMEN_BASE} fmt={fmt} />
+            <FilaTotales resumen={resumen} params={PARAMETROS_FINANCIEROS} fmt={fmt} />
 
             <div className="space-y-1 rounded-xl bg-inverse-surface p-space-md text-inverse-on-surface shadow-md">
               <span className="block font-label-sm text-label-sm uppercase tracking-wider text-surface-dim">
                 Total presupuestado al cliente
               </span>
               <div className="font-headline-xl text-headline-xl font-bold leading-none text-tertiary-fixed">
-                {fmt(RESUMEN_BASE.total)}
+                {fmt(resumen.total)}
               </div>
               <div className="flex items-center justify-between pt-2 font-label-sm text-label-sm text-surface-dim">
-                <span title={fmtUsd(RESUMEN_BASE.total)}>
-                  Equiv. USD: {fmtUsd(RESUMEN_BASE.total)}
+                <span title={fmtUsd(resumen.total)}>
+                  Equiv. USD: {fmtUsd(resumen.total)}
                 </span>
                 <span className="text-tertiary-fixed">TC: {fmtGs(tipoCambio)}/USD</span>
               </div>

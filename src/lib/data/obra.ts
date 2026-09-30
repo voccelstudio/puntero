@@ -1,14 +1,13 @@
 import type {
   Adenda,
   CertificadoObra,
+  ControlEPP,
   Cuadrilla,
   EntradaBitacora,
   Hito,
   ItemComputo,
-  Obra,
   OrdenTrabajo,
   ParametrosFinancieros,
-  ControlEPP,
 } from "@/lib/types";
 
 /* ------------------------------------------------------------------ */
@@ -29,23 +28,6 @@ export const PARAMETROS_FINANCIEROS: ParametrosFinancieros = {
 /* ------------------------------------------------------------------ */
 /* Obra                                                                */
 /* ------------------------------------------------------------------ */
-
-export const OBRA: Obra = {
-  id: "obra-1",
-  codigo: "OBR-2024-0007",
-  nombre: "Residencial Los Álamos — Torre B",
-  empConstructora: "Inversiones Urbanas S.A.",
-  comitente: "Fideicomiso Los Álamos",
-  ubicacion: "Av. Eusebio Ayala km 4, Asunción",
-  latitud: -25.2964,
-  longitud: -57.6359,
-  inicio: "2024-01-15",
-  finEstimado: "2024-11-28",
-  superficie: 8420,
-  monedaContrato: "PYG",
-  semanaActual: 18,
-  semanasTotales: 45,
-};
 
 /* ------------------------------------------------------------------ */
 /* Centro de comando                                                   */
