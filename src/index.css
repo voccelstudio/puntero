@@ -1,0 +1,954 @@
+@import "tailwindcss";
+@import "material-symbols/outlined.css";
+
+/* ============================================================
+   Puntero 5.0 — Design System "Bauhaus / Material 3"
+   Tokens por tema. El tema activo se setea con `data-tema` en el
+   <html> desde el provider `contexto/tema.tsx`.
+   ============================================================ */
+
+/* ------------------- Constructor Dark (default) ------------------- */
+:root,
+[data-tema="constructor-dark"] {
+  --primary: #ffcc00;
+  --primary-container: #1a1a1a;
+  --primary-fixed: #ffcc00;
+  --primary-fixed-dim: #e6b800;
+  --on-primary: #1a1a1a;
+  --on-primary-container: #ffcc00;
+  --on-primary-fixed: #1a1a1a;
+  --on-primary-fixed-variant: #e6b800;
+
+  --secondary: #e63b2e;
+  --secondary-container: #3a1f1d;
+  --secondary-fixed: #ffdad6;
+  --secondary-fixed-dim: #ffb3ab;
+  --on-secondary: #ffffff;
+  --on-secondary-container: #ffb3ab;
+
+  --tertiary: #8ab4ff;
+  --tertiary-container: #1f2f4d;
+  --tertiary-fixed: #d6e3ff;
+  --tertiary-fixed-dim: #a8c6ff;
+  --on-tertiary: #0a1428;
+  --on-tertiary-container: #a8c6ff;
+
+  --error: #ffb4ab;
+  --error-container: #3a1a18;
+  --on-error: #690005;
+  --on-error-container: #ffdad6;
+
+  --background: #141414;
+  --surface: #1a1a1a;
+  --surface-dim: #121212;
+  --surface-bright: #262626;
+  --surface-container-lowest: #0e0e0e;
+  --surface-container-low: #1e1e1e;
+  --surface-container: #232323;
+  --surface-container-high: #2a2a2a;
+  --surface-container-highest: #303030;
+  --surface-variant: #292929;
+  --surface-tint: #ffcc00;
+
+  --on-background: #ececec;
+  --on-surface: #ececec;
+  --on-surface-variant: #b4b4b4;
+
+  --inverse-surface: #ececec;
+  --inverse-on-surface: #1a1a1a;
+  --inverse-primary: #1a1a1a;
+
+  --outline: #6a6a6a;
+  --outline-variant: #333333;
+
+  --ok: #2e7d32;
+  --on-ok: #ffffff;
+  --ok-container: #1f3d22;
+}
+
+/* ------------------- Cemento (gris obra) ------------------- */
+[data-tema="cemento"] {
+  --primary: #ffb300;
+  --primary-container: #3a2e0a;
+  --primary-fixed: #ffdd75;
+  --primary-fixed-dim: #ffb300;
+  --on-primary: #1f1800;
+  --on-primary-container: #ffdd75;
+  --on-primary-fixed: #1f1800;
+  --on-primary-fixed-variant: #8a6400;
+
+  --secondary: #b8c4d0;
+  --secondary-container: #2e3640;
+  --secondary-fixed: #dbe6f0;
+  --secondary-fixed-dim: #b8c4d0;
+  --on-secondary: #ffffff;
+  --on-secondary-container: #dbe6f0;
+  --on-secondary-fixed: #141a20;
+  --on-secondary-fixed-variant: #535e6b;
+
+  --tertiary: #ff8a80;
+  --tertiary-container: #4a201c;
+  --tertiary-fixed: #ffdad6;
+  --tertiary-fixed-dim: #ff8a80;
+  --on-tertiary: #3b0a04;
+  --on-tertiary-container: #ffdad6;
+  --on-tertiary-fixed: #3b0a04;
+  --on-tertiary-fixed-variant: #b3261e;
+
+  --error: #ffb4ab;
+  --error-container: #3a1a18;
+  --on-error: #690005;
+  --on-error-container: #ffdad6;
+
+  --background: #121212;
+  --surface: #191a1d;
+  --surface-dim: #101114;
+  --surface-bright: #414146;
+  --surface-container-lowest: #0c0d0e;
+  --surface-container-low: #212227;
+  --surface-container: #26272c;
+  --surface-container-high: #303137;
+  --surface-container-highest: #414146;
+  --surface-variant: #3f4045;
+  --surface-tint: #ffb300;
+
+  --on-background: #e3e2e6;
+  --on-surface: #e3e2e6;
+  --on-surface-variant: #c0c5cd;
+
+  --inverse-surface: #f0f0ee;
+  --inverse-on-surface: #34343a;
+  --inverse-primary: #8a6400;
+
+  --outline: #8c8e93;
+  --outline-variant: #3f4045;
+
+  --ok: #66bb6a;
+  --on-ok: #ffffff;
+  --ok-container: #1f3d22;
+}
+
+/* ------------------- Ladrillo (terracota) ------------------- */
+[data-tema="ladrillo"] {
+  --primary: #ff6c4a;
+  --primary-container: #4a1808;
+  --primary-fixed: #ffdccf;
+  --primary-fixed-dim: #ff6c4a;
+  --on-primary: #2d0800;
+  --on-primary-container: #ffdccf;
+  --on-primary-fixed: #2d0800;
+  --on-primary-fixed-variant: #a33f1e;
+
+  --secondary: #d5b8a8;
+  --secondary-container: #413426;
+  --secondary-fixed: #f5e0d0;
+  --secondary-fixed-dim: #d5b8a8;
+  --on-secondary: #ffffff;
+  --on-secondary-container: #f5e0d0;
+  --on-secondary-fixed: #2d2115;
+  --on-secondary-fixed-variant: #7a5f4c;
+
+  --tertiary: #a8c6ff;
+  --tertiary-container: #1f2f4d;
+  --tertiary-fixed: #d6e3ff;
+  --tertiary-fixed-dim: #a8c6ff;
+  --on-tertiary: #0a1428;
+  --on-tertiary-container: #a8c6ff;
+  --on-tertiary-fixed: #0a1428;
+  --on-tertiary-fixed-variant: #33508f;
+
+  --error: #ffb4ab;
+  --error-container: #3a1a18;
+  --on-error: #690005;
+  --on-error-container: #ffdad6;
+
+  --background: #151110;
+  --surface: #1d1917;
+  --surface-dim: #0f0b0a;
+  --surface-bright: #45403d;
+  --surface-container-lowest: #0a0706;
+  --surface-container-low: #2a2522;
+  --surface-container: #2e2926;
+  --surface-container-high: #383230;
+  --surface-container-highest: #453f3c;
+  --surface-variant: #4a4440;
+  --surface-tint: #ff6c4a;
+
+  --on-background: #ece1dc;
+  --on-surface: #ece1dc;
+  --on-surface-variant: #d3bdb2;
+
+  --inverse-surface: #ece1dc;
+  --inverse-on-surface: #332a26;
+  --inverse-primary: #a33f1e;
+
+  --outline: #9a8c83;
+  --outline-variant: #4a4440;
+
+  --ok: #81c784;
+  --on-ok: #ffffff;
+  --ok-container: #1f3d22;
+}
+
+/* ------------------- Yacaré (verde pantano) ------------------- */
+[data-tema="yacare"] {
+  --primary: #b6e06a;
+  --primary-container: #3a4508;
+  --primary-fixed: #dfff9c;
+  --primary-fixed-dim: #b6e06a;
+  --on-primary: #1f2800;
+  --on-primary-container: #dfff9c;
+  --on-primary-fixed: #1f2800;
+  --on-primary-fixed-variant: #6a8413;
+
+  --secondary: #b6c9a5;
+  --secondary-container: #33392a;
+  --secondary-fixed: #d8ecc6;
+  --secondary-fixed-dim: #b6c9a5;
+  --on-secondary: #ffffff;
+  --on-secondary-container: #d8ecc6;
+  --on-secondary-fixed: #1f2618;
+  --on-secondary-fixed-variant: #5c6a4d;
+
+  --tertiary: #7bd6cf;
+  --tertiary-container: #0f4642;
+  --tertiary-fixed: #b8efea;
+  --tertiary-fixed-dim: #7bd6cf;
+  --on-tertiary: #04302d;
+  --on-tertiary-container: #b8efea;
+  --on-tertiary-fixed: #04302d;
+  --on-tertiary-fixed-variant: #1c6b65;
+
+  --error: #ffb4ab;
+  --error-container: #3a1a18;
+  --on-error: #690005;
+  --on-error-container: #ffdad6;
+
+  --background: #111309;
+  --surface: #1b1d14;
+  --surface-dim: #0d0f07;
+  --surface-bright: #45483a;
+  --surface-container-lowest: #080a03;
+  --surface-container-low: #27291f;
+  --surface-container: #2c2e24;
+  --surface-container-high: #36382e;
+  --surface-container-highest: #44463b;
+  --surface-variant: #42453a;
+  --surface-tint: #b6e06a;
+
+  --on-background: #e6e8db;
+  --on-surface: #e6e8db;
+  --on-surface-variant: #c5c9b9;
+
+  --inverse-surface: #e6e8db;
+  --inverse-on-surface: #2e3127;
+  --inverse-primary: #6a8413;
+
+  --outline: #9a9e8f;
+  --outline-variant: #42453a;
+
+  --ok: #81c784;
+  --on-ok: #ffffff;
+  --ok-container: #1f3d22;
+}
+
+/* ------------------- Bóveda (noche + dorado) ------------------- */
+[data-tema="boveda"] {
+  --primary: #ffcf4d;
+  --primary-container: #3a2f00;
+  --primary-fixed: #ffe9ad;
+  --primary-fixed-dim: #ffcf4d;
+  --on-primary: #241f00;
+  --on-primary-container: #ffe9ad;
+  --on-primary-fixed: #241f00;
+  --on-primary-fixed-variant: #8a6f00;
+
+  --secondary: #bcc7ef;
+  --secondary-container: #2b3555;
+  --secondary-fixed: #dce5ff;
+  --secondary-fixed-dim: #bcc7ef;
+  --on-secondary: #ffffff;
+  --on-secondary-container: #dce5ff;
+  --on-secondary-fixed: #121d3d;
+  --on-secondary-fixed-variant: #4a5c86;
+
+  --tertiary: #6ad8b8;
+  --tertiary-container: #0f4b3b;
+  --tertiary-fixed: #b0f4dc;
+  --tertiary-fixed-dim: #6ad8b8;
+  --on-tertiary: #003326;
+  --on-tertiary-container: #b0f4dc;
+  --on-tertiary-fixed: #003326;
+  --on-tertiary-fixed-variant: #15735a;
+
+  --error: #ffb4ab;
+  --error-container: #3a1a18;
+  --on-error: #690005;
+  --on-error-container: #ffdad6;
+
+  --background: #0e1226;
+  --surface: #161a30;
+  --surface-dim: #0c0f22;
+  --surface-bright: #3d425e;
+  --surface-container-lowest: #080a1a;
+  --surface-container-low: #24283f;
+  --surface-container: #292d44;
+  --surface-container-high: #31354d;
+  --surface-container-highest: #3d425e;
+  --surface-variant: #43475f;
+  --surface-tint: #ffcf4d;
+
+  --on-background: #e1e3f0;
+  --on-surface: #e1e3f0;
+  --on-surface-variant: #c2c6d8;
+
+  --inverse-surface: #e1e3f0;
+  --inverse-on-surface: #2d3148;
+  --inverse-primary: #8a6f00;
+
+  --outline: #8f93ac;
+  --outline-variant: #43475f;
+
+  --ok: #79c86c;
+  --on-ok: #ffffff;
+  --ok-container: #1f3d22;
+}
+
+/* ------------------- IPA (violeta neón) ------------------- */
+[data-tema="ipa"] {
+  --primary: #c98aff;
+  --primary-container: #3f264f;
+  --primary-fixed: #f0dcff;
+  --primary-fixed-dim: #c98aff;
+  --on-primary: #311153;
+  --on-primary-container: #f0dcff;
+  --on-primary-fixed: #311153;
+  --on-primary-fixed-variant: #a65cf0;
+
+  --secondary: #c8bfc8;
+  --secondary-container: #412d43;
+  --secondary-fixed: #e9dce8;
+  --secondary-fixed-dim: #c8bfc8;
+  --on-secondary: #ffffff;
+  --on-secondary-container: #e9dce8;
+  --on-secondary-fixed: #2e1a30;
+  --on-secondary-fixed-variant: #6d4a70;
+
+  --tertiary: #ff8fd8;
+  --tertiary-container: #5d1e4a;
+  --tertiary-fixed: #ffd7ef;
+  --tertiary-fixed-dim: #ff8fd8;
+  --on-tertiary: #3f0435;
+  --on-tertiary-container: #ffd7ef;
+  --on-tertiary-fixed: #3f0435;
+  --on-tertiary-fixed-variant: #c94f9f;
+
+  --error: #ffb4ab;
+  --error-container: #3a1a18;
+  --on-error: #690005;
+  --on-error-container: #ffdad6;
+
+  --background: #150a22;
+  --surface: #1d1229;
+  --surface-dim: #12081d;
+  --surface-bright: #4a3e56;
+  --surface-container-lowest: #0d0418;
+  --surface-container-low: #30253c;
+  --surface-container: #352a41;
+  --surface-container-high: #3d3248;
+  --surface-container-highest: #4a3e56;
+  --surface-variant: #4a3e58;
+  --surface-tint: #c98aff;
+
+  --on-background: #ece2f0;
+  --on-surface: #ece2f0;
+  --on-surface-variant: #cfbcd4;
+
+  --inverse-surface: #ece2f0;
+  --inverse-on-surface: #362a42;
+  --inverse-primary: #a65cf0;
+
+  --outline: #a08ba6;
+  --outline-variant: #4a3e58;
+
+  --ok: #81c784;
+  --on-ok: #ffffff;
+  --ok-container: #1f3d22;
+}
+
+/* ------------------- Papel de Obra (terracota claro) ------------------- */
+[data-tema="papel-de-obra"] {
+  --primary: #9a4a1f;
+  --primary-container: #ffdccf;
+  --primary-fixed: #ffdccf;
+  --primary-fixed-dim: #ffb59c;
+  --on-primary: #ffffff;
+  --on-primary-container: #5c1f00;
+  --on-primary-fixed: #5c1f00;
+  --on-primary-fixed-variant: #7a3205;
+
+  --secondary: #6a5635;
+  --secondary-container: #f2e5c8;
+  --secondary-fixed: #f2e5c8;
+  --secondary-fixed-dim: #d4c7a3;
+  --on-secondary: #ffffff;
+  --on-secondary-container: #3f3419;
+  --on-secondary-fixed: #3f3419;
+  --on-secondary-fixed-variant: #5c4a2a;
+
+  --tertiary: #3b6e7a;
+  --tertiary-container: #d5f2fb;
+  --tertiary-fixed: #d5f2fb;
+  --tertiary-fixed-dim: #b0e4f2;
+  --on-tertiary: #ffffff;
+  --on-tertiary-container: #0f4f5c;
+  --on-tertiary-fixed: #0f4f5c;
+  --on-tertiary-fixed-variant: #216b78;
+
+  --error: #ba1a1a;
+  --error-container: #ffdad6;
+  --on-error: #ffffff;
+  --on-error-container: #93000a;
+
+  --background: #fdf6ef;
+  --surface: #fff8f0;
+  --surface-dim: #d9d0c7;
+  --surface-bright: #fffaf3;
+  --surface-container-lowest: #ffffff;
+  --surface-container-low: #fff7ef;
+  --surface-container: #f3ece4;
+  --surface-container-high: #eae2da;
+  --surface-container-highest: #e5ddd5;
+  --surface-variant: #eee2d8;
+  --surface-tint: #9a4a1f;
+
+  --on-background: #231a13;
+  --on-surface: #231a13;
+  --on-surface-variant: #564f48;
+
+  --inverse-surface: #2f2520;
+  --inverse-on-surface: #fce9d8;
+  --inverse-primary: #ffb59c;
+
+  --outline: #76685c;
+  --outline-variant: #d7c6b8;
+
+  --ok: #2e7d32;
+  --on-ok: #ffffff;
+  --ok-container: #d7efdb;
+}
+
+/* ------------------- Acero (azul claro) ------------------- */
+[data-tema="acero"] {
+  --primary: #2f5a9e;
+  --primary-container: #d5e3ff;
+  --primary-fixed: #d5e3ff;
+  --primary-fixed-dim: #a9c2fa;
+  --on-primary: #ffffff;
+  --on-primary-container: #15407d;
+  --on-primary-fixed: #15407d;
+  --on-primary-fixed-variant: #224a8a;
+
+  --secondary: #3f6f62;
+  --secondary-container: #d5e8e0;
+  --secondary-fixed: #d5e8e0;
+  --secondary-fixed-dim: #abcabb;
+  --on-secondary: #ffffff;
+  --on-secondary-container: #1f4f43;
+  --on-secondary-fixed: #1f4f43;
+  --on-secondary-fixed-variant: #2f6558;
+
+  --tertiary: #8a5442;
+  --tertiary-container: #ffdccf;
+  --tertiary-fixed: #ffdccf;
+  --tertiary-fixed-dim: #ffb59c;
+  --on-tertiary: #ffffff;
+  --on-tertiary-container: #632f22;
+  --on-tertiary-fixed: #632f22;
+  --on-tertiary-fixed-variant: #7a3f2e;
+
+  --error: #ba1a1a;
+  --error-container: #ffdad6;
+  --on-error: #ffffff;
+  --on-error-container: #93000a;
+
+  --background: #f2f5fa;
+  --surface: #f7fafd;
+  --surface-dim: #d5dae3;
+  --surface-bright: #fbfdff;
+  --surface-container-lowest: #ffffff;
+  --surface-container-low: #f2f5fa;
+  --surface-container: #e7ecf4;
+  --surface-container-high: #dfe4ed;
+  --surface-container-highest: #dadfe8;
+  --surface-variant: #e0e6ed;
+  --surface-tint: #2f5a9e;
+
+  --on-background: #171c22;
+  --on-surface: #171c22;
+  --on-surface-variant: #43474e;
+
+  --inverse-surface: #2b3138;
+  --inverse-on-surface: #e0e6f0;
+  --inverse-primary: #a9c2fa;
+
+  --outline: #73777f;
+  --outline-variant: #cdd4dc;
+
+  --ok: #2e7d32;
+  --on-ok: #ffffff;
+  --ok-container: #d7efdb;
+}
+
+/* ------------------- Arena (café claro) ------------------- */
+[data-tema="arena"] {
+  --primary: #7c5421;
+  --primary-container: #fce6c3;
+  --primary-fixed: #fce6c3;
+  --primary-fixed-dim: #f2c886;
+  --on-primary: #ffffff;
+  --on-primary-container: #5c3a0c;
+  --on-primary-fixed: #5c3a0c;
+  --on-primary-fixed-variant: #8a581d;
+
+  --secondary: #5f6040;
+  --secondary-container: #e6e6c0;
+  --secondary-fixed: #e6e6c0;
+  --secondary-fixed-dim: #c4c49b;
+  --on-secondary: #ffffff;
+  --on-secondary-container: #3c3d1f;
+  --on-secondary-fixed: #3c3d1f;
+  --on-secondary-fixed-variant: #535332;
+
+  --tertiary: #3d6e7e;
+  --tertiary-container: #caeefc;
+  --tertiary-fixed: #caeefc;
+  --tertiary-fixed-dim: #a5d8e8;
+  --on-tertiary: #ffffff;
+  --on-tertiary-container: #17596a;
+  --on-tertiary-fixed: #17596a;
+  --on-tertiary-fixed-variant: #1d6a7e;
+
+  --error: #ba1a1a;
+  --error-container: #ffdad6;
+  --on-error: #ffffff;
+  --on-error-container: #93000a;
+
+  --background: #faf6ee;
+  --surface: #fffbef;
+  --surface-dim: #dcd6cb;
+  --surface-bright: #fffdf8;
+  --surface-container-lowest: #ffffff;
+  --surface-container-low: #faf6ee;
+  --surface-container: #f3eee4;
+  --surface-container-high: #e9e3d9;
+  --surface-container-highest: #e4ded4;
+  --surface-variant: #efeadb;
+  --surface-tint: #7c5421;
+
+  --on-background: #201b12;
+  --on-surface: #201b12;
+  --on-surface-variant: #524c41;
+
+  --inverse-surface: #2b261c;
+  --inverse-on-surface: #f8efdd;
+  --inverse-primary: #f2c886;
+
+  --outline: #75715f;
+  --outline-variant: #d8d3c3;
+
+  --ok: #2e7d32;
+  --on-ok: #ffffff;
+  --ok-container: #d7efdb;
+}
+
+/* ------------------- Yerba (verde mate claro) ------------------- */
+[data-tema="yerba"] {
+  --primary: #3c6e44;
+  --primary-container: #cfead0;
+  --primary-fixed: #cfead0;
+  --primary-fixed-dim: #a4cfab;
+  --on-primary: #ffffff;
+  --on-primary-container: #1a4f2a;
+  --on-primary-fixed: #1a4f2a;
+  --on-primary-fixed-variant: #2c5d36;
+
+  --secondary: #7a4d2a;
+  --secondary-container: #f2dcc8;
+  --secondary-fixed: #f2dcc8;
+  --secondary-fixed-dim: #e0b58c;
+  --on-secondary: #ffffff;
+  --on-secondary-container: #5b3114;
+  --on-secondary-fixed: #5b3114;
+  --on-secondary-fixed-variant: #7a4a24;
+
+  --tertiary: #2f6a72;
+  --tertiary-container: #ccf0f4;
+  --tertiary-fixed: #ccf0f4;
+  --tertiary-fixed-dim: #a2d7dc;
+  --on-tertiary: #ffffff;
+  --on-tertiary-container: #124b53;
+  --on-tertiary-fixed: #124b53;
+  --on-tertiary-fixed-variant: #1f5f67;
+
+  --error: #ba1a1a;
+  --error-container: #ffdad6;
+  --on-error: #ffffff;
+  --on-error-container: #93000a;
+
+  --background: #f5f6e8;
+  --surface: #fbfcef;
+  --surface-dim: #dadfd0;
+  --surface-bright: #fdfdf6;
+  --surface-container-lowest: #ffffff;
+  --surface-container-low: #f5f6e9;
+  --surface-container: #edf2e1;
+  --surface-container-high: #e2e8d6;
+  --surface-container-highest: #dde4d3;
+  --surface-variant: #e7ecd9;
+  --surface-tint: #3c6e44;
+
+  --on-background: #1a1d1a;
+  --on-surface: #1a1d1a;
+  --on-surface-variant: #41453c;
+
+  --inverse-surface: #2a2c24;
+  --inverse-on-surface: #eef2e0;
+  --inverse-primary: #a4cfab;
+
+  --outline: #72756a;
+  --outline-variant: #d8dcc9;
+
+  --ok: #2e7d32;
+  --on-ok: #ffffff;
+  --ok-container: #d7efdb;
+}
+
+/* ------------------- Blanca Plano (neutro, planos) ------------------- */
+[data-tema="blanca-plano"] {
+  --primary: #1a1a1a;
+  --primary-container: #e0e0e0;
+  --primary-fixed: #1a1a1a;
+  --primary-fixed-dim: #d6d6d6;
+  --on-primary: #ffffff;
+  --on-primary-container: #3a3a3a;
+  --on-primary-fixed: #ffffff;
+  --on-primary-fixed-variant: #1a1a1a;
+
+  --secondary: #5b5b5b;
+  --secondary-container: #e4e4e4;
+  --secondary-fixed: #e4e4e4;
+  --secondary-fixed-dim: #c4c4c4;
+  --on-secondary: #ffffff;
+  --on-secondary-container: #3d3d3d;
+  --on-secondary-fixed: #3d3d3d;
+  --on-secondary-fixed-variant: #464646;
+
+  --tertiary: #2c5aa0;
+  --tertiary-container: #dce6ff;
+  --tertiary-fixed: #dce6ff;
+  --tertiary-fixed-dim: #b8cbff;
+  --on-tertiary: #ffffff;
+  --on-tertiary-container: #123f81;
+  --on-tertiary-fixed: #123f81;
+  --on-tertiary-fixed-variant: #1b4f95;
+
+  --error: #ba1a1a;
+  --error-container: #ffdad6;
+  --on-error: #ffffff;
+  --on-error-container: #93000a;
+
+  --background: #fafafa;
+  --surface: #ffffff;
+  --surface-dim: #d6d6d6;
+  --surface-bright: #ffffff;
+  --surface-container-lowest: #ffffff;
+  --surface-container-low: #f5f5f5;
+  --surface-container: #efefef;
+  --surface-container-high: #e7e7e7;
+  --surface-container-highest: #e2e2e2;
+  --surface-variant: #ececec;
+  --surface-tint: #1a1a1a;
+
+  --on-background: #1a1a1a;
+  --on-surface: #1a1a1a;
+  --on-surface-variant: #4a4a4a;
+
+  --inverse-surface: #1a1a1a;
+  --inverse-on-surface: #f5f5f5;
+  --inverse-primary: #e0e0e0;
+
+  --outline: #767676;
+  --outline-variant: #d0d0d0;
+
+  --ok: #2e7d32;
+  --on-ok: #ffffff;
+  --ok-container: #d7efdb;
+}
+
+/* ------------------- Obra de Día ------------------- */
+[data-tema="obra-de-dia"] {
+  --primary: #1a1a1a;
+  --primary-container: #ffcc00;
+  --primary-fixed: #ffcc00;
+  --primary-fixed-dim: #e6b800;
+  --on-primary: #ffffff;
+  --on-primary-container: #1a1a1a;
+  --on-primary-fixed: #1a1a1a;
+  --on-primary-fixed-variant: #1a1a1a;
+
+  --secondary: #e63b2e;
+  --secondary-container: #ffdad6;
+  --secondary-fixed: #ffdad6;
+  --secondary-fixed-dim: #ffb3ab;
+  --on-secondary: #ffffff;
+  --on-secondary-container: #410002;
+  --on-secondary-fixed: #410002;
+  --on-secondary-fixed-variant: #93000a;
+
+  --tertiary: #0055ff;
+  --tertiary-container: #d6e3ff;
+  --tertiary-fixed: #d6e3ff;
+  --tertiary-fixed-dim: #a8c6ff;
+  --on-tertiary: #ffffff;
+  --on-tertiary-container: #00104d;
+  --on-tertiary-fixed: #00104d;
+  --on-tertiary-fixed-variant: #00105a;
+
+  --error: #cc0000;
+  --error-container: #ffdad6;
+  --on-error: #ffffff;
+  --on-error-container: #93000a;
+
+  --background: #f5f0e8;
+  --surface: #f5f0e8;
+  --surface-dim: #d6d1c9;
+  --surface-bright: #faf7f2;
+  --surface-container-lowest: #ffffff;
+  --surface-container-low: #f2ede5;
+  --surface-container: #eee9e0;
+  --surface-container-high: #e8e3da;
+  --surface-container-highest: #e2ddd4;
+  --surface-variant: #e8e3da;
+  --surface-tint: #1a1a1a;
+
+  --on-background: #1a1a1a;
+  --on-surface: #1a1a1a;
+  --on-surface-variant: #4a4a4a;
+
+  --inverse-surface: #1a1a1a;
+  --inverse-on-surface: #f5f0e8;
+  --inverse-primary: #f5f0e8;
+
+  --outline: #4a4a4a;
+  --outline-variant: #d0cbc3;
+
+  --ok: #2e7d32;
+  --on-ok: #ffffff;
+  --ok-container: #d7efdb;
+}
+
+@theme inline {
+  --color-primary: var(--primary);
+  --color-primary-container: var(--primary-container);
+  --color-primary-fixed: var(--primary-fixed);
+  --color-primary-fixed-dim: var(--primary-fixed-dim);
+  --color-on-primary: var(--on-primary);
+  --color-on-primary-container: var(--on-primary-container);
+  --color-on-primary-fixed: var(--on-primary-fixed);
+  --color-on-primary-fixed-variant: var(--on-primary-fixed-variant);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-container: var(--secondary-container);
+  --color-secondary-fixed: var(--secondary-fixed);
+  --color-secondary-fixed-dim: var(--secondary-fixed-dim);
+  --color-on-secondary: var(--on-secondary);
+  --color-on-secondary-container: var(--on-secondary-container);
+  --color-on-secondary-fixed: var(--on-secondary-fixed);
+  --color-on-secondary-fixed-variant: var(--on-secondary-fixed-variant);
+
+  --color-tertiary: var(--tertiary);
+  --color-tertiary-container: var(--tertiary-container);
+  --color-tertiary-fixed: var(--tertiary-fixed);
+  --color-tertiary-fixed-dim: var(--tertiary-fixed-dim);
+  --color-on-tertiary: var(--on-tertiary);
+  --color-on-tertiary-container: var(--on-tertiary-container);
+  --color-on-tertiary-fixed: var(--on-tertiary-fixed);
+  --color-on-tertiary-fixed-variant: var(--on-tertiary-fixed-variant);
+
+  --color-error: var(--error);
+  --color-error-container: var(--error-container);
+  --color-on-error: var(--on-error);
+  --color-on-error-container: var(--on-error-container);
+
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-dim: var(--surface-dim);
+  --color-surface-bright: var(--surface-bright);
+  --color-surface-container-lowest: var(--surface-container-lowest);
+  --color-surface-container-low: var(--surface-container-low);
+  --color-surface-container: var(--surface-container);
+  --color-surface-container-high: var(--surface-container-high);
+  --color-surface-container-highest: var(--surface-container-highest);
+  --color-surface-variant: var(--surface-variant);
+  --color-surface-tint: var(--surface-tint);
+
+  --color-on-background: var(--on-background);
+  --color-on-surface: var(--on-surface);
+  --color-on-surface-variant: var(--on-surface-variant);
+
+  --color-inverse-surface: var(--inverse-surface);
+  --color-inverse-on-surface: var(--inverse-on-surface);
+  --color-inverse-primary: var(--inverse-primary);
+
+  --color-outline: var(--outline);
+  --color-outline-variant: var(--outline-variant);
+
+  --color-ok: var(--ok);
+  --color-on-ok: var(--on-ok);
+  --color-ok-container: var(--ok-container);
+
+  --font-headline: "Space Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-label: "Space Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, monospace;
+
+  --radius-xs: 0.125rem;
+  --radius-sm: 0.125rem;
+  --radius-md: 0.25rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+}
+
+/* Roles tipográficos nominales */
+.font-headline-xl {
+  font-family: var(--font-headline);
+  font-size: 2rem;
+  line-height: 2.5rem;
+  letter-spacing: -0.025em;
+  font-weight: 700;
+}
+.font-headline-lg {
+  font-family: var(--font-headline);
+  font-size: 1.5rem;
+  line-height: 2rem;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+.font-headline-md {
+  font-family: var(--font-headline);
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+  letter-spacing: -0.015em;
+  font-weight: 600;
+}
+.font-headline-sm {
+  font-family: var(--font-headline);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+.font-body-lg {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+.font-body-md {
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+.font-body-sm {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+.font-label-lg {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+.font-label-md {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 500;
+}
+.font-label-sm {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  line-height: 0.875rem;
+  letter-spacing: 0.02em;
+  font-weight: 500;
+}
+
+body {
+  background: var(--background);
+  color: var(--on-surface);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 200ms ease, color 200ms ease;
+}
+
+.material-symbols-outlined {
+  font-variation-settings:
+    "FILL" 0,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 24;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--surface-container);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--surface-dim);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--on-surface-variant);
+}
+
+:where(a, button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--tertiary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+  }
+  .print-break-avoid {
+    break-inside: avoid;
+  }
+}
+
+/* Icono cerrado del acordeón de fases */
+details > summary {
+  list-style: none;
+}
+details > summary::-webkit-details-marker {
+  display: none;
+}
+details[open] .joyeria-flecha {
+  transform: rotate(180deg);
+}
