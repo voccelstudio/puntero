@@ -14,7 +14,7 @@
 /**
  * Rubro de la base de precios, tal como queda en el archivo fuente.
  *
- * `m` es el costo de materiales y `l` el de mano de obra. Solo 19 de los 399
+ * `m` es el costo de materiales y `l` el de mano de obra. Solo 19 de los 427
  * rubros traen `l` explicito: en el resto la mano de obra se deriva como
  * `m * laborPct / 100`, con el porcentaje de su categoria. `y` es el
  * rendimiento por dia y solo 23 rubros lo traen; es lo que permite pasar de
@@ -77,8 +77,8 @@ export interface Rubro {
 }
 
 
-export const DB_VERSION = "2026-09-clientes-fases-colocacion-artefactos";
-export const DB_FECHA = "Septiembre 2026 (+ institución de colocación de artefactos con MO explícita)";
+export const DB_VERSION = "2026-10-losetas-espesores-termoacusticos-espumas-artefactos-bano";
+export const DB_FECHA = "Octubre 2026 (+ espesores de losa, termoacústica EPS/PUR, espumas de aislación y artefactos/accesorios de baño)";
 
 // ── PRECIOS UNITARIOS DE MATERIALES (referencia interna) ──────────────────
 // Rango A-B documentado en comentarios para transparencia interna
@@ -424,11 +424,17 @@ export const MAT_PRECIOS: Record<string, PrecioMaterial> = {
   "Moldura yeso 14cm":             { p: 32000,  u: "ml" },
   "Junta dilatación cielo raso":   { p: 16000,  u: "ml" },
 
-  // ─── TECHOS METÁLICOS / TERMOACÚSTICOS (Mayo 2026) ───────────────────
-  // Fuentes: Tecnimetal PY, Mercofer, Isopanel SA, Clasipar 2026
+  // ─── TECHOS METÁLICOS / TERMOACÚSTICOS (Oct 2026) ───────────────────
+  // Fuentes: Intermark SA, Aceros y Suministros, Tecnimetal PY, Isopanel SA, Clasipar
+  // Espesores habituales de mercado: EPS 30/40/50/75/100mm · PUR/PIR 30/40/50mm
   "Chapa termoacústica trapez. EPS 30mm": { p: 220000, u: "m2" }, // núcleo isopor 3cm
+  "Chapa termoacústica trapez. EPS 40mm": { p: 235000, u: "m2" }, // núcleo isopor 4cm
   "Chapa termoacústica trapez. EPS 50mm": { p: 250000, u: "m2" }, // núcleo isopor 5cm — más usada
+  "Chapa termoacústica trapez. EPS 75mm": { p: 300000, u: "m2" }, // núcleo isopor 7.5cm — galpones
+  "Chapa termoacústica trapez. EPS 100mm":{ p: 340000, u: "m2" }, // núcleo isopor 10cm — industrial
   "Chapa termoacústica trapez. PUR 30mm": { p: 320000, u: "m2" }, // poliuretano, mejor aisl.
+  "Chapa termoacústica trapez. PUR 40mm": { p: 355000, u: "m2" }, // PUR 4cm — cámaras lig.
+  "Chapa termoacústica trapez. PUR 50mm": { p: 380000, u: "m2" }, // PUR 5cm — cámara fría
   "Chapa termoacústica colonial EPS 40mm":{ p: 290000, u: "m2" }, // imitación teja con aisl.
   "Chapa traslúcida fibra vidrio acanal.":{ p: 165000, u: "m2" }, // p/ lucernarios laterales
   "Policarbonato alveolar 6mm":           { p: 95000,  u: "m2" }, // p/ lucernarios cenitales
@@ -440,6 +446,20 @@ export const MAT_PRECIOS: Record<string, PrecioMaterial> = {
   "Canaleta zinc Nº24 desarrollada":      { p: 35000,  u: "ml" }, // p/ desagüe pluvial
   "Bajada PVC 100mm pluvial":             { p: 18000,  u: "ml" },
   "Codos y accesorios pluvial PVC 100mm": { p: 25000,  u: "un" },
+
+  // ─── ESPUMAS Y AISLACIÓN TÉRMICA (Oct 2026) ─────────────────────────
+  // Fuentes: Polinorte, Isopanel SA, Estisol, proveedores de aislación PY
+  "Plancha EPS isopor 10mm (1x1m)":       { p: 28000,  u: "m2" }, // densidad 20kg/m3
+  "Plancha EPS isopor 20mm (1x1m)":       { p: 48000,  u: "m2" },
+  "Plancha EPS isopor 30mm (1x1m)":       { p: 68000,  u: "m2" },
+  "Plancha EPS isopor 50mm (1x1m)":       { p: 98000,  u: "m2" },
+  "Plancha EPS isopor 100mm (1x1m)":      { p: 165000, u: "m2" },
+  "Ladrillo sapo EPS (bloque p/ losa)":   { p: 48000,  u: "un" }, // 2 bloques por m² de forjado
+  "Espuma polietileno c/ foil alu 5mm":   { p: 26000,  u: "m2" }, // rollo bajo chapa/templo
+  "Espuma polietileno c/ foil alu 10mm":  { p: 42000,  u: "m2" },
+  "Lana de vidrio rollo 50mm":            { p: 88000,  u: "m2" }, // + aislación acústica
+  "Poliuretano proyectado (espuma PUR)":  { p: 130000, u: "m2" }, // aplicado ~3cm en obra
+  "Espuma PUR aerosol 750ml":             { p: 55000,  u: "un" }, // sellado de juntas
 
   // ─── INSTALACIÓN ELÉCTRICA AVANZADA (Mayo 2026) ──────────────────────
   // Fuentes: Sensorview, Conecta, Construex, Promart, AutoSolar 2026
@@ -512,6 +532,22 @@ export const MAT_PRECIOS: Record<string, PrecioMaterial> = {
   "Botiquín 44x58x11cm":              { p: 285000, u: "un" }, // espejo c/ guardado
   "Bañera 1.60x0.70m":                { p: 2200000,u: "un" }, // bañera fibra/acrílico
   "Pileta 1 bacha acero inox":        { p: 580000, u: "un" }, // pileta cocina simple
+  // ─── ARTEFACTOS Y ACCESORIOS DE BAÑO (Oct 2026) ─────────────────────
+  // Fuentes: Deca (dist. PY), Corporación Mercantil, Electro Ferbasán, Porter
+  "Inodoro c/ tanque bajo completo Deca": { p: 1100000,u: "un" }, // kit taza+cisterna+tapa
+  "Inodoro c/ tanque bajo económico":     { p: 650000, u: "un" }, // marca Santa Clara tipo
+  "Inodoro suspendido Deca (sin taza)":   { p: 900000, u: "un" }, // p/ instalación empotrada
+  "Bacha lavatorio c/ pedestal Deca":     { p: 520000, u: "un" },
+  "Bacha lavatorio p/ mesada Deca":       { p: 380000, u: "un" },
+  "Grifería lavatorio monocomando":      { p: 300000, u: "un" }, // punto simple
+  "Grifería cocina extraíble":           { p: 420000, u: "un" },
+  "Mezcladora de ducha monocomando":     { p: 350000, u: "un" },
+  "Mesada granito pulido (m2 colocada)": { p: 480000, u: "m2" }, // corte+moldura+colocación
+  "Mesada mármol pulido (m2 colocada)":  { p: 580000, u: "m2" },
+  "Accesorios baño set cromo (4 pzas)":  { p: 480000, u: "set" }, // toallero+portarrollo+jabonera+llavero
+  "Espejo baño c/ luz LED":              { p: 720000, u: "un" },
+  "Cortina de ducha + barral":           { p: 220000, u: "un" },
+  "Barra telefónica de ducha":           { p: 380000, u: "un" }, // regadera + barra deslizante
   // Pisos y revestimientos
   "Granito natural":                  { p: 285000, u: "m2" }, // mesada/escalón
   "Mármol blanco":                    { p: 380000, u: "m2" }, // alta gama
@@ -771,8 +807,8 @@ export const DB_RAW: RawRubros = {
     ]
   },
   "Losa Rap h=17cm (12+5)": {
-    u:"m2", m:240000,
-    // Mandua Costeo pág 37: ₲227.080
+    u:"m2", m:265000,
+    // Mandua Costeo pág 37: ₲227.080 · act. mercado PY oct-2026 (~+10%)
     mats:[
       {n:"Cemento tipo 1",q:22.8,u:"kg"},
       {n:"Arena lavada",q:0.04,u:"m3"},
@@ -783,8 +819,8 @@ export const DB_RAW: RawRubros = {
     ]
   },
   "Losa Rap h=24cm (20+4)": {
-    u:"m2", m:252000,
-    // Mandua Costeo pág 37: ₲239.070
+    u:"m2", m:278000,
+    // Mandua Costeo pág 37: ₲239.070 · act. mercado PY oct-2026 (~+10%)
     mats:[
       {n:"Cemento tipo 1",q:24.2,u:"kg"},
       {n:"Arena lavada",q:0.05,u:"m3"},
@@ -794,8 +830,8 @@ export const DB_RAW: RawRubros = {
     ]
   },
   "Losa Listalosa": {
-    u:"m2", m:233000,
-    // Mandua Costeo pág 37: ₲220.400
+    u:"m2", m:250000,
+    // Mandua Costeo pág 37: ₲220.400 · act. mercado PY oct-2026 (~+10%)
     mats:[
       {n:"Cemento tipo 1",q:18,u:"kg"},
       {n:"Piedra triturada V",q:0.08,u:"tn"},
@@ -804,9 +840,21 @@ export const DB_RAW: RawRubros = {
       {n:"Vigueta listalosa",q:1,u:"m2"},
     ]
   },
+  "Losa isopanel EPS h=20cm (12+8)": {
+    u:"m2", m:245000,
+    // Forjado aligerado con ladrillo sapo de EPS — mandua Costeo pág 37 (base listalosa)
+    // act. mercado PY oct-2026 · Isopanel SA (2 bloques EPS/m²)
+    mats:[
+      {n:"Ladrillo sapo EPS (bloque p/ losa)",q:2,u:"un"},
+      {n:"Cemento tipo 1",q:20,u:"kg"},
+      {n:"Arena lavada",q:0.03,u:"m3"},
+      {n:"Piedra triturada V",q:0.08,u:"tn"},
+      {n:"Varilla conformada Ø6mm",q:1.60,u:"kg"},
+    ]
+  },
   "Piso H°A° fck=21MPa 10cm": {
-    u:"m2", m:220000,
-    // Mandua Costeo pág 37: ₲208.087
+    u:"m2", m:238000,
+    // Mandua Costeo pág 37: ₲208.087 · act. mercado PY oct-2026 (~+10%)
     mats:[
       {n:"Cemento tipo 1",q:35,u:"kg"},
       {n:"Arena lavada de río",q:0.07,u:"m3"},
@@ -815,6 +863,32 @@ export const DB_RAW: RawRubros = {
       {n:"Varilla lisa",q:1,u:"kg"},
       {n:"REOPLAST",q:0.35,u:"kg"},
       {n:"SIKAFLEX Sellador",q:0.33,u:"lt"},
+    ]
+  },
+  "Piso H°A° fck=21MPa 12cm": {
+    u:"m2", m:272000,
+    // Losa de piso/platea 12cm — derivado del 10cm ×1.2, mercado PY oct-2026
+    mats:[
+      {n:"Cemento tipo 1",q:42,u:"kg"},
+      {n:"Arena lavada de río",q:0.08,u:"m3"},
+      {n:"Piedra triturada IV",q:0.16,u:"tn"},
+      {n:"Varilla conformada Ø8mm",q:5,u:"kg"},
+      {n:"Varilla lisa",q:1,u:"kg"},
+      {n:"REOPLAST",q:0.42,u:"kg"},
+      {n:"SIKAFLEX Sellador",q:0.33,u:"lt"},
+    ]
+  },
+  "Piso H°A° fck=21MPa 15cm": {
+    u:"m2", m:322000,
+    // Losa de piso/platea 15cm — derivado del 10cm ×1.5, mercado PY oct-2026
+    mats:[
+      {n:"Cemento tipo 1",q:50,u:"kg"},
+      {n:"Arena lavada de río",q:0.10,u:"m3"},
+      {n:"Piedra triturada IV",q:0.20,u:"tn"},
+      {n:"Varilla conformada Ø8mm",q:6,u:"kg"},
+      {n:"Varilla lisa",q:1,u:"kg"},
+      {n:"REOPLAST",q:0.50,u:"kg"},
+      {n:"SIKAFLEX Sellador",q:0.40,u:"lt"},
     ]
   },
 },
@@ -1140,9 +1214,10 @@ export const DB_RAW: RawRubros = {
     ]
   },
 
-// ─── TECHOS TERMOACÚSTICOS / METÁLICOS MODERNOS (Mayo 2026) ──────────
+// ─── TECHOS TERMOACÚSTICOS / METÁLICOS MODERNOS (Oct 2026) ───────────
 // Sistemas premium con aislación térmica/acústica integrada
-// Fuentes: Tecnimetal PY, Mercofer, Isopanel SA, Clasipar 2026
+// Fuentes: Intermark SA, Aceros y Suministros, Tecnimetal PY, Isopanel SA, Clasipar
+// Gama de espesores de mercado: EPS 30/40/50/75/100mm · PUR 30/40/50mm
 
   "Chapa termoacústica trapez. EPS 30mm s/ estructura existente": {
     u:"m2", m:240000,
@@ -1153,8 +1228,16 @@ export const DB_RAW: RawRubros = {
       {n:"Tornillo autoperforante c/ arandela",q:8,u:"un"},
     ]
   },
+  "Chapa termoacústica trapez. EPS 40mm s/ estructura existente": {
+    u:"m2", m:255000,
+    // Home Intermark/A&G 2026: EPS 40mm (galvalume/blanco) — muy usada en viviendas
+    mats:[
+      {n:"Chapa termoacústica trapez. EPS 40mm",q:1.05,u:"m2"},
+      {n:"Tornillo autoperforante c/ arandela",q:8,u:"un"},
+    ]
+  },
   "Chapa termoacústica trapez. EPS 50mm s/ estructura existente": {
-    u:"m2", m:275000,
+    u:"m2", m:270000,
     // La más usada — buen balance precio/aislación
     // Ref: Tecnimetal PY 2026 ~₲290k/m²
     mats:[
@@ -1162,12 +1245,43 @@ export const DB_RAW: RawRubros = {
       {n:"Tornillo autoperforante c/ arandela",q:8,u:"un"},
     ]
   },
+  "Chapa termoacústica trapez. EPS 75mm s/ estructura existente": {
+    u:"m2", m:322000,
+    // Galpones y naves — aislación reforzada EPS 7.5cm
+    mats:[
+      {n:"Chapa termoacústica trapez. EPS 75mm",q:1.05,u:"m2"},
+      {n:"Tornillo autoperforante c/ arandela",q:8,u:"un"},
+    ]
+  },
+  "Chapa termoacústica trapez. EPS 100mm s/ estructura existente": {
+    u:"m2", m:363000,
+    // Uso industrial / climas extremos — EPS 10cm
+    mats:[
+      {n:"Chapa termoacústica trapez. EPS 100mm",q:1.05,u:"m2"},
+      {n:"Tornillo autoperforante c/ arandela",q:8,u:"un"},
+    ]
+  },
   "Chapa termoacústica PUR 30mm (premium)": {
-    u:"m2", m:355000,
+    u:"m2", m:350000,
     // Núcleo poliuretano — mejor aislación térmica que EPS
-    // Ref: Tecnimetal PY 2026 ~₲390k/m²
     mats:[
       {n:"Chapa termoacústica trapez. PUR 30mm",q:1.05,u:"m2"},
+      {n:"Tornillo autoperforante c/ arandela",q:8,u:"un"},
+    ]
+  },
+  "Chapa termoacústica PUR 40mm (premium)": {
+    u:"m2", m:380000,
+    // PUR 4cm — niveles de confort altos, cámaras ligeras
+    mats:[
+      {n:"Chapa termoacústica trapez. PUR 40mm",q:1.05,u:"m2"},
+      {n:"Tornillo autoperforante c/ arandela",q:8,u:"un"},
+    ]
+  },
+  "Chapa termoacústica PUR 50mm (premium)": {
+    u:"m2", m:405000,
+    // PUR 5cm — cámara de frío / congelado
+    mats:[
+      {n:"Chapa termoacústica trapez. PUR 50mm",q:1.05,u:"m2"},
       {n:"Tornillo autoperforante c/ arandela",q:8,u:"un"},
     ]
   },
@@ -1199,6 +1313,26 @@ export const DB_RAW: RawRubros = {
       {n:"Perfil C galvanizado 100x50",q:0.8,u:"ml"},
       {n:"Cabriada metálica armada (kg)",q:5,u:"kg"},
       {n:"Chapa termoacústica trapez. EPS 50mm",q:1.05,u:"m2"},
+      {n:"Tornillo autoperforante c/ arandela",q:8,u:"un"},
+    ]
+  },
+  "Tinglado completo c/ estructura + termoacústica EPS 75mm": {
+    u:"m2", m:340000,
+    // Llave en mano con aislación reforzada — galpones/naves
+    mats:[
+      {n:"Perfil C galvanizado 100x50",q:0.8,u:"ml"},
+      {n:"Cabriada metálica armada (kg)",q:5,u:"kg"},
+      {n:"Chapa termoacústica trapez. EPS 75mm",q:1.05,u:"m2"},
+      {n:"Tornillo autoperforante c/ arandela",q:8,u:"un"},
+    ]
+  },
+  "Tinglado completo c/ estructura + termoacústica EPS 100mm": {
+    u:"m2", m:385000,
+    // Máxima aislación llave en mano — uso industrial
+    mats:[
+      {n:"Perfil C galvanizado 100x50",q:0.8,u:"ml"},
+      {n:"Cabriada metálica armada (kg)",q:5,u:"kg"},
+      {n:"Chapa termoacústica trapez. EPS 100mm",q:1.05,u:"m2"},
       {n:"Tornillo autoperforante c/ arandela",q:8,u:"un"},
     ]
   },
@@ -1463,6 +1597,73 @@ export const DB_RAW: RawRubros = {
       {n:"Betocem hidrófugo",q:0.25,u:"lt"},
     ]
   },
+
+// ─── AISLACIÓN TÉRMICA / ACÚSTICA CON ESPUMAS (Oct 2026) ─────────────
+// Fuentes: Polinorte, Isopanel SA, Estisol, proveedores de aislación PY
+// MO derivada de la categoría (AISLACIÓN: 34%)
+
+  "Aislación térmica plancha EPS 10mm": {
+    u:"m2", m:30000,
+    // Plancha isopor 1x1m, densidad 20kg/m3, colocada sobre muro/losa
+    mats:[
+      {n:"Plancha EPS isopor 10mm (1x1m)",q:1.02,u:"m2"},
+    ]
+  },
+  "Aislación térmica plancha EPS 20mm": {
+    u:"m2", m:52000,
+    mats:[
+      {n:"Plancha EPS isopor 20mm (1x1m)",q:1.02,u:"m2"},
+    ]
+  },
+  "Aislación térmica plancha EPS 30mm": {
+    u:"m2", m:72000,
+    // Espesor más equilibrado para techo plano/cielorraso
+    mats:[
+      {n:"Plancha EPS isopor 30mm (1x1m)",q:1.02,u:"m2"},
+    ]
+  },
+  "Aislación térmica plancha EPS 50mm": {
+    u:"m2", m:102000,
+    mats:[
+      {n:"Plancha EPS isopor 50mm (1x1m)",q:1.02,u:"m2"},
+    ]
+  },
+  "Aislación térmica plancha EPS 100mm": {
+    u:"m2", m:170000,
+    // Alta aislación — techos expuestos o cámaras
+    mats:[
+      {n:"Plancha EPS isopor 100mm (1x1m)",q:1.02,u:"m2"},
+    ]
+  },
+  "Aislación cubierta espuma polietileno c/ foil 5mm": {
+    u:"m2", m:28000,
+    // Rollo fino bajo chapa (reflectivo) — quinchos, techos de chapa
+    mats:[
+      {n:"Espuma polietileno c/ foil alu 5mm",q:1.05,u:"m2"},
+    ]
+  },
+  "Aislación cubierta espuma polietileno c/ foil 10mm": {
+    u:"m2", m:45000,
+    mats:[
+      {n:"Espuma polietileno c/ foil alu 10mm",q:1.05,u:"m2"},
+    ]
+  },
+  "Aislación acústica lana de vidrio 50mm": {
+    u:"m2", m:94000,
+    // Rollo 50mm — cielorraso, tabiques, salas de máquinas
+    mats:[
+      {n:"Lana de vidrio rollo 50mm",q:1.05,u:"m2"},
+    ]
+  },
+  "Aislación poliuretano proyectado 30mm": {
+    u:"m2", m:150000,
+    // Espuma PUR aplicada in situ ~3cm — aislación sin juntas
+    mats:[
+      {n:"Poliuretano proyectado (espuma PUR)",q:1.10,u:"m2"},
+    ]
+  },
+
+  // Cierre de categoría AISLACIÓN
 },
 
 // ════════════════════════════════════════════════════════════════════════
@@ -1868,6 +2069,108 @@ export const DB_RAW: RawRubros = {
     mats:[
       {n:"Mármol blanco",q:0.42,u:"m2"},
       {n:"Moldura pecho paloma",q:1.90,u:"ml"},
+    ]
+  },
+
+// ─── ARTEFACTOS Y ACCESORIOS DE BAÑO (Oct 2026) ──────────────────────
+// Rubros individuales para presupuestos por partida
+// Fuentes: Deca (dist. PY), Corporación Mercantil, Electro Ferbasán, Porter
+
+  "Inodoro con tanque bajo completo (Deca)": {
+    u:"un", m:1150000,
+    // Kit taza + cisterna + asiento/tapa — gama Deca Living/Axis ~₲1.1M
+    mats:[
+      {n:"Inodoro c/ tanque bajo completo Deca",q:1,u:"un"},
+    ]
+  },
+  "Inodoro con tanque bajo completo (económico)": {
+    u:"un", m:680000,
+    // Marca económica tipo Santa Clara (promo ₲499.900-650.000) + instalación
+    mats:[
+      {n:"Inodoro c/ tanque bajo económico",q:1,u:"un"},
+    ]
+  },
+  "Inodoro suspendido (Deca, sin taza)": {
+    u:"un", m:980000,
+    // Taza suspensa c/ soporte y botón — instalación empotrada
+    mats:[
+      {n:"Inodoro suspendido Deca (sin taza)",q:1,u:"un"},
+    ]
+  },
+  "Bacha lavatorio c/ pedestal (completa)": {
+    u:"un", m:560000,
+    // Bacha con columna + grifería simple
+    mats:[
+      {n:"Bacha lavatorio c/ pedestal Deca",q:1,u:"un"},
+      {n:"Grifería lavatorio monocomando",q:1,u:"un"},
+    ]
+  },
+  "Lavatorio p/ mesada (bacha + grifería)": {
+    u:"un", m:700000,
+    // Bacia rebatible/encastrada + mezcladora — baños de mesada
+    mats:[
+      {n:"Bacha lavatorio p/ mesada Deca",q:1,u:"un"},
+      {n:"Grifería lavatorio monocomando",q:1,u:"un"},
+    ]
+  },
+  "Grifería monocomando de lavatorio": {
+    u:"un", m:350000,
+    // Mezcladora cromada punto medio
+    mats:[
+      {n:"Grifería lavatorio monocomando",q:1,u:"un"},
+    ]
+  },
+  "Grifería de cocina extraíble": {
+    u:"un", m:480000,
+    // Mezcladora con caño flexible/ducha integrada
+    mats:[
+      {n:"Grifería cocina extraíble",q:1,u:"un"},
+    ]
+  },
+  "Mezcladora de ducha monocomando": {
+    u:"un", m:400000,
+    mats:[
+      {n:"Mezcladora de ducha monocomando",q:1,u:"un"},
+    ]
+  },
+  "Mesada de granito pulido": {
+    u:"m2", m:560000,
+    // Corte, pulido, moldura y colocación — cocinas/baños
+    mats:[
+      {n:"Mesada granito pulido (m2 colocada)",q:1.05,u:"m2"},
+    ]
+  },
+  "Mesada de mármol pulido": {
+    u:"m2", m:640000,
+    mats:[
+      {n:"Mesada mármol pulido (m2 colocada)",q:1.05,u:"m2"},
+    ]
+  },
+  "Accesorios de baño set completo": {
+    u:"set", m:560000,
+    // Toallero + portarrollo + jabonera + llavero, en cromo
+    mats:[
+      {n:"Accesorios baño set cromo (4 pzas)",q:1,u:"set"},
+    ]
+  },
+  "Espejo de baño con luz LED": {
+    u:"un", m:820000,
+    // 60cm, luz blanca, antiempañante
+    mats:[
+      {n:"Espejo baño c/ luz LED",q:1,u:"un"},
+    ]
+  },
+  "Cortina de ducha con barral": {
+    u:"un", m:260000,
+    mats:[
+      {n:"Cortina de ducha + barral",q:1,u:"un"},
+    ]
+  },
+  "Ducha teléfono con barra deslizante": {
+    u:"un", m:440000,
+    // Regadera + barra + manguera + soporte
+    mats:[
+      {n:"Barra telefónica de ducha",q:1,u:"un"},
     ]
   },
 },
