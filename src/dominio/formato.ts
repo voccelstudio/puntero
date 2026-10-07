@@ -53,22 +53,12 @@ export function formatMoneda(
   return moneda === "USD" ? formatUsd(gsAUsd(montoGs, pygPorUsd)) : formatGs(montoGs, decimales);
 }
 
-/** Gs. 1,2 M / US$ 850 k — para KPIs y tarjetas. */
+/**
+ * Monto completo en la moneda activa (`Gs. 1.234.567` / `US$ 1.234,56`).
+ * No se abrevia (`1,2 M`, `850 k`).
+ */
 export function formatCompacto(montoGs: number, moneda: Moneda, pygPorUsd: number): string {
-  const valor = moneda === "USD" ? gsAUsd(montoGs, pygPorUsd) : montoGs;
-  const signo = valor < 0 ? "-" : "";
-  const abs = Math.abs(valor);
-  const sufijo = moneda === "USD" ? "US$ " : "Gs. ";
-
-  if (abs >= 1_000_000_000) return `${signo}${sufijo}${corta(abs / 1_000_000_000)} B`;
-  if (abs >= 1_000_000) return `${signo}${sufijo}${corta(abs / 1_000_000)} M`;
-  if (abs >= 1_000) return `${signo}${sufijo}${corta(abs / 1_000)} k`;
-  return `${signo}${sufijo}${Math.round(abs).toString()}`;
-}
-
-function corta(valor: number): string {
-  const texto = valor.toFixed(1);
-  return texto.endsWith(",0") ? texto.slice(0, -2) : texto;
+  return formatMoneda(montoGs, moneda, pygPorUsd);
 }
 
 const UNIDADES: Record<Unidad, string> = {

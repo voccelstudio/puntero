@@ -749,7 +749,7 @@ function JornalerosView({ datos, guardar }: { datos: DatosFinanzas; guardar: (d:
                       </span>
                     </span>
                     {porLiquidar.total > 0 && (
-                      <Chip tono="advertencia">{fmtCompactoStr(porLiquidar.total)}</Chip>
+                      <Chip tono="advertencia">{fmt(porLiquidar.total)}</Chip>
                     )}
                   </button>
                   <label className="flex items-center gap-1 font-label-sm cursor-pointer">
@@ -915,12 +915,6 @@ function JornalerosView({ datos, guardar }: { datos: DatosFinanzas; guardar: (d:
       )}
     </div>
   );
-}
-
-function fmtCompactoStr(v: number): string {
-  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1).replace(".", ",")} M`;
-  if (v >= 1_000) return `${(v / 1_000).toFixed(0)} k`;
-  return `${v}`;
 }
 
 function JornaleroForm({ onGuardar }: { onGuardar: (j: Jornalero) => void }) {
