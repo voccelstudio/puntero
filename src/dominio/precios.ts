@@ -4756,6 +4756,80 @@ export const RUBROS_POR_CATEGORIA: Record<string, number> = Object.fromEntries(
   CATEGORIAS.map((c) => [c, Object.keys(DB_RAW[c] ?? {}).length]),
 );
 
+/**
+ * Orden sugerido para cargar un presupuesto. El usuario abre el catálogo sin
+ * escribir y ve esta guia por fases; cada fase agrupa categorias de la base.
+ */
+export const GUIA_DE_CARGA: { fase: string; categorias: string[] }[] = [
+  {
+    fase: "Anteproyecto y preliminares",
+    categorias: ["DEMOLICIONES", "MOVIMIENTO DE SUELO"],
+  },
+  {
+    fase: "Fundaciones y estructura",
+    categorias: ["FUNDACIONES", "ESTRUCTURAS", "CONTRAPISOS"],
+  },
+  {
+    fase: "Mampostería y revoques",
+    categorias: ["MAMPOSTERÍA", "REVOQUES"],
+  },
+  {
+    fase: "Techos y aislaciones",
+    categorias: ["TECHOS", "AISLACIÓN", "IMPERMEABILIZACIONES"],
+  },
+  {
+    fase: "Instalaciones (sanitarias, eléctricas y complementarias)",
+    categorias: [
+      "DESAGÜE CLOACAL",
+      "AGUA CORRIENTE",
+      "SANITARIOS COMPLEMENTARIOS",
+      "INSTALACIÓN ELÉCTRICA",
+      "BAJA CORRIENTE",
+      "CLIMATIZACIÓN",
+      "PREVENCIÓN DE INCENDIOS",
+    ],
+  },
+  {
+    fase: "Carpinterías, vidrios y cerramientos",
+    categorias: [
+      "CARPINTERÍA MADERA",
+      "CARPINTERÍA METÁLICA",
+      "VIDRIOS",
+      "HERRERÍA ORNAMENTAL",
+      "CERCOS PERIMETRALES",
+    ],
+  },
+  {
+    fase: "Tabiques, cielorrasos y yesería",
+    categorias: ["TABIQUES DURLOCK", "CIELO RASOS", "YESERÍA"],
+  },
+  {
+    fase: "Pisos, revestimientos y escaleras",
+    categorias: ["PISOS", "REVESTIMIENTOS", "ESCALERAS Y BARANDAS"],
+  },
+  {
+    fase: "Terminaciones y pinturas",
+    categorias: [
+      "PINTURAS",
+      "LUSTRE Y BARNIZ",
+      "PINTURAS INDUSTRIALES",
+      "OBRA HÚMEDA COMPLEMENTARIA",
+    ],
+  },
+  {
+    fase: "Artefactos y equipamiento",
+    categorias: ["ARTEFACTOS SANITARIOS", "INSTALACIÓN Y COLOCACIÓN DE ARTEFACTOS"],
+  },
+  {
+    fase: "Exteriores, obra civil y piscinas",
+    categorias: ["PISCINAS", "PAISAJISMO", "VEREDAS Y ACCESOS"],
+  },
+  {
+    fase: "Otros rubros",
+    categorias: ["VARIOS"],
+  },
+];
+
 export function obtenerRubro(id: string): Rubro | undefined {
   return RUBROS_POR_ID.get(id);
 }

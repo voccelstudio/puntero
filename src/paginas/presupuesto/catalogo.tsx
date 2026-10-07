@@ -1,5 +1,12 @@
 import { useMemo, useState } from "react";
-import { buscarRubros, CATEGORIAS, type Rubro } from "@/dominio/precios";
+import {
+  buscarRubros,
+  CATEGORIAS,
+  GUIA_DE_CARGA,
+  RUBROS,
+  RUBROS_POR_CATEGORIA,
+  type Rubro,
+} from "@/dominio/precios";
 import { itemDesdeRubro } from "@/dominio/calculo";
 import { formatUnidad } from "@/dominio/formato";
 import type { ItemPresupuesto } from "@/dominio/tipos";
@@ -7,7 +14,7 @@ import { Boton, EmptyState, Icono, Modal, Select, Tabla, Td, Texto, Th } from "@
 
 const POR_PAGINA = 25;
 
-/** Navegador del catálogo de la base de precios (399 rubros). */
+/** Navegador del catálogo de la base de precios (427 rubros). */
 export function CatalogoRubros({
   abierto,
   onClose,
@@ -23,10 +30,14 @@ export function CatalogoRubros({
   const [pagina, setPagina] = useState(0);
   const [cantidad, setCantidad] = useState<Record<string, string>>({});
 
+  const guiando = busqueda.trim() === "" && categoria === "TODAS";
+
   const resultados = useMemo(() => {
-    const filtrados = categoria === "TODAS" ? buscarRubros(busqueda, 1000) : buscarRubros(busqueda, 1000).filter((r) => r.categoria === categoria);
-    return filtrados;
-  }, [busqueda, categoria]);
+    if (guiando) return [];
+    const q = busqueda.trim();
+    const todos = q ? buscarRubros(q, 1000) : RUBROS;
+    return categoria === "TODAS" ? todos : todos.filter((r) => r.categoria === categoria);
+  }, [busqueda, categoria, guiando]);
 
   const totalPaginas = Math.max(1, Math.ceil(resultados.length / POR_PAGINA));
   const visibles = resultados.slice(pagina * POR_PAGINA, (pagina + 1) * POR_PAGINA);
@@ -70,9 +81,51 @@ export function CatalogoRubros({
           </Select>
         </div>
 
-        <p className="font-body-sm text-on-surface-variant">
-          {resultados.length} rubros · precios de las guías de referencia (material + mano de obra)
-        </p>
+        {guiando ? (
+          <>
+            <p className="font-body-sm text-on-surface-variant">
+              Nueva obra: cargá los rubros siguiendo este orden sugerido (pre-proyecto, estructura,
+              instalaciones, terminaciones…). Tocá una categoría para ver sus rubros o buscá directo.
+            </p>
+            <ol className="flex flex-col gap-4">
+              {GUIA_DE_CARGA.map((fase, indice) => (
+                <li key={fase.fase}>
+                  <p className="font-label-md text-on-surface-variant">
+                    {indice + 1}. {fase.fase}
+                  </p>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {fase.categorias.map((c) => (
+                      <button
+                        key={c}
+                        onClick={() => {
+                          setCategoria(c);
+                          setPagina(0);
+                        }}
+                        className="flex cursor-pointer items-center gap-1.5 rounded-sm border border-outline-variant bg-surface-container-low px-2 py-1 font-label-sm hover:bg-surface-container-high"
+                      >
+                        <Icono nombre="chevron_right" tamaño={14} />
+                        {c}
+                        <span className="text-on-surface-variant">· {RUBROS_POR_CATEGORIA[c] ?? 0}</span>
+                      </button>
+                    ))}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </>
+        ) : (
+          <>
+            <p className="font-body-sm text-on-surface-variant">
+              {resultados.length} rubros · precios de las guías de referencia (material + mano de obra)
+              {busqueda.trim() === "" && (
+                <button
+                  onClick={() => setCategoria("TODAS")}
+                  className="ml-2 cursor-pointer font-label-sm text-primary underline-offset-2 hover:underline"
+                >
+                  volver a la guía
+                </button>
+              )}
+            </p>
 
         {visibles.length === 0 ? (
           <EmptyState icono="search_off" titulo="Sin resultados" descripcion="Probá con otro término o categoría." />
@@ -127,6 +180,8 @@ export function CatalogoRubros({
               ))}
             </tbody>
           </Tabla>
+        )}
+          </>
         )}
 
         {totalPaginas > 1 && (
