@@ -69,6 +69,7 @@ export const SEMILLA_GENTE: DatosGente = {
   ],
 };
 
-export function semillaGente(_obraId: string): DatosGente {
-  return SEMILLA_GENTE;
+export function semillaGente(obraId: string): DatosGente {
+  const esSemilla = obraId === "los-alamos" || obraId === "sajonia" || obraId === "ypacarai";
+  return esSemilla ? SEMILLA_GENTE : { contratistas: [], clientes: [] };
 }

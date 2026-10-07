@@ -3,7 +3,7 @@ import { useObra } from "@/contexto/obra";
 import { useColeccion } from "@/dominio/almacen";
 import { ROL_NOMBRE } from "@/dominio/finanzas";
 import { formatFecha, hoyIso } from "@/dominio/formato";
-import { SEMILLA_FINANZAS } from "@/dominio/semillas/finanzas";
+import { semillaFinanzas } from "@/dominio/semillas/finanzas";
 import { semillaGente } from "@/dominio/semillas/gente";
 import type { Cliente, Contratista, DatosGente, Jornalero } from "@/dominio/tipos";
 import { Boton, Campo, Card, Chip, EmptyState, Kpi, Modal, Select, Td, Texto, Th, Tabla } from "@/ui/base";
@@ -29,7 +29,7 @@ export function PaginaGente() {
     "gente",
     semillaGente(obra.id),
   );
-  const finanzas = useColeccion(obra.id, "finanzas", SEMILLA_FINANZAS);
+  const finanzas = useColeccion(obra.id, "finanzas", semillaFinanzas(obra.id));
   const [pestania, setPestania] = useState<Pestania>("contratistas");
   const [nuevoContratista, setNuevoContratista] = useState(false);
   const [nuevoCliente, setNuevoCliente] = useState(false);

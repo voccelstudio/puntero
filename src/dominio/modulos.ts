@@ -12,7 +12,7 @@ export interface Modulo {
 }
 
 export const MODULOS: Modulo[] = [
-  { ruta: "/", etiqueta: "Comando", icono: "pace", grupo: "Resumen", disponible: false },
+  { ruta: "/", etiqueta: "Inicio", icono: "grid_view", grupo: "Resumen", disponible: true },
   { ruta: "/presupuesto", etiqueta: "Presupuesto", icono: "receipt_long", grupo: "Contratación", disponible: true },
   { ruta: "/finanzas", etiqueta: "Finanzas", icono: "account_balance", grupo: "Contratación", disponible: true },
   { ruta: "/cronograma", etiqueta: "Cronograma", icono: "calendar_month", grupo: "Ejecución", disponible: true },

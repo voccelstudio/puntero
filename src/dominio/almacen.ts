@@ -16,7 +16,8 @@
  */
 
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
-import type { Coleccion } from "@/dominio/tipos";
+import { IDS_SEMILLA } from "@/dominio/semillas/obras";
+import type { Coleccion, Obra } from "@/dominio/tipos";
 
 export const VERSION = 1;
 
@@ -28,6 +29,70 @@ function clave(obraId: string, coleccion: Coleccion): string {
 
 function claveIndice(): string {
   return `${RAIZ}.v${VERSION}.__obras__`;
+}
+
+/** Registro de obras creadas por el usuario (cada obra vive en su colección). */
+const CLAVE_OBRAS = `${RAIZ}.v${VERSION}.obras`;
+
+export function leerObrasRegistradas(): Obra[] {
+  if (!disponible()) return [];
+  try {
+    const crudo = window.localStorage.getItem(CLAVE_OBRAS);
+    if (!crudo) return [];
+    const lista = JSON.parse(crudo) as unknown;
+    if (!Array.isArray(lista)) return [];
+    return lista.filter(
+      (o): o is Obra =>
+        !!o && typeof (o as Obra).id === "string" && typeof (o as Obra).nombre === "string",
+    );
+  } catch {
+    return [];
+  }
+}
+
+export function escribirObrasRegistradas(lista: Obra[]): boolean {
+  if (!disponible()) return false;
+  try {
+    window.localStorage.setItem(CLAVE_OBRAS, JSON.stringify(lista));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Suma una obra al índice de respaldo (`__obras__`), sin duplicar. */
+export function agregarAlIndice(id: string): void {
+  if (!disponible()) return;
+  try {
+    const actual = JSON.parse(window.localStorage.getItem(claveIndice()) ?? "[]") as string[];
+    if (!actual.includes(id)) {
+      window.localStorage.setItem(claveIndice(), JSON.stringify([...actual, id]));
+      notificar();
+    }
+  } catch {
+    // Índice corrupto: se ignora; el respaldo también barre las claves.
+  }
+}
+
+/** Borra una obra del dispositivo: sus colecciones, el índice y el registro. */
+export function quitarObraLocal(id: string): void {
+  if (!disponible()) return;
+  for (const coleccion of ["presupuesto", "cronograma", "finanzas", "gente"] as Coleccion[]) {
+    window.localStorage.removeItem(clave(id, coleccion));
+  }
+  try {
+    const actual = JSON.parse(window.localStorage.getItem(claveIndice()) ?? "[]") as string[];
+    window.localStorage.setItem(claveIndice(), JSON.stringify(actual.filter((x) => x !== id)));
+  } catch {
+    // Sin índice: nada que quitar.
+  }
+  try {
+    const registradas = leerObrasRegistradas();
+    if (registradas.some((o) => o.id === id)) escribirObrasRegistradas(registradas.filter((o) => o.id !== id));
+  } catch {
+    // Sin registro: nada que quitar.
+  }
+  notificar();
 }
 
 const cache = new Map<string, unknown>();
@@ -222,8 +287,35 @@ export function exportarRespaldo(): string {
   const respaldo: Respaldo = { version: VERSION, exportado: new Date().toISOString(), obras: {} };
   if (!disponible()) return JSON.stringify(respaldo, null, 2);
 
-  const leido = JSON.parse(window.localStorage.getItem(claveIndice()) ?? "[]") as string[];
-  for (const id of leido) {
+  // Los ids salen de (a) las semillas, (b) el índice y (c) un barrido de las
+  // claves `puntero.v1.<obra>.<coleccion>` presentes, para no perder obras
+  // creadas ni colecciones ya tocadas.
+  const ids = new Set<string>(IDS_SEMILLA);
+  try {
+    for (const id of JSON.parse(window.localStorage.getItem(claveIndice()) ?? "[]") as string[]) {
+      ids.add(id);
+    }
+  } catch {
+    // Índice corrupto: se sigue con el barrido.
+  }
+  try {
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const k = window.localStorage.key(i);
+      if (!k) continue;
+      const prefijo = `${RAIZ}.v${VERSION}.`;
+      if (!k.startsWith(prefijo)) continue;
+      const cuerpo = k.slice(prefijo.length);
+      const ultimoPunto = cuerpo.lastIndexOf(".");
+      if (ultimoPunto <= 0) continue;
+      const col = cuerpo.slice(ultimoPunto + 1);
+      if (!["presupuesto", "cronograma", "finanzas", "gente"].includes(col)) continue;
+      ids.add(cuerpo.slice(0, ultimoPunto));
+    }
+  } catch {
+    // Sin almacenamiento: sale lo que se pueda.
+  }
+
+  for (const id of [...ids].sort()) {
     const porColeccion: Partial<Record<Coleccion, unknown>> = {};
     for (const coleccion of ["presupuesto", "cronograma", "finanzas", "gente"] as Coleccion[]) {
       const crudo = window.localStorage.getItem(clave(id, coleccion));
@@ -266,6 +358,35 @@ export function importarRespaldo(
     ids.push(id);
   }
   window.localStorage.setItem(claveIndice(), JSON.stringify(ids));
+
+  // Las obras importadas que no son semilla y no existían se reconstruyen como
+  // registro para que reaparezcan en el selector y el dashboard.
+  const registradas = leerObrasRegistradas();
+  const aCrear = ids.filter(
+    (id) => !IDS_SEMILLA.includes(id) && !registradas.some((o) => o.id === id),
+  );
+  if (aCrear.length > 0) {
+    const nuevas = aCrear.map((id, i) => ({
+      id,
+      codigo: `OBR-IMP-${String(i + 1).padStart(3, "0")}`,
+      nombre: `Obra importada ${String(i + 1).padStart(3, "0")}`,
+      tipo: "RESIDENCIAL" as const,
+      estado: "PLANIFICACION" as const,
+      fase: "PREPARACION" as const,
+      empConstructora: "",
+      comitente: "",
+      ubicacion: "",
+      latitud: 0,
+      longitud: 0,
+      inicio: "2026-01-01",
+      finEstimado: "2026-12-31",
+      superficie: 0,
+      monedaContrato: "PYG" as const,
+      resumen: "Importada desde un respaldo.",
+    }));
+    escribirObrasRegistradas([...registradas, ...nuevas]);
+  }
+  notificar();
   return { ok: true, obras: ids.length };
 }
 
@@ -277,4 +398,7 @@ export function borrarTodo(): void {
     if (k && k.startsWith(`${RAIZ}.`)) window.localStorage.removeItem(k);
   }
   notificar();
+  // Los contextos que cachean el estado de fábrica (p. ej. el índice de obras)
+  // necesitan volver a la semilla.
+  window.dispatchEvent(new Event("puntero:reset"));
 }

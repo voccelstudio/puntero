@@ -20,7 +20,7 @@ import {
   totalContratado,
 } from "@/dominio/finanzas";
 import { formatFecha, formatGs, formatPct, hoyIso } from "@/dominio/formato";
-import { SEMILLA_FINANZAS } from "@/dominio/semillas/finanzas";
+import { semillaFinanzas } from "@/dominio/semillas/finanzas";
 import type {
   CategoriaMovimiento,
   CertificadoObra,
@@ -58,7 +58,7 @@ export function PaginaFinanzas() {
   const { datos, guardar } = useColeccion(
     obra.id,
     "finanzas",
-    SEMILLA_FINANZAS,
+    semillaFinanzas(obra.id),
   );
   const [pestania, setPestania] = useState<Pestania>("caja");
 

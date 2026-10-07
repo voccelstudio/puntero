@@ -1,4 +1,4 @@
-import { itemDesdeRubro, numerarItems } from "@/dominio/calculo";
+import { itemDesdeRubro, numerarItems, PARAMETROS_POR_DEFECTO } from "@/dominio/calculo";
 import { obtenerRubro, type Rubro } from "@/dominio/precios";
 import type {
   Adenda,
@@ -235,16 +235,14 @@ export const SEMILLA_PRESUPUESTO_LOS_ALAMOS: DatosPresupuesto = {
 };
 
 export function semillaPresupuesto(obraId: string): DatosPresupuesto {
-  if (obraId === "los-alamos") {
+  const esSemilla = obraId === "los-alamos" || obraId === "sajonia";
+  if (!esSemilla) {
     return {
-      ...SEMILLA_PRESUPUESTO_LOS_ALAMOS,
-      fases: numerarItems(SEMILLA_PRESUPUESTO_LOS_ALAMOS.fases),
-    };
-  }
-  if (obraId === "sajonia") {
-    return {
-      ...SEMILLA_PRESUPUESTO_LOS_ALAMOS,
-      fases: numerarItems(SEMILLA_PRESUPUESTO_LOS_ALAMOS.fases),
+      fases: [],
+      adendas: [],
+      parametros: PARAMETROS_POR_DEFECTO,
+      monedaContrato: "PYG",
+      versiones: [],
     };
   }
   return {

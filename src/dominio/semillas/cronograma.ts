@@ -56,6 +56,7 @@ export const SEMILLA_CRONOGRAMA: DatosCronograma = {
   tareas: tareasDesdeFases(),
 };
 
-export function semillaCronograma(_obraId: string): DatosCronograma {
-  return SEMILLA_CRONOGRAMA;
+export function semillaCronograma(obraId: string): DatosCronograma {
+  const esSemilla = obraId === "los-alamos" || obraId === "sajonia";
+  return esSemilla ? SEMILLA_CRONOGRAMA : { tareas: [] };
 }

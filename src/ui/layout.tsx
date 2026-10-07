@@ -51,7 +51,7 @@ function Cabecera() {
       <header className="sticky top-0 z-40 border-b border-outline-variant bg-surface/95 backdrop-blur no-print">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="flex h-14 items-center justify-between gap-3">
-            <NavLink to="/presupuesto" className="flex items-center gap-2.5 shrink-0">
+            <NavLink to="/" className="flex items-center gap-2.5 shrink-0">
               <span className="flex h-9 w-9 items-center justify-center rounded-sm bg-primary text-on-primary">
                 <Icono nombre="edit_square" tamaño={20} lleno />
               </span>

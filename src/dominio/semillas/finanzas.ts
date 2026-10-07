@@ -135,3 +135,18 @@ export const SEMILLA_FINANZAS_LOS_ALAMOS: DatosFinanzas = {
 };
 
 export const SEMILLA_FINANZAS: DatosFinanzas = SEMILLA_FINANZAS_LOS_ALAMOS;
+
+/** Obra nueva: caja chica en cero y sin movimientos; arranca limpia. */
+export function semillaFinanzas(obraId: string): DatosFinanzas {
+  const esSemilla = obraId === "los-alamos" || obraId === "sajonia" || obraId === "ypacarai";
+  if (esSemilla) return SEMILLA_FINANZAS_LOS_ALAMOS;
+  return {
+    fondoFijo: 0,
+    movimientos: [],
+    jornaleros: [],
+    jornadas: [],
+    liquidaciones: [],
+    subcontratos: [],
+    certificados: [],
+  };
+}

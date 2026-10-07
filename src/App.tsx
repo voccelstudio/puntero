@@ -1,10 +1,11 @@
-import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
+import { HashRouter, Route, Routes } from "react-router-dom";
 import { MonedaProvider } from "@/contexto/moneda";
 import { ObraProvider } from "@/contexto/obra";
 import { TemaProvider } from "@/contexto/tema";
 import { PaginaCronograma } from "@/paginas/cronograma";
 import { PaginaFinanzas } from "@/paginas/finanzas";
 import { PaginaGente } from "@/paginas/gente";
+import { PaginaInicio } from "@/paginas/inicio";
 import { PaginaPresupuesto } from "@/paginas/presupuesto";
 import { Shell } from "@/ui/layout";
 
@@ -16,7 +17,7 @@ export default function App() {
           <ObraProvider>
             <Routes>
               <Route element={<Shell />}>
-                <Route path="/" element={<Navigate to="/presupuesto" replace />} />
+                <Route path="/" element={<PaginaInicio />} />
                 <Route path="/presupuesto" element={<PaginaPresupuesto />} />
                 <Route path="/finanzas" element={<PaginaFinanzas />} />
                 <Route path="/cronograma" element={<PaginaCronograma />} />
