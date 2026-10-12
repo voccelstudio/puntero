@@ -9,10 +9,12 @@ import {
   totalItem,
   todosLosItems,
 } from "@/dominio/calculo";
+import { descargarCsv } from "@/dominio/exportar";
 import { formatPct, formatUnidad } from "@/dominio/formato";
 import { semillaPresupuesto } from "@/dominio/semillas/presupuesto";
 import type { FasePresupuesto, ItemPresupuesto, ParametrosFinancieros } from "@/dominio/tipos";
 import { Boton, Card, Chip, Icono, Kpi, Modal, Progress, Tabla, Td, Th } from "@/ui/base";
+import { BotonesExportar } from "@/ui/exportar";
 import { AdendasModal } from "@/paginas/presupuesto/adendas";
 import { CatalogoRubros } from "@/paginas/presupuesto/catalogo";
 import { Computo } from "@/paginas/presupuesto/computo";
@@ -63,6 +65,25 @@ export function PaginaPresupuesto() {
 
   const faseDeItem = (itemId: string) => datos.fases.find((f) => f.items.some((i) => i.id === itemId));
 
+  const exportarCsv = () =>
+    descargarCsv(
+      `presupuesto-${obra.codigo}`,
+      ["Fase", "Código", "Descripción", "Unidad", "Cantidad", "P. material", "P. mano de obra", "Total", "Estado"],
+      datos.fases.flatMap((f) =>
+        f.items.map((i) => [
+          `${f.numero}. ${f.nombre}`,
+          i.codigo,
+          i.descripcion,
+          formatUnidad(i.unidad),
+          i.cantidad,
+          i.precioMaterial,
+          i.precioManoObra,
+          totalItem(i),
+          ETIQUETA_ESTADO[i.estado].texto,
+        ]),
+      ),
+    );
+
   return (
     <div className="flex flex-col gap-4">
       {/* Cabecera de módulo */}
@@ -78,6 +99,7 @@ export function PaginaPresupuesto() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <BotonesExportar onCsv={exportarCsv} />
           <Boton variante="secundario" icono="history" onClick={() => setMostrarVersiones(true)}>
             Historial ({datos.versiones.length})
           </Boton>

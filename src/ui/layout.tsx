@@ -17,6 +17,7 @@ const ETIQUETA_FASE: Record<string, string> = {
 
 const ETIQUETA_ESTADO: Record<string, string> = {
   PLANIFICACION: "Planificación",
+  APROBADA: "Aprobada",
   EN_CURSO: "En curso",
   FINALIZADA: "Finalizada",
   SUSPENDIDA: "Suspendida",

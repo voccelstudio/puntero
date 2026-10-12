@@ -91,23 +91,17 @@ export function removePersonal(datos: DatosGente, contratistaId: string, persona
 }
 
 /* ------------------------------------------------------------------ */
-/* Clientes                                                            */
+/* Clientes (registro global del dispositivo)                          */
 /* ------------------------------------------------------------------ */
 
-export function addCliente(datos: DatosGente, cliente: Cliente): DatosGente {
-  return { ...datos, clientes: [...datos.clientes, cliente] };
+export function addCliente(clientes: Cliente[], cliente: Cliente): Cliente[] {
+  return [...clientes, cliente];
 }
 
-export function patchCliente(datos: DatosGente, id: string, patch: Partial<Cliente>): DatosGente {
-  return {
-    ...datos,
-    clientes: datos.clientes.map((c) => (c.id === id ? { ...c, ...patch } : c)),
-  };
+export function patchCliente(clientes: Cliente[], id: string, patch: Partial<Cliente>): Cliente[] {
+  return clientes.map((c) => (c.id === id ? { ...c, ...patch } : c));
 }
 
-export function removeCliente(datos: DatosGente, id: string): DatosGente {
-  return {
-    ...datos,
-    clientes: datos.clientes.filter((c) => c.id !== id),
-  };
+export function removeCliente(clientes: Cliente[], id: string): Cliente[] {
+  return clientes.filter((c) => c.id !== id);
 }

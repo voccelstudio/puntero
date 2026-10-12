@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMoneda } from "@/contexto/moneda";
 import { useObra } from "@/contexto/obra";
-import { useColeccion } from "@/dominio/almacen";
+import { useColeccion, useGlobal } from "@/dominio/almacen";
 import {
   CATEGORIA_NOMBRE,
   FUENTE_NOMBRE,
@@ -20,10 +20,13 @@ import {
   totalContratado,
 } from "@/dominio/finanzas";
 import { formatFecha, formatGs, formatPct, hoyIso } from "@/dominio/formato";
+import { descargarCsv } from "@/dominio/exportar";
+import { semillaClientes } from "@/dominio/semillas/clientes";
 import { semillaFinanzas } from "@/dominio/semillas/finanzas";
 import type {
   CategoriaMovimiento,
   CertificadoObra,
+  Cliente,
   DatosFinanzas,
   FuenteFondo,
   Jornalero,
@@ -32,6 +35,7 @@ import type {
   Subcontrato,
 } from "@/dominio/tipos";
 import { Boton, Card, Campo, Chip, EmptyState, Kpi, Modal, Progress, Select, Td, Texto, Th, Tabla } from "@/ui/base";
+import { BotonesExportar } from "@/ui/exportar";
 import {
   addCertificado,
   addJornada,
@@ -51,28 +55,54 @@ import {
 
 const MES = new Date().toISOString().slice(0, 7);
 
-type Pestania = "caja" | "certificados" | "subcontratos" | "jornaleros";
+type Pestania = "caja" | "cobros" | "pagos" | "certificados" | "subcontratos" | "jornaleros";
 
 export function PaginaFinanzas() {
-  const { obra } = useObra();
+  const { obra, actualizarObra } = useObra();
   const { datos, guardar } = useColeccion(
     obra.id,
     "finanzas",
     semillaFinanzas(),
   );
+  const clientes = useGlobal<Cliente[]>("clientes", semillaClientes());
+  const clienteObra = clientes.datos.find((c) => c.id === obra.clienteId) ?? null;
   const [pestania, setPestania] = useState<Pestania>("caja");
+
+  const porAprobar = obra.estado === "PLANIFICACION";
 
   const netoMes = netoMovimientos(movimientosDelPeriodo(datos.movimientos, `${MES}-01`));
   const saldo = saldoCaja(datos);
 
+  const exportarCsv = () =>
+    descargarCsv(
+      `finanzas-${obra.codigo}`,
+      ["Fecha", "Concepto", "Categoría", "Fuente", "Método", "Responsable", "Monto (Gs.)", "Estado", "RUC", "Factura", "Proveedor"],
+      datos.movimientos.map((m) => [
+        m.fecha,
+        m.concepto,
+        CATEGORIA_NOMBRE[m.categoria],
+        FUENTE_NOMBRE[m.fuente],
+        METODO_NOMBRE[m.metodo],
+        m.responsable,
+        m.monto,
+        m.estado,
+        m.ruc ?? "",
+        m.factura ?? "",
+        m.proveedor ?? "",
+      ]),
+    );
+
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <p className="font-label-sm uppercase tracking-wider text-on-surface-variant">Contratación · Finanzas</p>
-        <h1 className="font-headline-xl">Finanzas y caja chica</h1>
-        <p className="font-body-sm text-on-surface-variant">
-          {obra.nombre} · Flujo del mes {formatGs(netoMes)} · Saldo de caja {formatGs(saldo)}
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="font-label-sm uppercase tracking-wider text-on-surface-variant">Contratación · Finanzas</p>
+          <h1 className="font-headline-xl">Finanzas y caja chica</h1>
+          <p className="font-body-sm text-on-surface-variant">
+            {obra.nombre} · Flujo del mes {formatGs(netoMes)} · Saldo de caja {formatGs(saldo)}
+          </p>
+        </div>
+        <BotonesExportar onCsv={exportarCsv} />
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -82,11 +112,25 @@ export function PaginaFinanzas() {
         <Kpi etiqueta="Subcontratos" valor={formatGs(totalContratado(datos.subcontratos))} pie={`Certificado ${formatGs(totalCertificadoSub(datos.subcontratos))}`} icono="handshake" />
       </div>
 
+      {porAprobar && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-outline-variant bg-surface-container-low px-3 py-2">
+          <p className="font-body-sm text-on-surface-variant">
+            La obra está en <span className="font-medium text-on-surface">planificación</span>. Aprobala para
+            dar por cerrado el presupuesto y habilitar el control de cobros y pagos.
+          </p>
+          <Boton variante="primario" icono="task_alt" onClick={() => actualizarObra({ ...obra, estado: "APROBADA" })}>
+            Aprobar obra
+          </Boton>
+        </div>
+      )}
+
       <div>
         <div className="flex flex-wrap items-center gap-2 border-b border-outline-variant pb-2 mb-4">
           {(
             [
               ["caja", "Caja chica"],
+              ["cobros", "Cobros del cliente"],
+              ["pagos", "Pagos a proveedores"],
               ["certificados", "Certificados"],
               ["subcontratos", "Subcontratos"],
               ["jornaleros", "Jornaleros"],
@@ -107,6 +151,8 @@ export function PaginaFinanzas() {
         </div>
 
         {pestania === "caja" && <CajaView datos={datos} guardar={guardar} />}
+        {pestania === "cobros" && <CobrosView datos={datos} guardar={guardar} cliente={clienteObra?.nombre} />}
+        {pestania === "pagos" && <PagosView datos={datos} guardar={guardar} />}
         {pestania === "certificados" && <CertificadosView datos={datos} guardar={guardar} />}
         {pestania === "subcontratos" && <SubcontratosView datos={datos} guardar={guardar} />}
         {pestania === "jornaleros" && <JornalerosView datos={datos} guardar={guardar} />}
@@ -251,6 +297,207 @@ function CajaView({ datos, guardar }: { datos: DatosFinanzas; guardar: (d: Datos
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* Cobros del cliente                                                  */
+/* ------------------------------------------------------------------ */
+
+function CobrosView({
+  datos,
+  guardar,
+  cliente,
+}: {
+  datos: DatosFinanzas;
+  guardar: (d: DatosFinanzas) => void;
+  cliente?: string;
+}) {
+  const { fmt } = useMoneda();
+  const [nuevo, setNuevo] = useState(false);
+
+  const cobros = datos.movimientos.filter((m) => m.monto > 0);
+  const total = ingresos(cobros);
+  const certificado = totalCertificado(datos.certificados);
+  const cobradoCert = totalCobrado(datos.certificados);
+  const saldoPorCobrar = Math.max(0, certificado - cobradoCert);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Kpi etiqueta="Cobrado del cliente" valor={fmt(total)} icono="savings" />
+        <Kpi etiqueta="Cobros registrados" valor={cobros.length} icono="payments" />
+        <Kpi etiqueta="Certificado" valor={fmt(certificado)} pie={`Cobrado ${fmt(cobradoCert)}`} icono="verified" />
+        <Kpi etiqueta="Saldo por cobrar" valor={fmt(saldoPorCobrar)} alerta={saldoPorCobrar > 0} icono="request_quote" />
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="font-body-sm text-on-surface-variant">
+          Cliente: <span className="font-medium text-on-surface">{cliente ?? "sin asignar"}</span>
+        </p>
+        <Boton variante="primario" icono="add_card" onClick={() => setNuevo(true)}>
+          Registrar cobro
+        </Boton>
+      </div>
+
+      {cobros.length === 0 ? (
+        <EmptyState
+          icono="savings"
+          titulo="Sin cobros"
+          descripcion="Registrá el primer pago recibido del cliente para esta obra."
+        />
+      ) : (
+        <Tabla>
+          <thead>
+            <tr>
+              <Th>Fecha</Th>
+              <Th>Concepto</Th>
+              <Th>Fuente</Th>
+              <Th>Método</Th>
+              <Th>Responsable</Th>
+              <Th derecha>Monto</Th>
+              <Th>Acciones</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {cobros.map((m) => (
+              <tr key={m.id} className="hover:bg-surface-container-low">
+                <Td>{formatFecha(m.fecha)}</Td>
+                <Td className="font-body-md">{m.concepto}</Td>
+                <Td className="text-on-surface-variant">{FUENTE_NOMBRE[m.fuente]}</Td>
+                <Td className="text-on-surface-variant">{METODO_NOMBRE[m.metodo]}</Td>
+                <Td className="text-on-surface-variant">{m.responsable}</Td>
+                <Td derecha>
+                  <span className="font-label-md text-ok">+ {fmt(m.monto)}</span>
+                </Td>
+                <Td>
+                  <Boton
+                    tamano="sm"
+                    variante="fantasma"
+                    icono="delete"
+                    onClick={() => confirm("¿Eliminar este cobro?") && guardar(removeMovimiento(datos, m.id))}
+                  />
+                </Td>
+              </tr>
+            ))}
+          </tbody>
+        </Tabla>
+      )}
+
+      {nuevo && (
+        <ModalMovimiento
+          inicial={null}
+          tipoInicial="INGRESO"
+          categoriaInicial="INGRESOS"
+          onCerrar={() => setNuevo(false)}
+          onGuardar={(m) => {
+            guardar(addMovimiento(datos, m));
+            setNuevo(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Pagos a proveedores y contratistas                                  */
+/* ------------------------------------------------------------------ */
+
+function PagosView({
+  datos,
+  guardar,
+}: {
+  datos: DatosFinanzas;
+  guardar: (d: DatosFinanzas) => void;
+}) {
+  const { fmt } = useMoneda();
+  const [nuevo, setNuevo] = useState(false);
+
+  const pagos = datos.movimientos.filter((m) => m.monto < 0);
+  const total = Math.abs(egresos(pagos));
+  const proveedores = new Set(pagos.map((m) => m.proveedor).filter(Boolean)).size;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Kpi etiqueta="Total pagado" valor={fmt(total)} icono="payments" />
+        <Kpi etiqueta="Pagos registrados" valor={pagos.length} icono="receipt_long" />
+        <Kpi etiqueta="Proveedores" valor={proveedores} icono="local_shipping" />
+        <Kpi etiqueta="Subcontratado" valor={fmt(totalContratado(datos.subcontratos))} pie={`Certificado ${fmt(totalCertificadoSub(datos.subcontratos))}`} icono="handshake" />
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="font-body-sm text-on-surface-variant">
+          Pagos a proveedores, subcontratistas y servicios de la obra.
+        </p>
+        <Boton variante="primario" icono="add_card" onClick={() => setNuevo(true)}>
+          Registrar pago
+        </Boton>
+      </div>
+
+      {pagos.length === 0 ? (
+        <EmptyState
+          icono="receipt_long"
+          titulo="Sin pagos"
+          descripcion="Registrá el primer pago a proveedores o contratistas."
+        />
+      ) : (
+        <Tabla>
+          <thead>
+            <tr>
+              <Th>Fecha</Th>
+              <Th>Concepto</Th>
+              <Th>Categoría</Th>
+              <Th>Proveedor</Th>
+              <Th>Comprobante</Th>
+              <Th derecha>Monto</Th>
+              <Th>Acciones</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {pagos.map((m) => (
+              <tr key={m.id} className="hover:bg-surface-container-low">
+                <Td>{formatFecha(m.fecha)}</Td>
+                <Td className="font-body-md">{m.concepto}</Td>
+                <Td>
+                  <Chip tono="neutro">{CATEGORIA_NOMBRE[m.categoria]}</Chip>
+                </Td>
+                <Td className="text-on-surface-variant">{m.proveedor ?? "—"}</Td>
+                <Td className="text-on-surface-variant">
+                  {m.factura ? `Factura ${m.factura}` : "—"}
+                  {m.ruc && <span className="block font-body-sm">RUC {m.ruc}</span>}
+                </Td>
+                <Td derecha>
+                  <span className="font-label-md text-error">− {fmt(Math.abs(m.monto))}</span>
+                </Td>
+                <Td>
+                  <Boton
+                    tamano="sm"
+                    variante="fantasma"
+                    icono="delete"
+                    onClick={() => confirm("¿Eliminar este pago?") && guardar(removeMovimiento(datos, m.id))}
+                  />
+                </Td>
+              </tr>
+            ))}
+          </tbody>
+        </Tabla>
+      )}
+
+      {nuevo && (
+        <ModalMovimiento
+          inicial={null}
+          tipoInicial="EGRESO"
+          categoriaInicial="MATERIALES"
+          onCerrar={() => setNuevo(false)}
+          onGuardar={(m) => {
+            guardar(addMovimiento(datos, m));
+            setNuevo(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
 const CATEGORIAS: CategoriaMovimiento[] = [
   "MATERIALES", "MANO_DE_OBRA", "SUBCONTRATOS", "MAQUINARIAS", "SERVICIOS",
   "TRAMITES", "VIATICOS", "ALMACEN", "HONORARIOS", "INGRESOS", "OTROS",
@@ -260,17 +507,25 @@ const METODOS: MetodoPago[] = ["EFECTIVO", "TRANSFERENCIA", "CHEQUE", "TARJETA",
 
 function ModalMovimiento({
   inicial,
+  tipoInicial,
+  categoriaInicial,
   onCerrar,
   onGuardar,
 }: {
   inicial: MovimientoCaja | null;
+  tipoInicial?: "INGRESO" | "EGRESO";
+  categoriaInicial?: CategoriaMovimiento;
   onCerrar: () => void;
   onGuardar: (m: MovimientoCaja) => void;
 }) {
-  const [tipo, setTipo] = useState<"INGRESO" | "EGRESO">(inicial ? (inicial.monto >= 0 ? "INGRESO" : "EGRESO") : "EGRESO");
+  const [tipo, setTipo] = useState<"INGRESO" | "EGRESO">(
+    inicial ? (inicial.monto >= 0 ? "INGRESO" : "EGRESO") : (tipoInicial ?? "EGRESO"),
+  );
   const [fecha, setFecha] = useState(inicial?.fecha ?? hoyIso());
   const [concepto, setConcepto] = useState(inicial?.concepto ?? "");
-  const [categoria, setCategoria] = useState<CategoriaMovimiento>(inicial?.categoria ?? "MATERIALES");
+  const [categoria, setCategoria] = useState<CategoriaMovimiento>(
+    inicial?.categoria ?? categoriaInicial ?? "MATERIALES",
+  );
   const [fuente, setFuente] = useState<FuenteFondo>(inicial?.fuente ?? "CAJA_CHICA");
   const [metodo, setMetodo] = useState<MetodoPago>(inicial?.metodo ?? "EFECTIVO");
   const [responsable, setResponsable] = useState(inicial?.responsable ?? "");

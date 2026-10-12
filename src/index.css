@@ -931,6 +931,9 @@ body {
 }
 
 @media print {
+  @page {
+    margin: 12mm;
+  }
   .no-print {
     display: none !important;
   }
@@ -939,6 +942,17 @@ body {
   }
   .print-break-avoid {
     break-inside: avoid;
+  }
+  /* Las tablas no se cortan entre filas y ganan legibilidad en papel. */
+  table {
+    font-size: 11px;
+  }
+  tr,
+  .print-break-avoid {
+    break-inside: avoid;
+  }
+  .print-break-before {
+    break-before: page;
   }
 }
 

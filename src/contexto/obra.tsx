@@ -40,6 +40,8 @@ export interface EntradaObra {
   superficie: number;
   inicio: string;
   finEstimado: string;
+  /** Cliente (comitente) del registro global, si se eligió al crear la obra. */
+  clienteId?: string;
 }
 
 interface ContextoObra {
@@ -127,6 +129,7 @@ export function ObraProvider({ children }: { children: ReactNode }) {
         fase: "PREPARACION",
         empConstructora: entrada.empConstructora.trim() || "Voccel Studio Constructora",
         comitente: entrada.comitente.trim(),
+        clienteId: entrada.clienteId,
         ubicacion: entrada.ubicacion.trim(),
         latitud: 0,
         longitud: 0,

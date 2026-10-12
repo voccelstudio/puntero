@@ -14,10 +14,12 @@ import {
   rutaCritica,
 } from "@/dominio/cronograma";
 import { formatFecha, formatPct, hoyIso } from "@/dominio/formato";
+import { descargarCsv } from "@/dominio/exportar";
 import { semillaCronograma } from "@/dominio/semillas/cronograma";
 import { semillaPresupuesto } from "@/dominio/semillas/presupuesto";
 import type { EstadoTarea, TareaCronograma } from "@/dominio/tipos";
 import { Boton, Campo, Card, Chip, EmptyState, Icono, Kpi, Modal, Progress, Select, Td, Texto, Th, Tabla } from "@/ui/base";
+import { BotonesExportar } from "@/ui/exportar";
 import { addTarea, patchTarea, removeTarea } from "@/paginas/cronograma/operaciones";
 
 const PX_DIA = 22;
@@ -57,6 +59,23 @@ export function PaginaCronograma() {
 
   const editar = editarId ? datos.tareas.find((t) => t.id === editarId) ?? null : null;
 
+  const exportarCsv = () =>
+    descargarCsv(
+      `cronograma-${obra.codigo}`,
+      ["Tarea", "Fase", "Inicio", "Fin", "Días", "Estado", "Avance", "Responsable", "Ruta crítica"],
+      datos.tareas.map((t) => [
+        t.nombre,
+        faseNombre(t.faseId),
+        t.inicio,
+        t.fin,
+        duracion(t),
+        ESTADO_NOMBRE[t.estado],
+        formatPct(t.avance),
+        t.responsable,
+        criticas.has(t.id) ? "Sí" : "No",
+      ]),
+    );
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -69,7 +88,8 @@ export function PaginaCronograma() {
             {datos.tareas.length} tareas · {críticasCount(criticas)} en ruta crítica
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <BotonesExportar onCsv={exportarCsv} />
           <Boton
             variante="secundario"
             icono="update"

@@ -13,10 +13,14 @@ export interface Modulo {
 
 export const MODULOS: Modulo[] = [
   { ruta: "/", etiqueta: "Inicio", icono: "grid_view", grupo: "Resumen", disponible: true },
+  { ruta: "/informes", etiqueta: "Informes", icono: "assessment", grupo: "Resumen", disponible: true },
   { ruta: "/presupuesto", etiqueta: "Presupuesto", icono: "receipt_long", grupo: "Contratación", disponible: true },
   { ruta: "/finanzas", etiqueta: "Finanzas", icono: "account_balance", grupo: "Contratación", disponible: true },
+  { ruta: "/contratos", etiqueta: "Contratos", icono: "description", grupo: "Contratación", disponible: true },
   { ruta: "/cronograma", etiqueta: "Cronograma", icono: "calendar_month", grupo: "Ejecución", disponible: true },
   { ruta: "/gente", etiqueta: "Gente", icono: "groups", grupo: "Ejecución", disponible: true },
+  { ruta: "/bitacora", etiqueta: "Bitácora", icono: "fact_check", grupo: "Ejecución", disponible: true },
+  { ruta: "/recursos", etiqueta: "Recursos", icono: "inventory_2", grupo: "Recursos", disponible: true },
 ];
 
 export const GRUPOS_NOMBRE: Modulo["grupo"][] = ["Resumen", "Contratación", "Ejecución", "Recursos"];

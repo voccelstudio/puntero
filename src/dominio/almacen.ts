@@ -17,11 +17,15 @@
 
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import { IDS_SEMILLA } from "@/dominio/semillas/obras";
-import type { Coleccion, Obra } from "@/dominio/tipos";
+import { COLECCIONES, type Coleccion, type Obra } from "@/dominio/tipos";
 
 export const VERSION = 1;
 
 const RAIZ = "puntero";
+
+function esColeccion(valor: string): valor is Coleccion {
+  return (COLECCIONES as string[]).includes(valor);
+}
 
 function clave(obraId: string, coleccion: Coleccion): string {
   return `${RAIZ}.v${VERSION}.${obraId}.${coleccion}`;
@@ -29,6 +33,15 @@ function clave(obraId: string, coleccion: Coleccion): string {
 
 function claveIndice(): string {
   return `${RAIZ}.v${VERSION}.__obras__`;
+}
+
+/** Nombres de las colecciones globales (no pertenecen a ninguna obra). */
+export type GlobalNombre = "clientes";
+
+export const GLOBALES: GlobalNombre[] = ["clientes"];
+
+function claveGlobal(nombre: GlobalNombre): string {
+  return `${RAIZ}.v${VERSION}.__global__.${nombre}`;
 }
 
 /** Registro de obras creadas por el usuario (cada obra vive en su colección). */
@@ -77,7 +90,7 @@ export function agregarAlIndice(id: string): void {
 /** Borra una obra del dispositivo: sus colecciones, el índice y el registro. */
 export function quitarObraLocal(id: string): void {
   if (!disponible()) return;
-  for (const coleccion of ["presupuesto", "cronograma", "finanzas", "gente"] as Coleccion[]) {
+  for (const coleccion of COLECCIONES) {
     window.localStorage.removeItem(clave(id, coleccion));
   }
   try {
@@ -132,10 +145,10 @@ interface Envoltura<T> {
   datos: T;
 }
 
-function leer<T>(obraId: string, coleccion: Coleccion, semilla: T): T {
+function leerPorClave<T>(k: string, semilla: T): T {
   if (!disponible()) return semilla;
   try {
-    const crudo = window.localStorage.getItem(clave(obraId, coleccion));
+    const crudo = window.localStorage.getItem(k);
     if (!crudo) return semilla;
     const envoltura = JSON.parse(crudo) as Envoltura<T>;
     if (envoltura?.version !== VERSION) return semilla;
@@ -146,8 +159,7 @@ function leer<T>(obraId: string, coleccion: Coleccion, semilla: T): T {
   }
 }
 
-function escribir<T>(obraId: string, coleccion: Coleccion, datos: T): boolean {
-  const k = clave(obraId, coleccion);
+function escribirPorClave<T>(k: string, datos: T): boolean {
   if (!disponible()) return false;
   try {
     const envoltura: Envoltura<T> = { version: VERSION, datos };
@@ -169,17 +181,15 @@ export interface EstadoColeccion<T> {
   editado: boolean;
 }
 
-/** Colección editable de una obra, sincronizada con `localStorage`. */
-export function useColeccion<T>(obraId: string, coleccion: Coleccion, semilla: T): EstadoColeccion<T> {
-  const k = clave(obraId, coleccion);
-
+/** Almacén editable por clave, sincronizado con `localStorage`. */
+function useAlmacen<T>(k: string, semilla: T): EstadoColeccion<T> {
   const leerCache = useCallback(() => {
     const guardado = cache.get(k);
     if (guardado !== undefined) return guardado as T;
-    const valor = leer<T>(obraId, coleccion, semilla);
+    const valor = leerPorClave<T>(k, semilla);
     cache.set(k, valor);
     return valor;
-  }, [k, obraId, coleccion, semilla]);
+  }, [k, semilla]);
 
   const datos = useSyncExternalStore(suscribir, leerCache);
 
@@ -187,16 +197,16 @@ export function useColeccion<T>(obraId: string, coleccion: Coleccion, semilla: T
 
   const guardar = useCallback(
     (actualizar: T | ((previo: T) => T)) => {
-      const previo = (cache.get(k) as T | undefined) ?? leer<T>(obraId, coleccion, semilla);
+      const previo = (cache.get(k) as T | undefined) ?? leerPorClave<T>(k, semilla);
       const siguiente =
         typeof actualizar === "function"
           ? (actualizar as (p: T) => T)(previo)
           : actualizar;
       cache.set(k, siguiente);
-      escribir(obraId, coleccion, siguiente);
+      escribirPorClave(k, siguiente);
       notificar();
     },
-    [k, obraId, coleccion, semilla],
+    [k, semilla],
   );
 
   const restablecer = useCallback(() => {
@@ -218,6 +228,16 @@ export function useColeccion<T>(obraId: string, coleccion: Coleccion, semilla: T
   }, []);
 
   return { datos, listo: true, sinEspacio, guardar, restablecer, editado };
+}
+
+/** Colección editable de una obra, sincronizada con `localStorage`. */
+export function useColeccion<T>(obraId: string, coleccion: Coleccion, semilla: T): EstadoColeccion<T> {
+  return useAlmacen<T>(clave(obraId, coleccion), semilla);
+}
+
+/** Colección global del dispositivo (no pertenece a ninguna obra). */
+export function useGlobal<T>(nombre: GlobalNombre, semilla: T): EstadoColeccion<T> {
+  return useAlmacen<T>(claveGlobal(nombre), semilla);
 }
 
 /* ------------------------------------------------------------------ */
@@ -280,6 +300,8 @@ export interface Respaldo {
   version: number;
   exportado: string;
   obras: Record<string, Partial<Record<Coleccion, unknown>>>;
+  /** Colecciones globales del dispositivo (p. ej. el registro de clientes). */
+  global?: Partial<Record<GlobalNombre, unknown>>;
 }
 
 /** Baja todo a JSON. Es la única forma de respaldar, dado que todo vive local. */
@@ -308,7 +330,7 @@ export function exportarRespaldo(): string {
       const ultimoPunto = cuerpo.lastIndexOf(".");
       if (ultimoPunto <= 0) continue;
       const col = cuerpo.slice(ultimoPunto + 1);
-      if (!["presupuesto", "cronograma", "finanzas", "gente"].includes(col)) continue;
+      if (!esColeccion(col)) continue;
       ids.add(cuerpo.slice(0, ultimoPunto));
     }
   } catch {
@@ -317,12 +339,20 @@ export function exportarRespaldo(): string {
 
   for (const id of [...ids].sort()) {
     const porColeccion: Partial<Record<Coleccion, unknown>> = {};
-    for (const coleccion of ["presupuesto", "cronograma", "finanzas", "gente"] as Coleccion[]) {
+    for (const coleccion of COLECCIONES) {
       const crudo = window.localStorage.getItem(clave(id, coleccion));
       if (crudo) porColeccion[coleccion] = JSON.parse(crudo);
     }
     respaldo.obras[id] = porColeccion;
   }
+
+  const global: Partial<Record<GlobalNombre, unknown>> = {};
+  for (const nombre of GLOBALES) {
+    const crudo = window.localStorage.getItem(claveGlobal(nombre));
+    if (crudo) global[nombre] = JSON.parse(crudo);
+  }
+  if (Object.keys(global).length > 0) respaldo.global = global;
+
   return JSON.stringify(respaldo, null, 2);
 }
 
@@ -349,15 +379,21 @@ export function importarRespaldo(
   const ids: string[] = [];
   for (const [id, porColeccion] of Object.entries(respaldo.obras)) {
     for (const [coleccion, envoltura] of Object.entries(porColeccion)) {
-      if (!["presupuesto", "cronograma", "finanzas", "gente"].includes(coleccion)) continue;
-      window.localStorage.setItem(
-        clave(id, coleccion as Coleccion),
-        JSON.stringify(envoltura),
-      );
+      if (!esColeccion(coleccion)) continue;
+      window.localStorage.setItem(clave(id, coleccion), JSON.stringify(envoltura));
     }
     ids.push(id);
   }
   window.localStorage.setItem(claveIndice(), JSON.stringify(ids));
+
+  if (respaldo.global && typeof respaldo.global === "object") {
+    for (const nombre of GLOBALES) {
+      const envoltura = respaldo.global[nombre];
+      if (envoltura) {
+        window.localStorage.setItem(claveGlobal(nombre), JSON.stringify(envoltura));
+      }
+    }
+  }
 
   // Las obras importadas que no son semilla y no existían se reconstruyen como
   // registro para que reaparezcan en el selector y el dashboard.

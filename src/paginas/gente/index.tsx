@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { useObra } from "@/contexto/obra";
-import { useColeccion } from "@/dominio/almacen";
+import { useColeccion, useGlobal } from "@/dominio/almacen";
 import { ROL_NOMBRE } from "@/dominio/finanzas";
+import { descargarCsv } from "@/dominio/exportar";
 import { formatFecha, hoyIso } from "@/dominio/formato";
+import { semillaClientes } from "@/dominio/semillas/clientes";
 import { semillaFinanzas } from "@/dominio/semillas/finanzas";
 import { semillaGente } from "@/dominio/semillas/gente";
 import type { Cliente, Contratista, DatosGente, Jornalero } from "@/dominio/tipos";
 import { Boton, Campo, Card, Chip, EmptyState, Kpi, Modal, Select, Td, Texto, Th, Tabla } from "@/ui/base";
+import { BotonesExportar } from "@/ui/exportar";
 import { addJornalero, patchJornalero } from "@/paginas/finanzas/operaciones";
 import {
   addCliente,
@@ -29,6 +32,7 @@ export function PaginaGente() {
     "gente",
     semillaGente(),
   );
+  const clientes = useGlobal<Cliente[]>("clientes", semillaClientes());
   const finanzas = useColeccion(obra.id, "finanzas", semillaFinanzas());
   const [pestania, setPestania] = useState<Pestania>("contratistas");
   const [nuevoContratista, setNuevoContratista] = useState(false);
@@ -45,15 +49,42 @@ export function PaginaGente() {
 
   const detalle = detalleId ? datos.contratistas.find((c) => c.id === detalleId) ?? null : null;
 
+  const exportarCsv = () =>
+    descargarCsv(
+      `gente-${obra.codigo}`,
+      ["Tipo", "Nombre", "Contacto", "Detalle", "RUC", "Estado"],
+      [
+        ...datos.contratistas.map((c) => [
+          "Contratista",
+          c.nombre,
+          c.telefono,
+          `${c.especialidad} · ${c.personal.length} persona(s)`,
+          c.ruc ?? "",
+          c.enListaNegra ? "Lista negra" : `Habilitado (${c.rating.toFixed(1).replace(".", ",")}/5)`,
+        ]),
+        ...clientes.datos.map((c) => [
+          "Cliente",
+          c.nombre,
+          [c.telefono, c.email].filter(Boolean).join(" · "),
+          c.direccion,
+          c.ruc ?? "",
+          c.nota ?? "",
+        ]),
+      ],
+    );
+
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <p className="font-label-sm uppercase tracking-wider text-on-surface-variant">Ejecución · Gente</p>
-        <h1 className="font-headline-xl">Contratistas, jornaleros y clientes</h1>
-        <p className="font-body-sm text-on-surface-variant">
-          {obra.nombre} · {datos.contratistas.length} contratistas · {finanzas.datos.jornaleros.filter((j) => j.activo).length} jornaleros activos ·{" "}
-          {datos.clientes.length} clientes
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="font-label-sm uppercase tracking-wider text-on-surface-variant">Ejecución · Gente</p>
+          <h1 className="font-headline-xl">Contratistas, jornaleros y clientes</h1>
+          <p className="font-body-sm text-on-surface-variant">
+            {obra.nombre} · {datos.contratistas.length} contratistas · {finanzas.datos.jornaleros.filter((j) => j.activo).length} jornaleros activos ·{" "}
+            {clientes.datos.length} clientes
+          </p>
+        </div>
+        <BotonesExportar onCsv={exportarCsv} />
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -110,8 +141,8 @@ export function PaginaGente() {
 
       {pestania === "clientes" && (
         <ClientesView
-          datos={datos}
-          guardar={guardar}
+          clientes={clientes.datos}
+          onEliminar={(id) => clientes.guardar((previo) => removeCliente(previo, id))}
           onNuevo={() => setNuevoCliente(true)}
         />
       )}
@@ -149,7 +180,7 @@ export function PaginaGente() {
         <ClienteForm
           onCerrar={() => setNuevoCliente(false)}
           onGuardar={(c) => {
-            guardar(addCliente(datos, { ...c, id: `cli-${Date.now().toString(36)}` }));
+            clientes.guardar((previo) => addCliente(previo, { ...c, id: `cli-${Date.now().toString(36)}` }));
             setNuevoCliente(false);
           }}
         />
@@ -491,15 +522,15 @@ function DetalleContratista({
 /* ------------------------------------------------------------------ */
 
 function ClientesView({
-  datos,
-  guardar,
+  clientes,
+  onEliminar,
   onNuevo,
 }: {
-  datos: DatosGente;
-  guardar: (d: DatosGente) => void;
+  clientes: Cliente[];
+  onEliminar: (id: string) => void;
   onNuevo: () => void;
 }) {
-  return datos.clientes.length === 0 ? (
+  return clientes.length === 0 ? (
     <EmptyState
       icono="person"
       titulo="Sin clientes"
@@ -519,7 +550,7 @@ function ClientesView({
         </tr>
       </thead>
       <tbody>
-        {datos.clientes.map((c) => (
+        {clientes.map((c) => (
           <tr key={c.id} className="hover:bg-surface-container-low">
             <Td><span className="font-body-md">{c.nombre}</span></Td>
             <Td>
@@ -534,7 +565,7 @@ function ClientesView({
                 tamano="sm"
                 variante="fantasma"
                 icono="delete"
-                onClick={() => confirm(`¿Eliminar a ${c.nombre}?`) && guardar(removeCliente(datos, c.id))}
+                onClick={() => confirm(`¿Eliminar a ${c.nombre}?`) && onEliminar(c.id)}
               />
             </Td>
           </tr>

@@ -32,7 +32,7 @@ export type Unidad =
 
 export type FaseObra = "PREPARACION" | "ESTRUCTURA" | "INSTALACIONES" | "TERMINACIONES";
 
-export type EstadoObra = "PLANIFICACION" | "EN_CURSO" | "FINALIZADA" | "SUSPENDIDA";
+export type EstadoObra = "PLANIFICACION" | "APROBADA" | "EN_CURSO" | "FINALIZADA" | "SUSPENDIDA";
 
 export type TipoObra =
   | "RESIDENCIAL"
@@ -51,7 +51,7 @@ export interface Obra {
   fase: FaseObra;
   empConstructora: string;
   comitente: string;
-  /** Id del cliente en la colección `gente`, si está cargado. */
+  /** Id del cliente en el registro global de clientes del dispositivo. */
   clienteId?: string;
   ubicacion: string;
   latitud: number;
@@ -362,15 +362,216 @@ export interface Cliente {
   nota?: string;
 }
 
+/**
+ * Gente de la obra. Los contratistas son propios de cada obra; los clientes,
+ * en cambio, viven en un registro global del dispositivo (una persona puede
+ * ser comitente de varias obras), por eso no forman parte de esta colección.
+ */
 export interface DatosGente {
   contratistas: Contratista[];
-  clientes: Cliente[];
+}
+
+/* ------------------------------------------------------------------ */
+/* Recursos: materiales, pedidos y biblioteca                          */
+/* ------------------------------------------------------------------ */
+
+/** Insumo del catálogo propio, con su stock y su precio de referencia. */
+export interface Material {
+  id: string;
+  /** Código visible de obra, p. ej. "MET-ADN-10". */
+  codigo: string;
+  nombre: string;
+  categoria: string;
+  unidad: Unidad;
+  /** Proveedor habitual del insumo. */
+  proveedorHabitual: string;
+  /** Precio de referencia unitario en Gs. */
+  precioReferencia: number;
+  /** Stock actual en obra, en la unidad del insumo. */
+  stock: number;
+  /** Stock mínimo a partir del cual se alerta reposición. */
+  stockMinimo: number;
+  /** Rubro de presupuesto al que se imputa (opcional). */
+  itemPresupuestoId?: string;
+}
+
+export type EstadoPedido =
+  | "BORRADOR"
+  | "ENVIADO"
+  | "EN_TRANSITO"
+  | "RECIBIDO_PARCIAL"
+  | "RECIBIDO"
+  | "CANCELADO";
+
+/** Línea de un pedido a proveedor. */
+export interface ItemPedido {
+  id: string;
+  /** Insumo del catálogo, si el pedido sale de él. */
+  materialId?: string;
+  descripcion: string;
+  unidad: Unidad;
+  cantidad: number;
+  /** Precio unitario pactado en Gs. */
+  precioUnitario: number;
+  /** Cantidad efectivamente recibida (remito). */
+  cantidadRecibida: number;
+}
+
+/** Pedido / orden de compra a un proveedor. */
+export interface Pedido {
+  id: string;
+  /** Número visible, p. ej. "OC-2026-001". */
+  numero: string;
+  fecha: string;
+  proveedor: string;
+  /** Destino del material dentro de la obra (fase, acopio, etc.). */
+  destino: string;
+  /** Fecha estimada de entrega ISO. */
+  fechaEntrega: string;
+  estado: EstadoPedido;
+  items: ItemPedido[];
+  nota?: string;
+}
+
+export type TipoDocumento =
+  | "CONTRATO"
+  | "PLIEGO"
+  | "PLANO"
+  | "FICHA_TECNICA"
+  | "SEGURO"
+  | "NORMA"
+  | "OTRO";
+
+export type EstadoDocumento = "VIGENTE" | "VENCIDO" | "EN_REVISION";
+
+/** Documento del repositorio técnico y legal de la obra. */
+export interface DocumentoBiblioteca {
+  id: string;
+  titulo: string;
+  tipo: TipoDocumento;
+  descripcion: string;
+  categoria: string;
+  /** Enlace o referencia externa (ruta, código, URL). */
+  referencia?: string;
+  /** Fecha de vencimiento ISO, si aplica (seguros, contratos). */
+  vence?: string;
+  fecha: string;
+  estado: EstadoDocumento;
+}
+
+export interface DatosMateriales {
+  materiales: Material[];
+}
+
+export interface DatosPedidos {
+  pedidos: Pedido[];
+}
+
+export interface DatosBiblioteca {
+  documentos: DocumentoBiblioteca[];
+}
+
+/* ------------------------------------------------------------------ */
+/* Bitácora de obra                                                    */
+/* ------------------------------------------------------------------ */
+
+export type ClimaObra =
+  | "SOLEADO"
+  | "NUBLADO"
+  | "LLUVIA"
+  | "TORMENTA"
+  | "VIENTO"
+  | "CALOR_EXTREMO";
+
+/**
+ * Parte diario de obra. Registra lo que pasó en el día: clima, personal,
+ * actividades, incidencias y visitas. Es el respaldo documental de la
+ * ejecución y la base para reclamar adicionales.
+ */
+export interface EntradaBitacora {
+  id: string;
+  fecha: string;
+  clima: ClimaObra;
+  /** Temperatura en °C, opcional. */
+  temperatura?: number;
+  /** Personas presentes en obra ese día. */
+  personalPresente: number;
+  /** Horas trabajadas en la jornada. */
+  horasTrabajadas: number;
+  /** Actividades / órdenes de trabajo ejecutadas. */
+  actividades: string;
+  /** Incidencias, atrasos o notas de reclamo. */
+  incidencias?: string;
+  /** Visitas recibidas (inspección, comitente, etc.). */
+  visita?: string;
+  /** Responsable técnico que firma la entrada. */
+  responsable: string;
+  /** Avance declarado del día, 0..1. */
+  avance: number;
+}
+
+export interface DatosBitacora {
+  entradas: EntradaBitacora[];
+}
+
+/* ------------------------------------------------------------------ */
+/* Contratos                                                           */
+/* ------------------------------------------------------------------ */
+
+export type TipoContrato = "CLIENTE" | "SUBCONTRATO" | "PROVEEDOR" | "SERVICIOS" | "ALQUILER";
+
+export type EstadoContrato = "BORRADOR" | "ACTIVO" | "SUSPENDIDO" | "FINALIZADO" | "RESCINDIDO";
+
+/**
+ * Contrato de obra: el del comitente, los subcontratos y los acuerdos con
+ * proveedores o servicios. Es la pieza legal que respalda los certificados y
+ * los pagos registrados en Finanzas.
+ */
+export interface Contrato {
+  id: string;
+  /** Número visible, p. ej. "CT-2026-001". */
+  numero: string;
+  titulo: string;
+  tipo: TipoContrato;
+  /** Contraparte: comitente, subcontratista, proveedor… */
+  contraparte: string;
+  /** Monto del contrato, en Gs. */
+  monto: number;
+  fechaInicio: string;
+  fechaFin: string;
+  estado: EstadoContrato;
+  /** Fondo de garantía o retención, fracción (0.05 = 5%). */
+  retencion: number;
+  nota?: string;
+}
+
+export interface DatosContratos {
+  contratos: Contrato[];
 }
 
 /* ------------------------------------------------------------------ */
 /* Colecciones editables                                                */
 /* ------------------------------------------------------------------ */
 
-export type Coleccion = "presupuesto" | "cronograma" | "finanzas" | "gente";
+export type Coleccion =
+  | "presupuesto"
+  | "cronograma"
+  | "finanzas"
+  | "gente"
+  | "materiales"
+  | "pedidos"
+  | "biblioteca"
+  | "bitacora"
+  | "contratos";
 
-export const COLECCIONES: Coleccion[] = ["presupuesto", "cronograma", "finanzas", "gente"];
+export const COLECCIONES: Coleccion[] = [
+  "presupuesto",
+  "cronograma",
+  "finanzas",
+  "gente",
+  "materiales",
+  "pedidos",
+  "biblioteca",
+  "bitacora",
+  "contratos",
+];

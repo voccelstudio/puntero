@@ -28,6 +28,7 @@ import { agregarItemsAlPresupuesto } from "@/paginas/inicio/operaciones";
 
 const ESTADO_NOMBRE: Record<EstadoObra, { texto: string; tono: "neutro" | "primario" | "exito" | "error" | "advertencia" }> = {
   PLANIFICACION: { texto: "Planificación", tono: "neutro" },
+  APROBADA: { texto: "Aprobada", tono: "advertencia" },
   EN_CURSO: { texto: "En curso", tono: "primario" },
   FINALIZADA: { texto: "Finalizada", tono: "exito" },
   SUSPENDIDA: { texto: "Suspendida", tono: "error" },
