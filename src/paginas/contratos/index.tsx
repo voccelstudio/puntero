@@ -6,7 +6,8 @@ import { nuevoId } from "@/dominio/calculo";
 import { descargarCsv } from "@/dominio/exportar";
 import { formatFecha, formatPct, hoyIso, sumarDias } from "@/dominio/formato";
 import { semillaContratos } from "@/dominio/semillas/contratos";
-import type { Contrato, DatosContratos, EstadoContrato, TipoContrato } from "@/dominio/tipos";
+import { semillaFinanzas } from "@/dominio/semillas/finanzas";
+import type { Contrato, DatosContratos, DatosFinanzas, EstadoContrato, TipoContrato } from "@/dominio/tipos";
 import { Area, Boton, Campo, Card, Chip, EmptyState, Kpi, Modal, Progress, Select, Tabla, Td, Texto, Th } from "@/ui/base";
 import { BotonesExportar } from "@/ui/exportar";
 import {
@@ -15,9 +16,11 @@ import {
   addContrato,
   avancePlazo,
   contratosActivos,
+  ejecutadoContrato,
   patchContrato,
   porVencer,
   removeContrato,
+  saldoContrato,
   totalContratado,
   totalRetenciones,
 } from "@/paginas/contratos/operaciones";
@@ -36,9 +39,13 @@ export function PaginaContratos() {
   const { obra } = useObra();
   const { fmt } = useMoneda();
   const { datos, guardar } = useColeccion<DatosContratos>(obra.id, "contratos", semillaContratos());
+  const finanzas = useColeccion<DatosFinanzas>(obra.id, "finanzas", semillaFinanzas());
   const [form, setForm] = useState<Contrato | "nuevo" | null>(null);
 
   const vencen = porVencer(datos);
+  const ejecutado = (id: string) => ejecutadoContrato(finanzas.datos.movimientos, id);
+  const totalEjecutado = datos.contratos.reduce((a, c) => a + ejecutado(c.id), 0);
+  const totalSaldo = datos.contratos.reduce((a, c) => a + saldoContrato(c, ejecutado(c.id)), 0);
 
   const exportarCsv = () =>
     descargarCsv(
@@ -77,8 +84,12 @@ export function PaginaContratos() {
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Kpi etiqueta="Contratos activos" valor={contratosActivos(datos)} icono="description" />
-        <Kpi etiqueta="Monto contratado" valor={fmt(totalContratado(datos))} icono="payments" />
-        <Kpi etiqueta="Retenciones" valor={fmt(totalRetenciones(datos))} pie="sobre contratos activos" icono="savings" />
+        <Kpi etiqueta="Monto contratado" valor={fmt(totalContratado(datos))} pie={`Retenciones ${fmt(totalRetenciones(datos))}`} icono="payments" />
+        <Kpi etiqueta="Ejecutado" valor={fmt(totalEjecutado)} pie="imputado desde Finanzas" icono="trending_up" />
+        <Kpi etiqueta="Saldo pendiente" valor={fmt(totalSaldo)} alerta={totalSaldo > 0} icono="pending_actions" />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Kpi etiqueta="Por vencer (30 días)" valor={vencen.length} icono="event_busy" alerta={vencen.length > 0} />
       </div>
 
@@ -98,6 +109,8 @@ export function PaginaContratos() {
               <Th>Tipo</Th>
               <Th derecha>Monto</Th>
               <Th derecha>Retención</Th>
+              <Th derecha>Ejecutado</Th>
+              <Th derecha>Saldo</Th>
               <Th>Plazo</Th>
               <Th>Estado</Th>
               <Th>Acciones</Th>
@@ -114,6 +127,10 @@ export function PaginaContratos() {
                 <Td><Chip tono="neutro">{TIPO_CONTRATO_NOMBRE[c.tipo]}</Chip></Td>
                 <Td derecha>{fmt(c.monto)}</Td>
                 <Td derecha className="text-on-surface-variant">{formatPct(c.retencion)}</Td>
+                <Td derecha>{fmt(ejecutado(c.id))}</Td>
+                <Td derecha className={saldoContrato(c, ejecutado(c.id)) === 0 ? "text-ok" : ""}>
+                  {fmt(saldoContrato(c, ejecutado(c.id)))}
+                </Td>
                 <Td className="min-w-40">
                   <span className="block font-body-sm text-on-surface-variant">
                     {formatFecha(c.fechaInicio)} → {formatFecha(c.fechaFin)}
@@ -141,7 +158,8 @@ export function PaginaContratos() {
       <Card className="print-break-avoid">
         <p className="font-label-sm text-on-surface-variant">
           Los contratos respaldan los certificados y los pagos de Finanzas: el contrato del comitente contra los
-          ingresos (pagos del cliente) y los subcontratos contra los egresos (pagos a contratistas y proveedores).
+          cobros del cliente y los subcontratos/proveedores contra los pagos. Al registrar un movimiento en
+          Finanzas podés imputarlo a un contrato para ver su ejecutado y su saldo pendiente acá.
         </p>
       </Card>
 

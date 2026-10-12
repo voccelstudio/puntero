@@ -3,7 +3,7 @@
  */
 
 import { diasEntre, hoyIso } from "@/dominio/formato";
-import type { Contrato, DatosContratos, EstadoContrato, TipoContrato } from "@/dominio/tipos";
+import type { Contrato, DatosContratos, EstadoContrato, MovimientoCaja, TipoContrato } from "@/dominio/tipos";
 
 export function addContrato(datos: DatosContratos, c: Contrato): DatosContratos {
   return { ...datos, contratos: [...datos.contratos, c] };
@@ -66,4 +66,19 @@ export function avancePlazo(c: Contrato): number {
   if (total <= 0) return 0;
   const transcurrido = diasEntre(c.fechaInicio, hoyIso());
   return Math.min(1, Math.max(0, transcurrido / total));
+}
+
+/**
+ * Monto ejecutado contra un contrato: la suma de los movimientos de caja
+ * imputados a él (cobros del cliente o pagos a la contraparte), en Gs.
+ */
+export function ejecutadoContrato(movs: MovimientoCaja[], contratoId: string): number {
+  return Math.abs(
+    movs.filter((m) => m.contratoId === contratoId).reduce((a, m) => a + m.monto, 0),
+  );
+}
+
+/** Saldo pendiente de un contrato frente a lo ejecutado, en Gs. */
+export function saldoContrato(c: Contrato, ejecutado: number): number {
+  return Math.max(0, c.monto - ejecutado);
 }

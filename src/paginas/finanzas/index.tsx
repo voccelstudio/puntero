@@ -22,11 +22,14 @@ import {
 import { formatFecha, formatGs, formatPct, hoyIso } from "@/dominio/formato";
 import { descargarCsv } from "@/dominio/exportar";
 import { semillaClientes } from "@/dominio/semillas/clientes";
+import { semillaContratos } from "@/dominio/semillas/contratos";
 import { semillaFinanzas } from "@/dominio/semillas/finanzas";
 import type {
   CategoriaMovimiento,
   CertificadoObra,
   Cliente,
+  Contrato,
+  DatosContratos,
   DatosFinanzas,
   FuenteFondo,
   Jornalero,
@@ -66,6 +69,7 @@ export function PaginaFinanzas() {
   );
   const clientes = useGlobal<Cliente[]>("clientes", semillaClientes());
   const clienteObra = clientes.datos.find((c) => c.id === obra.clienteId) ?? null;
+  const contratos = useColeccion<DatosContratos>(obra.id, "contratos", semillaContratos());
   const [pestania, setPestania] = useState<Pestania>("caja");
 
   const porAprobar = obra.estado === "PLANIFICACION";
@@ -151,8 +155,8 @@ export function PaginaFinanzas() {
         </div>
 
         {pestania === "caja" && <CajaView datos={datos} guardar={guardar} />}
-        {pestania === "cobros" && <CobrosView datos={datos} guardar={guardar} cliente={clienteObra?.nombre} />}
-        {pestania === "pagos" && <PagosView datos={datos} guardar={guardar} />}
+        {pestania === "cobros" && <CobrosView datos={datos} guardar={guardar} cliente={clienteObra?.nombre} contratos={contratos.datos.contratos} />}
+        {pestania === "pagos" && <PagosView datos={datos} guardar={guardar} contratos={contratos.datos.contratos} />}
         {pestania === "certificados" && <CertificadosView datos={datos} guardar={guardar} />}
         {pestania === "subcontratos" && <SubcontratosView datos={datos} guardar={guardar} />}
         {pestania === "jornaleros" && <JornalerosView datos={datos} guardar={guardar} />}
@@ -305,15 +309,18 @@ function CobrosView({
   datos,
   guardar,
   cliente,
+  contratos,
 }: {
   datos: DatosFinanzas;
   guardar: (d: DatosFinanzas) => void;
   cliente?: string;
+  contratos: Contrato[];
 }) {
   const { fmt } = useMoneda();
   const [nuevo, setNuevo] = useState(false);
 
   const cobros = datos.movimientos.filter((m) => m.monto > 0);
+  const porContrato = new Map(contratos.map((c) => [c.id, c]));
   const total = ingresos(cobros);
   const certificado = totalCertificado(datos.certificados);
   const cobradoCert = totalCobrado(datos.certificados);
@@ -351,6 +358,7 @@ function CobrosView({
               <Th>Concepto</Th>
               <Th>Fuente</Th>
               <Th>Método</Th>
+              <Th>Contrato</Th>
               <Th>Responsable</Th>
               <Th derecha>Monto</Th>
               <Th>Acciones</Th>
@@ -363,6 +371,7 @@ function CobrosView({
                 <Td className="font-body-md">{m.concepto}</Td>
                 <Td className="text-on-surface-variant">{FUENTE_NOMBRE[m.fuente]}</Td>
                 <Td className="text-on-surface-variant">{METODO_NOMBRE[m.metodo]}</Td>
+                <Td className="text-on-surface-variant">{porContrato.get(m.contratoId ?? "")?.numero ?? "—"}</Td>
                 <Td className="text-on-surface-variant">{m.responsable}</Td>
                 <Td derecha>
                   <span className="font-label-md text-ok">+ {fmt(m.monto)}</span>
@@ -386,6 +395,7 @@ function CobrosView({
           inicial={null}
           tipoInicial="INGRESO"
           categoriaInicial="INGRESOS"
+          contratos={contratos}
           onCerrar={() => setNuevo(false)}
           onGuardar={(m) => {
             guardar(addMovimiento(datos, m));
@@ -404,14 +414,17 @@ function CobrosView({
 function PagosView({
   datos,
   guardar,
+  contratos,
 }: {
   datos: DatosFinanzas;
   guardar: (d: DatosFinanzas) => void;
+  contratos: Contrato[];
 }) {
   const { fmt } = useMoneda();
   const [nuevo, setNuevo] = useState(false);
 
   const pagos = datos.movimientos.filter((m) => m.monto < 0);
+  const porContrato = new Map(contratos.map((c) => [c.id, c]));
   const total = Math.abs(egresos(pagos));
   const proveedores = new Set(pagos.map((m) => m.proveedor).filter(Boolean)).size;
 
@@ -448,6 +461,7 @@ function PagosView({
               <Th>Categoría</Th>
               <Th>Proveedor</Th>
               <Th>Comprobante</Th>
+              <Th>Contrato</Th>
               <Th derecha>Monto</Th>
               <Th>Acciones</Th>
             </tr>
@@ -465,6 +479,7 @@ function PagosView({
                   {m.factura ? `Factura ${m.factura}` : "—"}
                   {m.ruc && <span className="block font-body-sm">RUC {m.ruc}</span>}
                 </Td>
+                <Td className="text-on-surface-variant">{porContrato.get(m.contratoId ?? "")?.numero ?? "—"}</Td>
                 <Td derecha>
                   <span className="font-label-md text-error">− {fmt(Math.abs(m.monto))}</span>
                 </Td>
@@ -487,6 +502,7 @@ function PagosView({
           inicial={null}
           tipoInicial="EGRESO"
           categoriaInicial="MATERIALES"
+          contratos={contratos}
           onCerrar={() => setNuevo(false)}
           onGuardar={(m) => {
             guardar(addMovimiento(datos, m));
@@ -509,12 +525,14 @@ function ModalMovimiento({
   inicial,
   tipoInicial,
   categoriaInicial,
+  contratos = [],
   onCerrar,
   onGuardar,
 }: {
   inicial: MovimientoCaja | null;
   tipoInicial?: "INGRESO" | "EGRESO";
   categoriaInicial?: CategoriaMovimiento;
+  contratos?: Contrato[];
   onCerrar: () => void;
   onGuardar: (m: MovimientoCaja) => void;
 }) {
@@ -526,6 +544,7 @@ function ModalMovimiento({
   const [categoria, setCategoria] = useState<CategoriaMovimiento>(
     inicial?.categoria ?? categoriaInicial ?? "MATERIALES",
   );
+  const [contratoId, setContratoId] = useState(inicial?.contratoId ?? "");
   const [fuente, setFuente] = useState<FuenteFondo>(inicial?.fuente ?? "CAJA_CHICA");
   const [metodo, setMetodo] = useState<MetodoPago>(inicial?.metodo ?? "EFECTIVO");
   const [responsable, setResponsable] = useState(inicial?.responsable ?? "");
@@ -596,6 +615,19 @@ function ModalMovimiento({
           <Texto value={responsable} onChange={(e) => setResponsable(e.target.value)} placeholder="Quién lo registró / lo pagó" />
         </Campo>
 
+        {contratos.length > 0 && (
+          <Campo etiqueta="Contrato (opcional)" hint="Imputa el movimiento a un contrato para controlar su saldo">
+            <Select value={contratoId} onChange={(e) => setContratoId(e.target.value)}>
+              <option value="">— Sin contrato —</option>
+              {contratos.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.numero} · {c.contraparte || c.titulo}
+                </option>
+              ))}
+            </Select>
+          </Campo>
+        )}
+
         <div className="grid grid-cols-2 gap-3">
           <Campo etiqueta="Factura / recibo" hint="Con factura se puede deducir el gasto">
             <Texto value={factura} onChange={(e) => setFactura(e.target.value)} />
@@ -624,6 +656,10 @@ function ModalMovimiento({
                 estado,
                 ruc: ruc.trim() || undefined,
                 factura: factura.trim() || undefined,
+                contratoId: contratoId || undefined,
+                proveedor:
+                  (contratoId ? contratos.find((c) => c.id === contratoId)?.contraparte : inicial?.proveedor) ||
+                  undefined,
               });
               onCerrar();
             }}

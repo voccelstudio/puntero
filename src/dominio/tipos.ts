@@ -240,6 +240,8 @@ export interface MovimientoCaja {
   /** Número de factura o recibo. */
   factura?: string;
   proveedor?: string;
+  /** Contrato de la obra al que se imputa el pago o el cobro. */
+  contratoId?: string;
   /** Rubro de presupuesto al que se imputa el gasto. */
   itemPresupuestoId?: string;
 }
