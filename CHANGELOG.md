@@ -1,3 +1,11 @@
+# CHANGELOG — Puntero 6.0.0
+
+## 2026-10-12 — Renace de la base v3
+
+La rama v6 nace como copia de la base v3 (modelo multi-proyecto con persistencia local/Firebase). A partir de este punto se construye la próxima generación de la app sin arrastrar la reescritura v4/v5.
+
+---
+
 # CHANGELOG — Bugs Corregidos
 
 ## Diagnóstico raíz
