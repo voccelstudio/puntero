@@ -32,12 +32,12 @@ export function PaginaCronograma() {
   const { datos, guardar } = useColeccion(
     obra.id,
     "cronograma",
-    semillaCronograma(obra.id),
+    semillaCronograma(),
   );
   const presupuesto = useColeccion(
     obra.id,
     "presupuesto",
-    semillaPresupuesto(obra.id),
+    semillaPresupuesto(),
   );
   const [abrirNueva, setAbrirNueva] = useState(false);
   const [editarId, setEditarId] = useState<string | null>(null);

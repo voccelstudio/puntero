@@ -17,24 +17,14 @@ import {
   formatPct,
   formatUnidad,
   hoyIso,
-  sumarDias,
 } from "@/dominio/formato";
 import { MODULOS } from "@/dominio/modulos";
 import { buscarRubros, IVA_LAB, IVA_MAT, type Rubro } from "@/dominio/precios";
 import { semillaPresupuesto } from "@/dominio/semillas/presupuesto";
-import type { EstadoObra, FaseObra, ItemPresupuesto, Obra, TipoObra } from "@/dominio/tipos";
-import { Boton, Campo, Card, Chip, EmptyState, Icono, Kpi, Modal, Progress, Select, Texto } from "@/ui/base";
+import type { EstadoObra, FaseObra, ItemPresupuesto, Obra } from "@/dominio/tipos";
+import { Boton, Campo, Card, Chip, EmptyState, Icono, Kpi, Progress, Texto } from "@/ui/base";
+import { FormObra } from "@/paginas/inicio/form-obra";
 import { agregarItemsAlPresupuesto } from "@/paginas/inicio/operaciones";
-
-const TIPO_NOMBRE: Record<TipoObra, string> = {
-  RESIDENCIAL: "Residencial",
-  COMERCIAL: "Comercial",
-  INDUSTRIAL: "Industrial",
-  REFORMA: "Reforma",
-  INFRAESTRUCTURA: "Infraestructura",
-};
-
-const TIPO_OPCIONES = (Object.keys(TIPO_NOMBRE) as TipoObra[]).map((t) => ({ valor: t, texto: TIPO_NOMBRE[t] }));
 
 const ESTADO_NOMBRE: Record<EstadoObra, { texto: string; tono: "neutro" | "primario" | "exito" | "error" | "advertencia" }> = {
   PLANIFICACION: { texto: "Planificación", tono: "neutro" },
@@ -43,10 +33,6 @@ const ESTADO_NOMBRE: Record<EstadoObra, { texto: string; tono: "neutro" | "prima
   SUSPENDIDA: { texto: "Suspendida", tono: "error" },
 };
 
-const ESTADO_OPCIONES = (Object.entries(ESTADO_NOMBRE) as [EstadoObra, { texto: string; tono: string }][]).map(
-  ([valor, e]) => ({ valor, texto: e.texto }),
-);
-
 const FASE_NOMBRE: Record<FaseObra, string> = {
   PREPARACION: "Preparación",
   ESTRUCTURA: "Estructura",
@@ -54,10 +40,8 @@ const FASE_NOMBRE: Record<FaseObra, string> = {
   TERMINACIONES: "Terminaciones",
 };
 
-const FASE_OPCIONES = (Object.entries(FASE_NOMBRE) as [FaseObra, string][]).map(([valor, texto]) => ({ valor, texto }));
-
 export function PaginaInicio() {
-  const { obras, cambiar, obraPorId, crearObra, actualizarObra, eliminarObra, esSemilla } = useObra();
+  const { obras, cambiar, obraPorId, crearObra, actualizarObra, eliminarObra } = useObra();
   const navigate = useNavigate();
   const [nueva, setNueva] = useState(false);
   const [editar, setEditar] = useState<Obra | null>(null);
@@ -180,7 +164,7 @@ export function PaginaInicio() {
       </div>
 
       {nueva && (
-        <ObraForm
+        <FormObra
           titulo="Nueva obra"
           onCerrar={() => setNueva(false)}
           onGuardar={nuevaYabrir}
@@ -188,13 +172,12 @@ export function PaginaInicio() {
       )}
 
       {editar && (
-        <ObraForm
+        <FormObra
           titulo="Editar obra"
           obra={editar}
           onCerrar={() => setEditar(null)}
           onActualizar={(ob) => actualizarObra(ob)}
           onEliminar={(id) => eliminarObra(id)}
-          puedeEliminar={!esSemilla(editar.id)}
         />
       )}
     </div>
@@ -227,7 +210,7 @@ function TarjetaObra({
   onEditar: () => void;
 }) {
   const { moneda, pygPorUsd } = useMoneda();
-  const { datos } = useColeccion(obra.id, "presupuesto", semillaPresupuesto(obra.id));
+  const { datos } = useColeccion(obra.id, "presupuesto", semillaPresupuesto());
 
   const items = useMemo(() => todosLosItems(datos), [datos]);
   const resumen = useMemo(
@@ -315,7 +298,7 @@ function ComputoRapido() {
   const { obra } = useObra();
   const { moneda, pygPorUsd, fmt } = useMoneda();
   const navigate = useNavigate();
-  const presupuesto = useColeccion(obra.id, "presupuesto", semillaPresupuesto(obra.id));
+  const presupuesto = useColeccion(obra.id, "presupuesto", semillaPresupuesto());
 
   const [busqueda, setBusqueda] = useState("");
   const [rubro, setRubro] = useState<Rubro | null>(null);
@@ -524,178 +507,5 @@ function ComputoRapido() {
         </div>
       </div>
     </Card>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Alta / edición de obra                                              */
-/* ------------------------------------------------------------------ */
-
-function ObraForm({
-  titulo,
-  obra = null,
-  onCerrar,
-  onGuardar,
-  onActualizar,
-  onEliminar,
-  puedeEliminar = false,
-}: {
-  titulo: string;
-  obra?: Obra | null;
-  onCerrar: () => void;
-  onGuardar?: (entrada: EntradaObra) => void;
-  onActualizar?: (obra: Obra) => void;
-  onEliminar?: (id: string) => void;
-  puedeEliminar?: boolean;
-}) {
-  const [nombre, setNombre] = useState(obra?.nombre ?? "");
-  const [tipo, setTipo] = useState<TipoObra>(obra?.tipo ?? "RESIDENCIAL");
-  const [comitente, setComitente] = useState(obra?.comitente ?? "");
-  const [empresa, setEmpresa] = useState(obra?.empConstructora ?? "");
-  const [ubicacion, setUbicacion] = useState(obra?.ubicacion ?? "");
-  const [superficie, setSuperficie] = useState(obra?.superficie ? String(obra.superficie) : "");
-  const [estado, setEstado] = useState<EstadoObra>(obra?.estado ?? "PLANIFICACION");
-  const [fase, setFase] = useState<FaseObra>(obra?.fase ?? "PREPARACION");
-  const [resumen, setResumen] = useState(obra?.resumen ?? "");
-  const [inicio, setInicio] = useState(obra?.inicio ?? hoyIso());
-  const [fin, setFin] = useState(obra?.finEstimado ?? sumarDias(hoyIso(), 180));
-
-  const guardar = () => {
-    if (obra && onActualizar) {
-      onActualizar({
-        ...obra,
-        nombre: nombre.trim(),
-        tipo,
-        comitente: comitente.trim(),
-        empConstructora: empresa.trim(),
-        ubicacion: ubicacion.trim(),
-        superficie: Number(superficie) || 0,
-        estado,
-        fase,
-        resumen,
-        inicio,
-        finEstimado: fin,
-      });
-    } else if (onGuardar) {
-      onGuardar({
-        nombre,
-        tipo,
-        comitente,
-        empConstructora: empresa,
-        ubicacion,
-        superficie: Number(superficie) || 0,
-        inicio,
-        finEstimado: fin,
-      });
-    }
-    onCerrar();
-  };
-
-  return (
-    <Modal abierto titulo={titulo} icono={obra ? "edit" : "add_home"} onClose={onCerrar} tamano="md">
-      <div className="flex flex-col gap-3">
-        {obra && (
-          <div className="rounded-sm border border-outline-variant bg-surface-container-low p-2 font-label-sm text-on-surface-variant">
-            {obra.codigo} · datos guardados en este dispositivo
-          </div>
-        )}
-
-        <Campo etiqueta="Nombre del proyecto">
-          <Texto value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Residencial Mbocayaty" />
-        </Campo>
-
-        <div className="grid grid-cols-2 gap-2">
-          <Campo etiqueta="Tipo">
-            <Select value={tipo} onChange={(e) => setTipo(e.target.value as TipoObra)}>
-              {TIPO_OPCIONES.map((o) => (
-                <option key={o.valor} value={o.valor}>
-                  {o.texto}
-                </option>
-              ))}
-            </Select>
-          </Campo>
-          <Campo etiqueta="Superficie (m²)">
-            <Texto inputMode="decimal" type="number" min={0} value={superficie} onChange={(e) => setSuperficie(e.target.value)} />
-          </Campo>
-        </div>
-
-        <Campo etiqueta="Comitente">
-          <Texto value={comitente} onChange={(e) => setComitente(e.target.value)} placeholder="Inmobiliaria / familia" />
-        </Campo>
-        <Campo etiqueta="Constructora">
-          <Texto value={empresa} onChange={(e) => setEmpresa(e.target.value)} />
-        </Campo>
-        <Campo etiqueta="Ubicación">
-          <Texto value={ubicacion} onChange={(e) => setUbicacion(e.target.value)} placeholder="Ciudad, distrito, referencia…" />
-        </Campo>
-
-        <div className="grid grid-cols-2 gap-2">
-          <Campo etiqueta="Inicio">
-            <Texto type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} />
-          </Campo>
-          <Campo etiqueta="Entrega estimada">
-            <Texto type="date" value={fin} onChange={(e) => setFin(e.target.value)} />
-          </Campo>
-        </div>
-
-        {obra && (
-          <>
-            <div className="grid grid-cols-2 gap-2">
-              <Campo etiqueta="Estado">
-                <Select value={estado} onChange={(e) => setEstado(e.target.value as EstadoObra)}>
-                  {ESTADO_OPCIONES.map((o) => (
-                    <option key={o.valor} value={o.valor}>
-                      {o.texto}
-                    </option>
-                  ))}
-                </Select>
-              </Campo>
-              <Campo etiqueta="Etapa">
-                <Select value={fase} onChange={(e) => setFase(e.target.value as FaseObra)}>
-                  {FASE_OPCIONES.map((o) => (
-                    <option key={o.valor} value={o.valor}>
-                      {o.texto}
-                    </option>
-                  ))}
-                </Select>
-              </Campo>
-            </div>
-            <Campo etiqueta="Resumen">
-              <textarea
-                value={resumen}
-                onChange={(e) => setResumen(e.target.value)}
-                className="min-h-16 bg-surface-container-low border border-outline-variant rounded-sm px-2.5 py-1.5 font-body-md text-on-surface placeholder:text-on-surface-variant/60 focus:border-tertiary outline-none w-full"
-                placeholder="Nota breve sobre el proyecto…"
-              />
-            </Campo>
-          </>
-        )}
-
-        <div className="flex flex-col gap-2 border-t border-outline-variant pt-3">
-          <Boton icono="save" disabled={!nombre.trim()} onClick={guardar}>
-            {obra ? "Guardar cambios" : "Crear obra"}
-          </Boton>
-
-          {obra && puedeEliminar && onEliminar && (
-            <Boton
-              variante="peligro"
-              icono="delete"
-              onClick={() => {
-                if (
-                  confirm(
-                    `¿Eliminar "${obra.nombre}"? Se borran sus colecciones de este dispositivo (presupuesto, finanzas, cronograma, gente) y de los respaldos.`,
-                  )
-                ) {
-                  onEliminar(obra.id);
-                  onCerrar();
-                }
-              }}
-            >
-              Eliminar obra
-            </Boton>
-          )}
-        </div>
-      </div>
-    </Modal>
   );
 }

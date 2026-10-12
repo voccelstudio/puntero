@@ -58,7 +58,7 @@ export function PaginaFinanzas() {
   const { datos, guardar } = useColeccion(
     obra.id,
     "finanzas",
-    semillaFinanzas(obra.id),
+    semillaFinanzas(),
   );
   const [pestania, setPestania] = useState<Pestania>("caja");
 

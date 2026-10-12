@@ -27,9 +27,9 @@ export function PaginaGente() {
   const { datos, guardar } = useColeccion<DatosGente>(
     obra.id,
     "gente",
-    semillaGente(obra.id),
+    semillaGente(),
   );
-  const finanzas = useColeccion(obra.id, "finanzas", semillaFinanzas(obra.id));
+  const finanzas = useColeccion(obra.id, "finanzas", semillaFinanzas());
   const [pestania, setPestania] = useState<Pestania>("contratistas");
   const [nuevoContratista, setNuevoContratista] = useState(false);
   const [nuevoCliente, setNuevoCliente] = useState(false);

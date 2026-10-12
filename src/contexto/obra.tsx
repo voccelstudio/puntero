@@ -10,20 +10,21 @@ import {
 import { useSearchParams } from "react-router-dom";
 import {
   agregarAlIndice,
+  escribirObrasRegistradas,
   leerObrasRegistradas,
   quitarObraLocal,
-  escribirObrasRegistradas,
 } from "@/dominio/almacen";
 import { hoyIso, sumarDias } from "@/dominio/formato";
-import { OBRAS } from "@/dominio/semillas/obras";
 import type { Obra, TipoObra } from "@/dominio/tipos";
+import { PantallaBienvenida } from "@/ui/bienvenida";
 
 /**
  * Obra activa (y registro completo de proyectos).
  *
- * El catálogo arranca con las obras semilla y crece con las que crea el
- * usuario, persistidas en `puntero.v1.obras`. La selección de la obra activa
- * se resuelve con esta precedencia:
+ * El catálogo es el registro de obras creadas por el usuario, persistido en
+ * `puntero.v1.obras`. No hay obras semilla: mientras no exista ninguna, se
+ * muestra la pantalla de bienvenida para crear la primera. La selección de la
+ * obra activa se resuelve con esta precedencia:
  * 1. Parámetro `?obra=` en la URL (compartir enlaces entre módulos).
  * 2. `localStorage.puntero.ultimaObra` (la última que abrió el usuario).
  * 3. La primera obra del catálogo.
@@ -48,13 +49,10 @@ interface ContextoObra {
   crearObra: (entrada: EntradaObra) => Obra;
   actualizarObra: (obra: Obra) => void;
   eliminarObra: (id: string) => void;
-  esSemilla: (id: string) => boolean;
   obraPorId: (id: string) => Obra | undefined;
 }
 
 const Ctx = createContext<ContextoObra | null>(null);
-
-const IDS_SEMILLA = ["los-alamos", "ypacarai", "sajonia"];
 
 const CLAVE_ULTIMA = "puntero.v1.ultimaObra";
 
@@ -78,11 +76,9 @@ export function ObraProvider({ children }: { children: ReactNode }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [registradas, setRegistradas] = useState<Obra[]>(leerObrasRegistradas);
 
-  // El catálogo = semillas + obras creadas, ordenando semillas primero.
   const obras = useMemo(() => {
     const mapa = new Map<string, Obra>();
-    for (const o of OBRAS) mapa.set(o.id, o);
-    for (const o of registradas) if (!mapa.has(o.id)) mapa.set(o.id, o);
+    for (const o of registradas) mapa.set(o.id, o);
     return [...mapa.values()];
   }, [registradas]);
 
@@ -91,7 +87,7 @@ export function ObraProvider({ children }: { children: ReactNode }) {
     [obras],
   );
 
-  // Restablecer a fábrica: vuelve a la semilla el registro de obras creadas.
+  // Restablecer a fábrica: vuelve a leer el registro de obras creadas.
   useEffect(() => {
     const alReset = () => setRegistradas(leerObrasRegistradas());
     window.addEventListener("puntero:reset", alReset);
@@ -103,12 +99,12 @@ export function ObraProvider({ children }: { children: ReactNode }) {
     if (deUrl && obraPorId(deUrl)) return deUrl;
     const deLocal = ultimaGuardada();
     if (deLocal && obraPorId(deLocal)) return deLocal;
-    return obras[0]?.id ?? IDS_SEMILLA[0]!;
+    return obras[0]?.id;
   }, [searchParams, obraPorId, obras]);
 
   // Cada vez que cambia la obra, se persiste para la próxima sesión.
   useEffect(() => {
-    guardarUltima(activa);
+    if (activa) guardarUltima(activa);
   }, [activa]);
 
   const cambiar = useCallback(
@@ -180,16 +176,15 @@ export function ObraProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const esSemilla = useCallback(
-    (id: string) => IDS_SEMILLA.includes(id) || OBRAS.some((o) => o.id === id),
-    [],
-  );
+  const obra = (activa && obraPorId(activa)) || obras[0];
 
-  const obra = obraPorId(activa) ?? obras[0] ?? OBRAS[0]!;
+  if (!obra) {
+    return <PantallaBienvenida onCrear={crearObra} />;
+  }
 
   return (
     <Ctx.Provider
-      value={{ obra, obras, cambiar, crearObra, actualizarObra, eliminarObra, esSemilla, obraPorId }}
+      value={{ obra, obras, cambiar, crearObra, actualizarObra, eliminarObra, obraPorId }}
     >
       {children}
     </Ctx.Provider>

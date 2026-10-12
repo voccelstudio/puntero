@@ -42,7 +42,7 @@ export function PaginaPresupuesto() {
   const { datos, guardar } = useColeccion(
     obra.id,
     "presupuesto",
-    semillaPresupuesto(obra.id),
+    semillaPresupuesto(),
   );
 
   const [mostrarCatalogo, setMostrarCatalogo] = useState(false);
