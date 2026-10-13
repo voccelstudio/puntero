@@ -3432,6 +3432,51 @@ function pickClientForProject(clientId, prefix) {
   if (addrEl) addrEl.value = c ? (c.address || "") : "";
 }
 
+// Muestra/oculta el formulario "crear cliente nuevo" dentro del modal de proyecto.
+function toggleNewClient(prefix) {
+  var wrap = document.getElementById(prefix + "-nc-wrap");
+  var selWrap = document.getElementById(prefix + "-client-id-wrap");
+  var btn = document.getElementById(prefix + "-nc-btn");
+  if (!wrap) return;
+  var active = wrap.style.display !== "none";
+  wrap.style.display = active ? "none" : "block";
+  if (selWrap) selWrap.style.display = active ? "" : "none";
+  if (btn) btn.textContent = active ? "＋ Crear cliente nuevo" : "✕ Volver a la base";
+  if (active) {
+    pickClientForProject("", prefix);
+  } else {
+    var f = document.getElementById(prefix + "-nc-name");
+    if (f) f.focus();
+  }
+}
+
+// Crea (o actualiza) un cliente nuevo desde el formulario y lo asigna al proyecto.
+function applyNewClientToProject(p, prefix) {
+  var clients = getClients();
+  var read = function (id) {
+    var el = document.getElementById(prefix + "-nc-" + id);
+    return el ? el.value.trim() : "";
+  };
+  var name = read("name");
+  var existing = clients.find(function (c) { return String(c.name || "").trim().toLowerCase() === name.toLowerCase(); });
+  var c = existing;
+  if (!c) {
+    c = { id: "cli_" + Date.now().toString(36), name: name, createdAt: Date.now() };
+    clients.push(c);
+  }
+  c.phone = read("phone");
+  c.email = read("email");
+  c.ruc = read("ruc");
+  c.address = read("addr");
+  p.clientId = c.id;
+  p.client = c.name;
+  p.phone = c.phone;
+  p.email = c.email;
+  p.address = c.address;
+  p.ruc = c.ruc;
+  return c;
+}
+
 function createProject() {
     const name = document.getElementById("np-name").value.trim();
     if (!name) return toast("El nombre es obligatorio", false);
@@ -3472,6 +3517,27 @@ function createProject() {
         }
     };
 
+    // Cliente: existente de la base de datos o nuevo creado desde el formulario.
+    var ncWrap = document.getElementById("np-nc-wrap");
+    var ncActive = ncWrap && ncWrap.style.display !== "none";
+    var ncName = ncActive ? String(document.getElementById("np-nc-name").value || "").trim() : "";
+    if (ncActive && ncName) {
+      applyNewClientToProject(newP, "np");
+    } else {
+      var dirId = document.getElementById("np-client-id").value;
+      if (dirId) {
+        var dc = getClients().find(function (x) { return x.id === dirId; });
+        if (dc) {
+          newP.clientId = dc.id;
+          newP.client = dc.name;
+          newP.phone = newP.phone || dc.phone || "";
+          newP.email = dc.email || "";
+          newP.address = newP.address || dc.address || "";
+          newP.ruc = dc.ruc || "";
+        }
+      }
+    }
+
     var folderPromise = Promise.resolve();
     if (newP.execution.folderHandle) {
         folderPromise = ensureSubfolders(newP.execution.folderHandle).then(function() {
@@ -3496,7 +3562,9 @@ state.projects.push(newP);
     if (typeof ensureClients === "function") syncProjectClient(newP, {
       name: newP.client || "",
       phone: newP.phone || "",
-      address: newP.address || ""
+      email: newP.email || "",
+      address: newP.address || "",
+      ruc: newP.ruc || ""
     });
     save();
         closeModal();
@@ -3531,10 +3599,26 @@ function saveEditProject(id) {
     const name = document.getElementById("ep-name").value.trim();
     if (!name) return toast("El nombre es obligatorio", false);
     p.name = name;
+    var ncWrap = document.getElementById("ep-nc-wrap");
+    var ncActive = ncWrap && ncWrap.style.display !== "none";
+    var ncName = ncActive ? String(document.getElementById("ep-nc-name").value || "").trim() : "";
+    if (ncActive && ncName) {
+      applyNewClientToProject(p, "ep");
+    } else {
+      var dirId = document.getElementById("ep-client-id").value;
+      if (dirId) {
+        var dc = getClients().find(function (x) { return x.id === dirId; });
+        if (dc) { p.clientId = dc.id; p.client = dc.name; p.email = dc.email || ""; p.ruc = dc.ruc || ""; }
+      }
+      p.phone = document.getElementById("ep-phone").value;
+      p.address = document.getElementById("ep-addr").value;
+    }
     if (typeof ensureClients === "function") syncProjectClient(p, {
-      name: document.getElementById("ep-client").value,
-      phone: document.getElementById("ep-phone").value,
-      address: document.getElementById("ep-addr").value
+      name: p.client || "",
+      phone: p.phone || "",
+      email: p.email || "",
+      address: p.address || "",
+      ruc: p.ruc || ""
     });
     p.m2Area = parseFloat(document.getElementById("ep-m2").value) || 0;
     save(); closeModal(); renderProjects();
@@ -3610,11 +3694,22 @@ function showModal(type, arg) {
       <div class="modal-title">Crear Nuevo Proyecto<button class="delbtn" onclick="closeModal()">✕</button></div>
       <div class="grid2">
         <div class="fullcol"><label class="stat-lbl">Nombre de la Obra</label><input id="np-name" placeholder="Ej: Residencia Martinez"></div>
-        <div><label class="stat-lbl">Cliente (base de datos)</label><select id="np-client-id" onchange="pickClientForProject(this.value,'np')"><option value="">— Buscar en la base —</option>${clientOptionsHtml("")}</select></div>
+        <div id="np-client-id-wrap"><label class="stat-lbl">Cliente (base de datos)</label><select id="np-client-id" onchange="pickClientForProject(this.value,'np')"><option value="">— Buscar en la base —</option>${clientOptionsHtml("")}</select></div>
         <div><label class="stat-lbl">Nombre del cliente</label><input id="np-client" placeholder="Nombre completo"></div>
         <div><label class="stat-lbl">Teléfono</label><input id="np-phone" placeholder="WhatsApp"></div>
         <div class="fullcol"><label class="stat-lbl">Ubicación / Dirección</label><input id="np-addr" placeholder="Ciudad, Barrio..."></div>
         <div><label class="stat-lbl">Superficie (m²)</label><input id="np-m2" type="number" placeholder="0"></div>
+        <div class="fullcol"><button class="btn sm" id="np-nc-btn" type="button" onclick="toggleNewClient('np')">＋ Crear cliente nuevo</button></div>
+        <div id="np-nc-wrap" style="display:none" class="fullcol">
+          <label class="stat-lbl">Nuevo cliente</label>
+          <div class="grid2" style="margin-top:4px">
+            <div class="fullcol"><input id="np-nc-name" placeholder="Nombre / Razón social *"></div>
+            <div><input id="np-nc-phone" placeholder="Teléfono / WhatsApp"></div>
+            <div><input id="np-nc-email" placeholder="Email"></div>
+            <div><input id="np-nc-ruc" placeholder="RUC / CI"></div>
+            <div class="fullcol"><input id="np-nc-addr" placeholder="Dirección"></div>
+          </div>
+        </div>
       </div>
       <!-- [OCULTO] Selector de Carpeta del Proyecto deshabilitado temporalmente -->
       <div class="modal-acts">
@@ -3631,11 +3726,22 @@ function showModal(type, arg) {
       <div class="modal-title">Modificar Proyecto<button class="delbtn" onclick="closeModal()">✕</button></div>
       <div class="grid2">
         <div class="fullcol"><label class="stat-lbl">Nombre de la Obra</label><input id="ep-name" value="${p.name.replace(/"/g, '&quot;')}"></div>
-        <div><label class="stat-lbl">Cliente (base de datos)</label><select id="ep-client-id" onchange="pickClientForProject(this.value,'ep')">${clientOptionsHtml((resolveClient(p) || {}).id)}</select></div>
+        <div id="ep-client-id-wrap"><label class="stat-lbl">Cliente (base de datos)</label><select id="ep-client-id" onchange="pickClientForProject(this.value,'ep')">${clientOptionsHtml((resolveClient(p) || {}).id)}</select></div>
         <div><label class="stat-lbl">Nombre del cliente</label><input id="ep-client" value="${escapeHtml(p.client || '')}"></div>
         <div><label class="stat-lbl">Teléfono</label><input id="ep-phone" value="${escapeHtml(p.phone || '')}"></div>
         <div class="fullcol"><label class="stat-lbl">Ubicación / Dirección</label><input id="ep-addr" value="${escapeHtml(p.address || '')}"></div>
         <div><label class="stat-lbl">Superficie (m²)</label><input id="ep-m2" type="number" value="${p.m2Area || 0}"></div>
+        <div class="fullcol"><button class="btn sm" id="ep-nc-btn" type="button" onclick="toggleNewClient('ep')">＋ Crear cliente nuevo</button></div>
+        <div id="ep-nc-wrap" style="display:none" class="fullcol">
+          <label class="stat-lbl">Nuevo cliente</label>
+          <div class="grid2" style="margin-top:4px">
+            <div class="fullcol"><input id="ep-nc-name" placeholder="Nombre / Razón social *"></div>
+            <div><input id="ep-nc-phone" placeholder="Teléfono / WhatsApp"></div>
+            <div><input id="ep-nc-email" placeholder="Email"></div>
+            <div><input id="ep-nc-ruc" placeholder="RUC / CI"></div>
+            <div class="fullcol"><input id="ep-nc-addr" placeholder="Dirección"></div>
+          </div>
+        </div>
       </div>
       <div class="modal-acts">
         <button class="btn" onclick="closeModal()">Cancelar</button>

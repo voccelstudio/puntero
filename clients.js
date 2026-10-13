@@ -74,16 +74,19 @@ function syncProjectClient(p, data) {
   var existing = clients.find(function (c) { return String(c.name || "").trim().toLowerCase() === name.toLowerCase(); });
   if (!existing && p.clientId) existing = clients.find(function (c) { return c.id === p.clientId; });
   if (!existing) {
-    existing = { id: "cli_" + Date.now().toString(36), name: name, phone: data.phone || "", address: data.address || "", ruc: data.ruc || "", note: "", createdAt: Date.now() };
+    existing = { id: "cli_" + Date.now().toString(36), name: name, phone: data.phone || "", email: data.email || "", address: data.address || "", ruc: data.ruc || "", note: data.note || "", createdAt: Date.now() };
     clients.push(existing);
   } else {
     if (data.phone) existing.phone = data.phone;
+    if (data.email) existing.email = data.email;
     if (data.address) existing.address = data.address;
     if (data.ruc) existing.ruc = data.ruc;
+    if (data.note) existing.note = data.note;
   }
   p.clientId = existing.id;
   p.client = existing.name;
   if (data.phone) p.phone = data.phone;
+  if (data.email) p.email = data.email;
   if (data.address) p.address = data.address;
   if (data.ruc) p.ruc = data.ruc;
   save();
