@@ -9,12 +9,12 @@ var CC_PAY_METHODS = ["Efectivo", "Transferencia", "Cheque", "Tarjeta", "Otro"];
 
 function ccGetPettyCash() {
     var p = getActiveProject();
-    if (!p.execution) p.execution = {};
-    if (!p.execution.finances) p.execution.finances = { income: [], expenses: [] };
-    if (!p.execution.finances.pettyCash) p.execution.finances.pettyCash = { fundAmount: 0, transactions: [], planilla: [], pagos: [] };
+    if (!p.execution) {p.execution = {};}
+    if (!p.execution.finances) {p.execution.finances = { income: [], expenses: [] };}
+    if (!p.execution.finances.pettyCash) {p.execution.finances.pettyCash = { fundAmount: 0, transactions: [], planilla: [], pagos: [] };}
     var pc = p.execution.finances.pettyCash;
-    if (!Array.isArray(pc.planilla)) pc.planilla = [];
-    if (!Array.isArray(pc.pagos)) pc.pagos = [];
+    if (!Array.isArray(pc.planilla)) {pc.planilla = [];}
+    if (!Array.isArray(pc.pagos)) {pc.pagos = [];}
     if (Array.isArray(pc.transactions) && pc.transactions.length > 0 && pc.planilla.length === 0) {
         pc.planilla = pc.transactions.map(function(t) {
             return {
@@ -39,7 +39,7 @@ function ccSortByDateAsc(list) {
 
 function renderCajaChica() {
     var el = document.getElementById("section-cajachica");
-    if (!el) return;
+    if (!el) {return;}
     var p = getActiveProject();
     if (!p) { el.innerHTML = "<div class='empty'>Seleccioná un proyecto para ver su caja chica.</div>"; return; }
     var pc = ccGetPettyCash();
@@ -154,7 +154,7 @@ function ccShowFundModal() {
 
 function ccSaveFund() {
     var monto = parseFloat(document.getElementById("cc-fund-amount").value);
-    if (isNaN(monto) || monto < 0) return toast("Monto inválido", false);
+    if (isNaN(monto) || monto < 0) {return toast("Monto inválido", false);}
     var pc = ccGetPettyCash();
     pc.fundAmount = monto;
     toast("Fondo actualizado ✓");
@@ -195,21 +195,21 @@ function ccSaveCompra() {
     var precio = parseFloat(document.getElementById("cc-comp-precio").value);
     var descripcion = document.getElementById("cc-comp-desc").value.trim();
     var factura = document.getElementById("cc-comp-factura").value.trim();
-    if (!fecha) return toast("Fecha requerida", false);
-    if (isNaN(cantidad) || cantidad <= 0) return toast("Cantidad inválida", false);
-    if (isNaN(precio) || precio < 0) return toast("Precio inválido", false);
-    if (!descripcion) return toast("Descripción requerida", false);
+    if (!fecha) {return toast("Fecha requerida", false);}
+    if (isNaN(cantidad) || cantidad <= 0) {return toast("Cantidad inválida", false);}
+    if (isNaN(precio) || precio < 0) {return toast("Precio inválido", false);}
+    if (!descripcion) {return toast("Descripción requerida", false);}
 
     var pc = ccGetPettyCash();
     var data = { id: ccNextId(pc.planilla), fecha, descripcion, cantidad, unidad, precio, factura };
     var idx = pc.planilla.findIndex(function(x) { return String(x.id) === String(data.id); });
-    if (idx >= 0) pc.planilla[idx] = data; else pc.planilla.push(data);
+    if (idx >= 0) {pc.planilla[idx] = data;} else {pc.planilla.push(data);}
     toast("Compra registrada ✓");
     save(); closeModal(); renderCajaChica();
 }
 
 function ccDeleteCompra(id) {
-    if (!confirm("¿Eliminar esta compra de la planilla?")) return;
+    if (!confirm("¿Eliminar esta compra de la planilla?")) {return;}
     var pc = ccGetPettyCash();
     pc.planilla = pc.planilla.filter(function(x) { return String(x.id) !== String(id); });
     toast("Compra eliminada ✓");
@@ -246,20 +246,20 @@ function ccSavePago() {
     var monto = parseFloat(document.getElementById("cc-pago-monto").value);
     var concepto = document.getElementById("cc-pago-concepto").value.trim();
     var metodo = document.getElementById("cc-pago-metodo").value;
-    if (!fecha) return toast("Fecha requerida", false);
-    if (isNaN(monto) || monto <= 0) return toast("Monto inválido", false);
-    if (!concepto) return toast("Concepto requerido", false);
+    if (!fecha) {return toast("Fecha requerida", false);}
+    if (isNaN(monto) || monto <= 0) {return toast("Monto inválido", false);}
+    if (!concepto) {return toast("Concepto requerido", false);}
 
     var pc = ccGetPettyCash();
     var data = { id: ccNextId(pc.pagos), fecha, concepto, metodo, monto };
     var idx = pc.pagos.findIndex(function(x) { return String(x.id) === String(data.id); });
-    if (idx >= 0) pc.pagos[idx] = data; else pc.pagos.push(data);
+    if (idx >= 0) {pc.pagos[idx] = data;} else {pc.pagos.push(data);}
     toast("Pago cargado ✓");
     save(); closeModal(); renderCajaChica();
 }
 
 function ccDeletePago(id) {
-    if (!confirm("¿Eliminar este pago?")) return;
+    if (!confirm("¿Eliminar este pago?")) {return;}
     var pc = ccGetPettyCash();
     pc.pagos = pc.pagos.filter(function(x) { return String(x.id) !== String(id); });
     toast("Pago eliminado ✓");
@@ -268,14 +268,14 @@ function ccDeletePago(id) {
 
 function ccNextId(list) {
     var ts = Date.now();
-    while (list.some(function(x) { return String(x.id) === String(ts); })) ts++;
+    while (list.some(function(x) { return String(x.id) === String(ts); })) {ts++;}
     return ts;
 }
 
 // ── Export PDF ──
 function exportCajaChicaPDF() {
     var p = getActiveProject();
-    if (!p) return toast("Sin proyecto activo", false);
+    if (!p) {return toast("Sin proyecto activo", false);}
     if (typeof window.jspdf === "undefined" && typeof jsPDF === "undefined") { toast("jsPDF cargando, intentá en 2 segundos", false); return; }
     var pc = ccGetPettyCash();
     var planilla = ccSortByDateAsc(pc.planilla);

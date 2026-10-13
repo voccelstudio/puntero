@@ -1,4 +1,5 @@
 {
+  "root": true,
   "env": {
     "browser": true,
     "es2022": true
@@ -18,15 +19,95 @@
     "_FIRESTORE": "readonly",
     "_AUTH": "readonly",
     "_STORAGE": "readonly",
-    "_currentUser": "writable"
+    "_currentUser": "writable",
+
+    "DEFAULT_FOLDER_CATEGORIES": "readonly",
+    "Dexie": "readonly",
+    "XLSXWriter": "readonly",
+    "calcMaterials": "readonly",
+    "calcOverallProgress": "readonly",
+    "clientName": "readonly",
+    "clientOptionsHtml": "readonly",
+    "closeModal": "readonly",
+    "dateInputPY": "readonly",
+    "datePYRefreshAll": "readonly",
+    "deleteFileFromFolder": "readonly",
+    "ensureClients": "readonly",
+    "escapeHtml": "readonly",
+    "fmt": "readonly",
+    "fmtD": "readonly",
+    "formatDatePY": "readonly",
+    "formatFileSize": "readonly",
+    "getActiveAdenda": "readonly",
+    "getActiveProject": "readonly",
+    "getAreaColor": "readonly",
+    "getAreaName": "readonly",
+    "getAreaSelectorHtml": "readonly",
+    "getAreas": "readonly",
+    "getClients": "readonly",
+    "getContractorRating": "readonly",
+    "getProjectFolderStatus": "readonly",
+    "getTotals": "readonly",
+    "initProjectFolder": "readonly",
+    "parseDate": "readonly",
+    "renderBudget": "readonly",
+    "renderCajaChica": "readonly",
+    "renderClients": "readonly",
+    "renderContractors": "readonly",
+    "renderContratos": "readonly",
+    "renderFinances": "readonly",
+    "renderJornaleros": "readonly",
+    "renderLogs": "readonly",
+    "renderMaterials": "readonly",
+    "renderOT": "readonly",
+    "renderPerformance": "readonly",
+    "renderProjects": "readonly",
+    "renderResources": "readonly",
+    "renderSchedule": "readonly",
+    "renderStarsHTML": "readonly",
+    "renderSuppliers": "readonly",
+    "resolveBudgetClient": "readonly",
+    "resolveClient": "readonly",
+    "save": "readonly",
+    "scanFolder": "readonly",
+    "setSection": "readonly",
+    "showModal": "readonly",
+    "syncProjectClient": "readonly",
+    "toast": "readonly",
+    "todayISO": "readonly",
+    "updateAreaFotoCounts": "readonly",
+    "updateBadge": "readonly",
+    "verifyFolderPermission": "readonly",
+    "waLink": "readonly",
+    "writeFileToFolder": "readonly"
   },
   "rules": {
-    "no-unused-vars": ["warn", { "args": "none" }],
+    "no-unused-vars": ["warn", { "args": "none", "vars": "local" }],
     "no-undef": "error",
-    "eqeqeq": ["error", "always", { "null": "never" }],
+    // eqeqeq es "warn" a propósito: los IDs de items/proveedores se generan como
+    // number (Date.now()) pero vuelven como string desde atributos onclick del DOM,
+    // así que la coerción con == es intencional y necesaria. Cambiar a === rompería
+    // borrar proveedores, buscar items, etc.
+    "eqeqeq": ["warn", "always", { "null": "never" }],
     "curly": "warn",
     "no-throw-literal": "error",
     "prefer-const": "warn",
     "no-var": "off"
-  }
+  },
+  "overrides": [
+    {
+      "files": ["db_precios.js"],
+      "globals": { "module": "writable" }
+    },
+    {
+      "files": ["tools/**/*.js", "generar_ejemplo.js"],
+      "env": { "node": true, "browser": false },
+      "parserOptions": { "ecmaVersion": 2022, "sourceType": "script" }
+    },
+    {
+      "files": ["tests/**/*.js", "vitest.config.js"],
+      "env": { "node": true, "browser": true },
+      "parserOptions": { "ecmaVersion": 2022, "sourceType": "module" }
+    }
+  ]
 }

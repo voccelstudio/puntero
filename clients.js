@@ -4,18 +4,18 @@
  */
 
 function getClients() {
-  if (!state.clients) state.clients = [];
+  if (!state.clients) {state.clients = [];}
   return state.clients;
 }
 
 // Sincroniza la lista de clientes a partir de los proyectos existentes (migración).
 function ensureClients() {
-  if (state.migratedClients) return;
+  if (state.migratedClients) {return;}
   var clients = getClients();
   (state.projects || []).forEach(function (p) {
     var name = String(p.client || "").trim();
-    if (!name) return;
-    if (p.clientId && clients.some(function (c) { return c.id === p.clientId; })) return;
+    if (!name) {return;}
+    if (p.clientId && clients.some(function (c) { return c.id === p.clientId; })) {return;}
     var slug = name.toLowerCase().replace(/\s+/g, " ");
     var existing = clients.find(function (c) { return String(c.name || "").toLowerCase().replace(/\s+/g, " ") === slug; });
     if (!existing) {
@@ -24,39 +24,39 @@ function ensureClients() {
     }
     p.clientId = existing.id;
     p.client = existing.name;
-    if (!p.phone) p.phone = existing.phone;
-    if (!p.address) p.address = existing.address;
+    if (!p.phone) {p.phone = existing.phone;}
+    if (!p.address) {p.address = existing.address;}
   });
   state.migratedClients = true;
-  if (typeof save === "function") save();
+  if (typeof save === "function") {save();}
 }
 
 // Cliente de un proyecto: por clientId; si no, por nombre legado; si no, null.
 function resolveClient(p) {
-  if (!p) return null;
+  if (!p) {return null;}
   var clients = getClients();
   if (p.clientId) {
     var byId = clients.find(function (c) { return c.id === p.clientId; });
-    if (byId) return byId;
+    if (byId) {return byId;}
   }
   var name = String(p.client || "").trim();
-  if (!name) return null;
+  if (!name) {return null;}
   return clients.find(function (c) { return String(c.name || "").trim().toLowerCase() === name.toLowerCase(); }) || null;
 }
 
 function clientName(p) {
   var c = resolveClient(p);
-  if (c) return c.name || "";
+  if (c) {return c.name || "";}
   return p.client || "";
 }
 function clientPhone(p) {
   var c = resolveClient(p);
-  if (c && c.phone) return c.phone;
+  if (c && c.phone) {return c.phone;}
   return p.phone || "";
 }
 function clientAddress(p) {
   var c = resolveClient(p);
-  if (c && c.address) return c.address;
+  if (c && c.address) {return c.address;}
   return p.address || "";
 }
 function clientRuc(p) {
@@ -66,29 +66,29 @@ function clientRuc(p) {
 
 // Encuentra o crea un cliente a partir de los datos de un proyecto.
 function syncProjectClient(p, data) {
-  if (!p) return;
+  if (!p) {return;}
   data = data || {};
   var clients = getClients();
   var name = String(data.name || p.client || "").trim();
   if (!name) { p.clientId = null; return; }
   var existing = clients.find(function (c) { return String(c.name || "").trim().toLowerCase() === name.toLowerCase(); });
-  if (!existing && p.clientId) existing = clients.find(function (c) { return c.id === p.clientId; });
+  if (!existing && p.clientId) {existing = clients.find(function (c) { return c.id === p.clientId; });}
   if (!existing) {
     existing = { id: "cli_" + Date.now().toString(36), name: name, phone: data.phone || "", email: data.email || "", address: data.address || "", ruc: data.ruc || "", note: data.note || "", createdAt: Date.now() };
     clients.push(existing);
   } else {
-    if (data.phone) existing.phone = data.phone;
-    if (data.email) existing.email = data.email;
-    if (data.address) existing.address = data.address;
-    if (data.ruc) existing.ruc = data.ruc;
-    if (data.note) existing.note = data.note;
+    if (data.phone) {existing.phone = data.phone;}
+    if (data.email) {existing.email = data.email;}
+    if (data.address) {existing.address = data.address;}
+    if (data.ruc) {existing.ruc = data.ruc;}
+    if (data.note) {existing.note = data.note;}
   }
   p.clientId = existing.id;
   p.client = existing.name;
-  if (data.phone) p.phone = data.phone;
-  if (data.email) p.email = data.email;
-  if (data.address) p.address = data.address;
-  if (data.ruc) p.ruc = data.ruc;
+  if (data.phone) {p.phone = data.phone;}
+  if (data.email) {p.email = data.email;}
+  if (data.address) {p.address = data.address;}
+  if (data.ruc) {p.ruc = data.ruc;}
   save();
 }
 
@@ -100,7 +100,7 @@ function clientOptionsHtml(selectedId, extra) {
     var sel = c.id === selectedId ? " selected" : "";
     h += '<option value="' + c.id + '"' + sel + '>' + escapeHtml(c.name || "Sin nombre") + (c.ruc ? " (RUC " + c.ruc + ")" : "") + "</option>";
   });
-  if (extra) h += extra;
+  if (extra) {h += extra;}
   return h;
 }
 
@@ -108,7 +108,7 @@ function clientOptionsHtml(selectedId, extra) {
 function resolveBudgetClient(p, adenda) {
   if (adenda && adenda.clientId) {
     var byId = getClients().find(function (c) { return c.id === adenda.clientId; });
-    if (byId) return byId;
+    if (byId) {return byId;}
   }
   return resolveClient(p);
 }
@@ -130,7 +130,7 @@ function clientTotalMoney(c) {
 
 function renderClients() {
   var el = document.getElementById("section-clients");
-  if (!el) return;
+  if (!el) {return;}
   ensureClients();
   var clients = getClients();
   var q = (state.clientFilter || "").toLowerCase();
@@ -229,25 +229,25 @@ function saveClientForm(id) {
   c.note = document.getElementById("cf-note").value.trim();
   // Mantener los proyectos asignados sincronizados con el nombre del cliente.
   (state.projects || []).forEach(function (p) {
-    if (p.clientId === c.id) p.client = c.name;
+    if (p.clientId === c.id) {p.client = c.name;}
   });
   save();
   closeModal();
   renderClients();
   updateBadge();
-  if (document.getElementById("bd-client-id") && typeof renderBudget === "function") renderBudget();
+  if (document.getElementById("bd-client-id") && typeof renderBudget === "function") {renderBudget();}
   toast("Cliente guardado ✓");
 }
 
 function deleteClient(id) {
   var c = getClients().find(function (x) { return x.id === id; });
-  if (!c) return;
+  if (!c) {return;}
   var n = clientProjects(c).length;
   var msg = "¿Eliminar el cliente \"" + c.name + "\"?";
-  if (n > 0) msg += "\n\nTiene " + n + " presupuesto" + (n !== 1 ? "s" : "") + " asignado" + (n !== 1 ? "s" : "") + "; quedarán sin cliente.";
-  if (!confirm(msg)) return;
+  if (n > 0) {msg += "\n\nTiene " + n + " presupuesto" + (n !== 1 ? "s" : "") + " asignado" + (n !== 1 ? "s" : "") + "; quedarán sin cliente.";}
+  if (!confirm(msg)) {return;}
   state.clients = state.clients.filter(function (x) { return x.id !== id; });
-  (state.projects || []).forEach(function (p) { if (p.clientId === id) p.clientId = null; });
+  (state.projects || []).forEach(function (p) { if (p.clientId === id) {p.clientId = null;} });
   save();
   renderClients();
   toast("Cliente eliminado ✕");

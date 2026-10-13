@@ -1,11 +1,11 @@
-const { DB_RAW, LABOR_PCT, buildDB } = require("./db_precios.js");
+const { buildDB } = require("./db_precios.js");
 const fs = require("fs");
 
 const DB = buildDB();
 
 function lookup(cat, name) {
-  if (!DB[cat]) throw new Error(`Categoria '${cat}' no encontrada`);
-  if (!DB[cat][name]) throw new Error(`Item '${name}' no encontrado en ${cat}`);
+  if (!DB[cat]) {throw new Error(`Categoria '${cat}' no encontrada`);}
+  if (!DB[cat][name]) {throw new Error(`Item '${name}' no encontrado en ${cat}`);}
   return DB[cat][name];
 }
 

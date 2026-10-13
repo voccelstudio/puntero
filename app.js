@@ -1,16 +1,16 @@
 // ── HELPERS ──────────────────────────────────────────────────────────────
 function escapeHtml(str) {
-  if (typeof str !== "string") return "";
+  if (typeof str !== "string") {return "";}
   var map = { "&": "&amp;", '"': "&quot;", "'": "&#39;", "<": "&lt;", ">": "&gt;" };
   return str.replace(/[&"'<>]/g, function (m) { return map[m]; });
 }
 
 var debounce = function (fn, ms) {
-  if (ms === void 0) ms = 200;
+  if (ms === void 0) {ms = 200;}
   var t;
   return function () {
     var a = [];
-    for (var _i = 0; _i < arguments.length; _i++) a[_i] = arguments[_i];
+    for (var _i = 0; _i < arguments.length; _i++) {a[_i] = arguments[_i];}
     clearTimeout(t);
     t = setTimeout(function () { fn.apply(null, a); }, ms);
   };
@@ -18,9 +18,9 @@ var debounce = function (fn, ms) {
 
 
 const fmt = n => {
-  if (n === undefined || n === null || isNaN(n)) return "0";
+  if (n === undefined || n === null || isNaN(n)) {return "0";}
   let val = n;
-  let symbol = state.currency === "USD" ? "U$S " : "";
+  const symbol = state.currency === "USD" ? "U$S " : "";
   let dec = 0;
   if (state.currency === "USD") {
     val = n / (state.exchangeRate || 7500);
@@ -37,7 +37,7 @@ const fmtD = (n, d = 2) => +n.toFixed(d);
  * Devuelve "" si la entrada es inválida.
  */
 function formatDatePY(input) {
-  if (!input) return "";
+  if (!input) {return "";}
   let d;
   if (input instanceof Date) {
     d = input;
@@ -45,7 +45,7 @@ function formatDatePY(input) {
     d = new Date(input);
   } else if (typeof input === "string") {
     // Formato dd/mm/yyyy con ceros — devolver tal cual
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(input)) return input;
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(input)) {return input;}
     // Formato legacy d/m/yyyy o dd/m/yyyy (sin ceros — datos viejos guardados con toLocaleDateString)
     const pyLegacyMatch = input.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
     if (pyLegacyMatch) {
@@ -60,7 +60,7 @@ function formatDatePY(input) {
     }
     d = new Date(input);
   }
-  if (!d || isNaN(d.getTime())) return "";
+  if (!d || isNaN(d.getTime())) {return "";}
   const day = String(d.getDate()).padStart(2, "0");
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const year = d.getFullYear();
@@ -81,8 +81,8 @@ function todayISO() {
  * Soporta dd/mm/yyyy, d/m/yyyy (legacy) y yyyy-mm-dd.
  */
 function parseDate(input) {
-  if (!input) return null;
-  if (input instanceof Date) return input;
+  if (!input) {return null;}
+  if (input instanceof Date) {return input;}
   if (typeof input === "string") {
     // dd/mm/yyyy o d/m/yyyy (paraguayo, con o sin ceros)
     const pyMatch = input.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
@@ -138,7 +138,7 @@ function dateInputPY(id, value, onchange, style = "", cls = "") {
  */
 function datePYUpdateLabel(id) {
   const inp = document.getElementById(id);
-  if (!inp) return;
+  if (!inp) {return;}
   const labels = document.querySelectorAll(`[data-date-label-for="${id}"] > span:first-child`);
   labels.forEach(l => {
     l.textContent = inp.value ? formatDatePY(inp.value) : "dd/mm/aaaa";
@@ -160,10 +160,10 @@ function datePYRefreshAll() {
 }
 
 const waLink = p => {
-  if (!p) return "";
+  if (!p) {return "";}
   let clean = p.replace(/\D/g, "");
-  if (clean.startsWith("0") && clean.length === 10) clean = "595" + clean.substring(1);
-  else if (clean.length === 9) clean = "595" + clean;
+  if (clean.startsWith("0") && clean.length === 10) {clean = "595" + clean.substring(1);}
+  else if (clean.length === 9) {clean = "595" + clean;}
   return `https://wa.me/${clean}`;
 };
 
@@ -201,7 +201,7 @@ function buildDB() {
 let DB = buildDB();
 
 // ── STATE ──────────────────────────────────────────────────────────────
-let state = {
+const state = {
   section: "budget", computoView: "total", expandedCat: "ESTRUCTURAS", search: "", items: [],
   projectName: "Nuevo Proyecto", clientName: "", clientPhone: "", clientAddress: "",
   profitPct: 0, validDays: 30, budgetNum: 1, notes: "", pdfShowBreakdown: false,
@@ -264,14 +264,14 @@ try {
   }
   state.isPro = true;
   migrateToMultiProject();
-  if (typeof ensureClients === "function") ensureClients();
+  if (typeof ensureClients === "function") {ensureClients();}
 } catch (e) { }
 
 // Init Dexie and try to load authoritative data from IndexedDB
 initDexie();
 dexieLoad(function () {
   // Dexie loaded, re-render if needed
-  if (typeof ensureClients === "function") ensureClients();
+  if (typeof ensureClients === "function") {ensureClients();}
   if (typeof setSection === "function" && state.section) {
     setSection(state.section);
   }
@@ -320,11 +320,11 @@ try {
 applyTheme(state.theme);
 
 function migrateToMultiProject() {
-  if (state.migratedV6) return;
+  if (state.migratedV6) {return;}
   
   if (state.budgets && state.budgets.length > 0) {
     let target = state.budgets.find(b => b.id === state.activeBudgetId);
-    if (!target) target = state.budgets[state.budgets.length - 1];
+    if (!target) {target = state.budgets[state.budgets.length - 1];}
     
     // Mover datos globales antiguos al proyecto "activo"
     if (target) {
@@ -342,14 +342,14 @@ function migrateToMultiProject() {
 }
 
 function migrateToV8() {
-    if (state.migratedV7) return;
+    if (state.migratedV7) {return;}
     state.projects.forEach(p => {
-        if (!p.location) p.location = { lat: null, lng: null, address: "", mapUrl: "" };
-        if (!p.execution) p.execution = {};
-        if (!p.execution.dayWorkers) p.execution.dayWorkers = [];
-        if (!p.execution.laborPayments) p.execution.laborPayments = [];
+        if (!p.location) {p.location = { lat: null, lng: null, address: "", mapUrl: "" };}
+        if (!p.execution) {p.execution = {};}
+        if (!p.execution.dayWorkers) {p.execution.dayWorkers = [];}
+        if (!p.execution.laborPayments) {p.execution.laborPayments = [];}
     });
-    if (!state.ownTeam) state.ownTeam = [];
+    if (!state.ownTeam) {state.ownTeam = [];}
     if (!state.roles) {
         state.roles = { "Ayudante": 80000, "Oficial": 130000, "Puntero": 180000 };
     }
@@ -374,22 +374,22 @@ function supportsFileSystemAccess() {
 }
 
 function getProjectFolderHandle(p) {
-    if (!p || !p.execution) return null;
+    if (!p || !p.execution) {return null;}
     return p.execution.folderHandle || null;
 }
 
 function getProjectFolderStatus(p) {
-    if (!supportsFileSystemAccess()) return 'unsupported';
-    if (!p || !p.execution || !p.execution.folderHandle) return 'none';
+    if (!supportsFileSystemAccess()) {return 'unsupported';}
+    if (!p || !p.execution || !p.execution.folderHandle) {return 'none';}
     return 'linked';
 }
 
 async function verifyFolderPermission(handle, requestWrite) {
-    if (!handle) return false;
+    if (!handle) {return false;}
     try {
         var mode = requestWrite ? 'readwrite' : 'read';
         var perm = await handle.queryPermission({ mode: mode });
-        if (perm === 'granted') return true;
+        if (perm === 'granted') {return true;}
         perm = await handle.requestPermission({ mode: mode });
         return perm === 'granted';
     } catch (e) {
@@ -423,7 +423,7 @@ async function initProjectFolder(p) {
         await writable.write(JSON.stringify(metadata, null, 2));
         await writable.close();
 
-        if (!p.execution) p.execution = {};
+        if (!p.execution) {p.execution = {};}
         p.execution.folderHandle = dirHandle;
         p.execution.folderPath = dirHandle.name;
         p.execution.folderCategories = DEFAULT_FOLDER_CATEGORIES;
@@ -439,7 +439,7 @@ async function initProjectFolder(p) {
 }
 
 async function ensureSubfolders(dirHandle) {
-    if (!dirHandle) return;
+    if (!dirHandle) {return;}
     for (var i = 0; i < DEFAULT_FOLDER_CATEGORIES.length; i++) {
         var cat = DEFAULT_FOLDER_CATEGORIES[i];
         await dirHandle.getDirectoryHandle(cat.name, { create: true });
@@ -447,7 +447,7 @@ async function ensureSubfolders(dirHandle) {
 }
 
 async function getSubfolderHandle(dirHandle, categoryObj) {
-    if (!dirHandle) return null;
+    if (!dirHandle) {return null;}
     try {
         return await dirHandle.getDirectoryHandle(categoryObj.name, { create: true });
     } catch (e) {
@@ -457,12 +457,12 @@ async function getSubfolderHandle(dirHandle, categoryObj) {
 
 async function scanFolder(dirHandle) {
     var results = [];
-    if (!dirHandle) return results;
+    if (!dirHandle) {return results;}
     try {
         for await (var entry of dirHandle) {
             var name = entry[0];
             var handle = entry[1];
-            if (name === '_metadata.json') continue;
+            if (name === '_metadata.json') {continue;}
             if (handle.kind === 'directory') {
                 var catDef = DEFAULT_FOLDER_CATEGORIES.find(function(c) { return c.name === name; });
                 var catId = catDef ? catDef.id : 'otros';
@@ -492,7 +492,7 @@ async function scanFolder(dirHandle) {
 }
 
 async function writeFileToFolder(dirHandle, categoryName, fileName, data, mimeType) {
-    if (!dirHandle) return false;
+    if (!dirHandle) {return false;}
     try {
         var subHandle = await dirHandle.getDirectoryHandle(categoryName, { create: true });
         var fileHandle = await subHandle.getFileHandle(fileName, { create: true });
@@ -530,7 +530,7 @@ async function deleteFileFromFolder(fileHandle) {
 }
 
 function formatFileSize(bytes) {
-    if (!bytes || bytes === 0) return '0 B';
+    if (!bytes || bytes === 0) {return '0 B';}
     var units = ['B', 'KB', 'MB', 'GB'];
     var i = Math.floor(Math.log(bytes) / Math.log(1024));
     return (bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0) + ' ' + units[i];
@@ -538,44 +538,44 @@ function formatFileSize(bytes) {
 
 async function autoSavePhotoToFolder(photoDataUrl, photoName) {
     var p = getActiveProject();
-    if (!p || !p.execution || !p.execution.folderHandle) return false;
+    if (!p || !p.execution || !p.execution.folderHandle) {return false;}
     var handle = p.execution.folderHandle;
     var ok = await verifyFolderPermission(handle, true);
-    if (!ok) return false;
+    if (!ok) {return false;}
     // Convertir data URL a Blob
     var parts = photoDataUrl.split(',');
     var mime = parts[0].match(/:(.*?);/)[1];
     var byteStr = atob(parts[1]);
     var ab = new ArrayBuffer(byteStr.length);
     var ia = new Uint8Array(ab);
-    for (var i = 0; i < byteStr.length; i++) ia[i] = byteStr.charCodeAt(i);
+    for (var i = 0; i < byteStr.length; i++) {ia[i] = byteStr.charCodeAt(i);}
     var blob = new Blob([ab], { type: mime });
     return writeFileToFolder(handle, 'Fotos de Avance', photoName, blob, mime);
 }
 
 async function copyExportToFolder(blob, fileName) {
     var p = getActiveProject();
-    if (!p || !p.execution || !p.execution.folderHandle) return false;
+    if (!p || !p.execution || !p.execution.folderHandle) {return false;}
     var handle = p.execution.folderHandle;
     var ok = await verifyFolderPermission(handle, true);
-    if (!ok) return false;
+    if (!ok) {return false;}
     return writeFileToFolder(handle, 'Exportados', fileName, blob, blob.type || 'application/octet-stream');
 }
 
 function migrateToV9() {
-    if (state.migratedV8) return;
+    if (state.migratedV8) {return;}
     state.projects.forEach(function(p) {
-        if (!p.execution) p.execution = {};
-        if (!p.execution.folderHandle) p.execution.folderHandle = null;
-        if (!p.execution.folderPath) p.execution.folderPath = '';
-        if (!p.execution.folderCategories) p.execution.folderCategories = DEFAULT_FOLDER_CATEGORIES;
+        if (!p.execution) {p.execution = {};}
+        if (!p.execution.folderHandle) {p.execution.folderHandle = null;}
+        if (!p.execution.folderPath) {p.execution.folderPath = '';}
+        if (!p.execution.folderCategories) {p.execution.folderCategories = DEFAULT_FOLDER_CATEGORIES;}
     });
     state.migratedV8 = true;
     save();
 }
 
 function migrateToV10() {
-    if (state.migratedV9) return;
+    if (state.migratedV9) {return;}
     (state.contractors || []).forEach(function(c) {
         if (c.isBlacklisted !== undefined) {
             c.ratingAvg = 1;
@@ -583,9 +583,9 @@ function migrateToV10() {
             c.ratings = {};
             delete c.isBlacklisted;
         } else {
-            if (c.ratingAvg === undefined) c.ratingAvg = 0;
-            if (c.ratingCount === undefined) c.ratingCount = 0;
-            if (!c.ratings) c.ratings = {};
+            if (c.ratingAvg === undefined) {c.ratingAvg = 0;}
+            if (c.ratingCount === undefined) {c.ratingCount = 0;}
+            if (!c.ratings) {c.ratings = {};}
         }
     });
     state._globalContractorsCache = [];
@@ -602,8 +602,8 @@ function isProUser() {
 
 function rateContractor(conId, stars, comment) {
     var con = (state.contractors || []).find(function(c) { return c.id === conId; });
-    if (!con) return;
-    if (!con.ratings) con.ratings = {};
+    if (!con) {return;}
+    if (!con.ratings) {con.ratings = {};}
     var uid = window._currentUser ? window._currentUser.uid : 'local';
     con.ratings[uid] = { stars: stars, comment: comment || '', date: todayISO() };
     var vals = Object.values(con.ratings);
@@ -613,7 +613,7 @@ function rateContractor(conId, stars, comment) {
 }
 
 function getContractorRating(con) {
-    if (!con || !con.ratings) return { avg: 0, count: 0, userStars: 0 };
+    if (!con || !con.ratings) {return { avg: 0, count: 0, userStars: 0 };}
     var vals = Object.values(con.ratings);
     var avg = vals.length ? vals.reduce(function(s, r) { return s + r.stars; }, 0) / vals.length : 0;
     var uid = window._currentUser ? window._currentUser.uid : 'local';
@@ -637,10 +637,10 @@ function renderStarsHTML(rating, interactive, conId) {
 
 function rateFromCard(conId, stars) {
     var con = (state.contractors || []).find(function(c) { return c.id === conId; });
-    if (!con) return;
+    if (!con) {return;}
     var existing = {};
     var uid = window._currentUser ? window._currentUser.uid : 'local';
-    if (con.ratings && con.ratings[uid]) existing = con.ratings[uid];
+    if (con.ratings && con.ratings[uid]) {existing = con.ratings[uid];}
     showRateModal(conId, con.name, existing.stars || 0, existing.comment || '');
 }
 
@@ -700,7 +700,7 @@ function starLabel(n) {
 
 function confirmRate(conId) {
     var stars = window._selectedRating || 0;
-    if (!stars) return toast("Seleccioná una estrella", false);
+    if (!stars) {return toast("Seleccioná una estrella", false);}
     var comment = document.getElementById('rate-comment').value;
     rateContractor(conId, stars, comment);
     closeModal();
@@ -709,8 +709,8 @@ function confirmRate(conId) {
 }
 
 async function syncGlobalContractors() {
-    if (!isProUser()) return;
-    if (!window._FIRESTORE || !window._currentUser) return;
+    if (!isProUser()) {return;}
+    if (!window._FIRESTORE || !window._currentUser) {return;}
     try {
         var snap = await window._FIRESTORE.collection('globalContractors').limit(200).get();
         var list = [];
@@ -727,16 +727,16 @@ async function syncGlobalContractors() {
 function openProjectSection(id, section) {
     state.activeProjectId = id;
     const p = getActiveProject();
-    if (p && p.budgets[0]) state.activeAdendaId = p.budgets[0].id;
+    if (p && p.budgets[0]) {state.activeAdendaId = p.budgets[0].id;}
     save();
     setSection(section);
 }
 
 function renderGlobalDashboard() {
     const el = document.getElementById("section-global_dashboard");
-    if (!el) return;
+    if (!el) {return;}
 
-    let urgentItems = [];
+    const urgentItems = [];
     const today = new Date();
     const activeProjects = state.projects.filter(p => !p.archived);
 
@@ -760,7 +760,7 @@ function renderGlobalDashboard() {
         });
     });
 
-    let h = `
+    const h = `
     <div class="prices-wrap">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px">
             <div>
@@ -854,18 +854,18 @@ function renderGlobalDashboard() {
 
 function switchProjectFromName(name) {
     const p = state.projects.find(p => p.name === name);
-    if (p) switchProject(p.id);
+    if (p) {switchProject(p.id);}
 }
 
 function renderAftercare() {
     const el = document.getElementById("section-aftercare");
-    if (!el) return;
+    if (!el) {return;}
     const p = getActiveProject();
     if (!p) { el.innerHTML = "<div class='empty'>Seleccioná un proyecto.</div>"; return; }
 
-    if (!p.execution.aftercare) p.execution.aftercare = [];
+    if (!p.execution.aftercare) {p.execution.aftercare = [];}
 
-    let h = `
+    const h = `
     <div class="prices-wrap">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px">
             <div>
@@ -902,7 +902,7 @@ function fmtMaterialQty(q) {
 
 function renderComputoSection() {
     const el = document.getElementById("section-computo");
-    if (!el) return;
+    if (!el) {return;}
     const p = getActiveProject();
     if (!p) { el.innerHTML = "<div class='empty'>Seleccioná un proyecto.</div>"; return; }
 
@@ -993,7 +993,7 @@ function renderComputoPorRubro(p) {
 function showItemMaterials(itemId) {
     const adenda = getActiveAdenda();
     const item = adenda && adenda.items.find(x => x.id == itemId);
-    if (!item) return;
+    if (!item) {return;}
     const mats = calcItemMaterials(item);
     const rows = mats.map(m => `<tr><td>${escapeHtml(m.name)}</td><td style="text-align:right;font-weight:600">${fmtMaterialQty(m.qty)}</td><td style="text-align:center;color:var(--tx3)">${escapeHtml(m.unit)}</td></tr>`).join("");
     const el = document.getElementById("modal-area");
@@ -1014,11 +1014,9 @@ function showItemMaterials(itemId) {
 
 function printComputo() {
     const p = getActiveProject();
-    if (!p) return toast("Sin proyecto activo", false);
+    if (!p) {return toast("Sin proyecto activo", false);}
     const mats = calcMaterials();
-    if (mats.length === 0) return toast("No hay materiales calculados", false);
-
-    const totalQty = mats.reduce((s, m) => s + m.qty, 0);
+    if (mats.length === 0) {return toast("No hay materiales calculados", false);}
 
     let rows = '';
     mats.forEach((m, i) => {
@@ -1059,9 +1057,9 @@ function printComputo() {
 
 function exportComputoCSV() {
     const p = getActiveProject();
-    if (!p) return toast("Sin proyecto activo", false);
+    if (!p) {return toast("Sin proyecto activo", false);}
     const mats = calcMaterials();
-    if (mats.length === 0) return toast("No hay materiales calculados", false);
+    if (mats.length === 0) {return toast("No hay materiales calculados", false);}
 
     let csv = 'Material,Cantidad,Unidad\r\n';
     mats.forEach(m => {
@@ -1098,8 +1096,8 @@ function saveClaim() {
     const title = document.getElementById("cl-title").value.trim();
     const date = document.getElementById("cl-date").value;
     const desc = document.getElementById("cl-desc").value;
-    if (!title) return toast("Título requerido", false);
-    if (!p.execution.aftercare) p.execution.aftercare = [];
+    if (!title) {return toast("Título requerido", false);}
+    if (!p.execution.aftercare) {p.execution.aftercare = [];}
     p.execution.aftercare.push({ title, date, desc, status: 'pending', id: Date.now() });
     save(); closeModal(); renderAftercare();
     toast("Reclamo registrado ✓");
@@ -1113,14 +1111,14 @@ function updateClaimStatus(idx, status) {
 }
 
 function deleteClaim(idx) {
-    if (!confirm("¿Eliminar este registro?")) return;
+    if (!confirm("¿Eliminar este registro?")) {return;}
     const p = getActiveProject();
     p.execution.aftercare.splice(idx, 1);
     save(); renderAftercare();
 }
 
 function migrateToV7() {
-    if (state.projects && state.projects.length > 0) return;
+    if (state.projects && state.projects.length > 0) {return;}
     
     // Si hay datos actuales, convertirlos en el primer proyecto
     const initialProject = {
@@ -1169,16 +1167,16 @@ function getActiveProject() {
 
 function getActiveAdenda() {
     const p = getActiveProject();
-    if (!p) return null;
-    if (!p.budgets || p.budgets.length === 0) return null;
-    if (!state.activeAdendaId) state.activeAdendaId = p.budgets[0].id;
+    if (!p) {return null;}
+    if (!p.budgets || p.budgets.length === 0) {return null;}
+    if (!state.activeAdendaId) {state.activeAdendaId = p.budgets[0].id;}
     return p.budgets.find(b => b.id === state.activeAdendaId);
 }
 
 function switchProject(id) {
     state.activeProjectId = id;
     const p = getActiveProject();
-    if (!p) return;
+    if (!p) {return;}
 
     state.activeAdendaId = p.budgets[0].id;
     save();
@@ -1198,23 +1196,23 @@ function switchProject(id) {
 
 function renderProjects() {
     const el = document.getElementById("section-projects");
-    if (!el) return;
+    if (!el) {return;}
 
-    if (!state.projectSort) state.projectSort = 'name';
-    if (!state.projectFilter) state.projectFilter = '';
-    if (state.projectShowArchived === undefined) state.projectShowArchived = false;
+    if (!state.projectSort) {state.projectSort = 'name';}
+    if (!state.projectFilter) {state.projectFilter = '';}
+    if (state.projectShowArchived === undefined) {state.projectShowArchived = false;}
 
-    let filtered = [...state.projects].filter(p => {
-        if (!state.projectShowArchived && p.archived) return false;
-        if (state.clientFilterProj && p.clientId !== state.clientFilterProj) return false;
+    const filtered = [...state.projects].filter(p => {
+        if (!state.projectShowArchived && p.archived) {return false;}
+        if (state.clientFilterProj && p.clientId !== state.clientFilterProj) {return false;}
         const cname = clientName(p);
         return p.name.toLowerCase().includes(state.projectFilter.toLowerCase()) || 
             (cname && cname.toLowerCase().includes(state.projectFilter.toLowerCase()));
     });
 
     filtered.sort((a, b) => {
-        if (state.projectSort === 'name') return a.name.localeCompare(b.name);
-        if (state.projectSort === 'client') return clientName(a).localeCompare(clientName(b));
+        if (state.projectSort === 'name') {return a.name.localeCompare(b.name);}
+        if (state.projectSort === 'client') {return clientName(a).localeCompare(clientName(b));}
         if (state.projectSort === 'amount') {
             const getT = (p) => p.budgets.reduce((s, b) => s + b.items.reduce((ss, i) => ss + (i.unitPrice * i.qty), 0), 0);
             return getT(b) - getT(a);
@@ -1224,7 +1222,7 @@ function renderProjects() {
 
     const archivedCount = state.projects.filter(p => p.archived).length;
 
-    let h = `
+    const h = `
     <div class="prices-wrap">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:15px">
             <div>
@@ -1309,7 +1307,7 @@ function renderProjects() {
 
 function shareProjectWhatsApp(id) {
     const p = state.projects.find(x => x.id === id);
-    if (!p) return;
+    if (!p) {return;}
     const total = p.budgets.reduce((s, b) => s + b.items.reduce((ss, i) => ss + (i.unitPrice * i.qty), 0), 0);
     const loc = p.location && p.location.lat ? `📍 ${p.location.address || 'Ver ubicación'}\n` : '';
     const msg = `📋 *${p.name}*\n👤 Cliente: ${p.client || '—'}\n💰 Inversión: ${fmt(total)}\n${loc}📎 Exportado desde Puntero`;
@@ -1335,7 +1333,7 @@ function checkBackupReminder() {
 // ── DEXIE (IndexedDB) ────────────────────────────────────────────────
 var _DEXIE = null;
 function initDexie() {
-  if (typeof Dexie === "undefined") return;
+  if (typeof Dexie === "undefined") {return;}
   try {
     _DEXIE = new Dexie("PunteroDB");
     _DEXIE.version(1).stores({ state: "id", db: "id" });
@@ -1343,7 +1341,7 @@ function initDexie() {
 }
 
 function dexieSave() {
-  if (!_DEXIE) return;
+  if (!_DEXIE) {return;}
   _DEXIE.state.put({ id: "main", data: JSON.parse(JSON.stringify(state)) }).catch(function (e) {
     console.warn("Dexie save error:", e);
   });
@@ -1353,7 +1351,7 @@ function dexieSave() {
 }
 
 function dexieLoad(callback) {
-  if (!_DEXIE) return callback && callback();
+  if (!_DEXIE) {return callback && callback();}
   _DEXIE.state.get("main").then(function (doc) {
     if (doc && doc.data) {
       Object.assign(state, doc.data);
@@ -1365,9 +1363,9 @@ function dexieLoad(callback) {
     }
     localStorage.setItem("ppy_v5", JSON.stringify(state));
     localStorage.setItem("ppy_db5", JSON.stringify(DB));
-    if (callback) callback();
+    if (callback) {callback();}
   }).catch(function () {
-    if (callback) callback();
+    if (callback) {callback();}
   });
 }
 
@@ -1395,8 +1393,8 @@ function save() {
 }
 
 function firestoreSync() {
-  if (!window._currentUser) return;
-  if (state._cloudSyncEnabled === false) return;
+  if (!window._currentUser) {return;}
+  if (state._cloudSyncEnabled === false) {return;}
   clearTimeout(_saveTimer);
   _saveTimer = setTimeout(function () {
     try {
@@ -1447,27 +1445,27 @@ var WORKSPACE_FIELDS = ['projects','contractors','suppliers','jornaleros','roles
 function extractWorkspaceData() {
   var data = {};
   WORKSPACE_FIELDS.forEach(function (f) {
-    if (state[f] !== undefined) data[f] = JSON.parse(JSON.stringify(state[f]));
+    if (state[f] !== undefined) {data[f] = JSON.parse(JSON.stringify(state[f]));}
   });
   return data;
 }
 
 function applyWorkspaceData(data) {
-  if (!data) return;
+  if (!data) {return;}
   WORKSPACE_FIELDS.forEach(function (f) {
-    if (data[f] !== undefined) state[f] = data[f];
+    if (data[f] !== undefined) {state[f] = data[f];}
   });
 }
 
 function generateWorkspaceCode() {
   var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   var code = 'PUN-';
-  for (var i = 0; i < 4; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+  for (var i = 0; i < 4; i++) {code += chars.charAt(Math.floor(Math.random() * chars.length));}
   return code;
 }
 
 async function createWorkspace() {
-  if (!window._currentUser) return toast("Iniciá sesión primero", false);
+  if (!window._currentUser) {return toast("Iniciá sesión primero", false);}
   var code = generateWorkspaceCode();
   var wsData = {
     owner: window._currentUser.uid,
@@ -1491,15 +1489,15 @@ async function createWorkspace() {
 }
 
 async function joinWorkspace() {
-  if (!window._currentUser) return toast("Iniciá sesión primero", false);
+  if (!window._currentUser) {return toast("Iniciá sesión primero", false);}
   var inp = document.getElementById("ws-join-code");
-  if (!inp) return;
+  if (!inp) {return;}
   var code = inp.value.trim().toUpperCase();
-  if (!code) return toast("Ingresá el código del workspace", false);
+  if (!code) {return toast("Ingresá el código del workspace", false);}
   try {
     var snap = await window._FIRESTORE.collection("workspaces")
       .where("code", "==", code).get();
-    if (snap.empty) return toast("Código inválido", false);
+    if (snap.empty) {return toast("Código inválido", false);}
     var doc = snap.docs[0];
     var ws = doc.data();
     if (ws.members.indexOf(window._currentUser.uid) !== -1) {
@@ -1510,7 +1508,7 @@ async function joinWorkspace() {
       members: firebase.firestore.FieldValue.arrayUnion(window._currentUser.uid),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    if (ws.data) applyWorkspaceData(ws.data);
+    if (ws.data) {applyWorkspaceData(ws.data);}
     state._workspaceId = doc.id;
     state._workspaceCode = code;
     window._workspaceRef = doc.ref;
@@ -1518,12 +1516,12 @@ async function joinWorkspace() {
     startWorkspaceListener(doc.id);
     toast("¡Unido al workspace! ✓");
     renderCloudSettings();
-    if (typeof setSection === "function") setSection(state.section);
+    if (typeof setSection === "function") {setSection(state.section);}
   } catch (e) { toast("Error: " + e.message, false); }
 }
 
 function leaveWorkspace() {
-  if (!state._workspaceId) return;
+  if (!state._workspaceId) {return;}
   stopWorkspaceListener();
   delete state._workspaceId;
   delete state._workspaceCode;
@@ -1538,15 +1536,15 @@ function startWorkspaceListener(wsId) {
   window._workspaceRef = window._FIRESTORE.collection("workspaces").doc(wsId);
   _workspaceListenerUnsub = window._workspaceRef
     .onSnapshot(function (snap) {
-      if (!snap.exists) return;
+      if (!snap.exists) {return;}
       var ws = snap.data();
-      if (!ws.data) return;
-      if (ws.updatedBy === window._currentUser.uid) return;
+      if (!ws.data) {return;}
+      if (ws.updatedBy === window._currentUser.uid) {return;}
       _wsApplyingRemote = true;
       applyWorkspaceData(ws.data);
       localStorage.setItem("ppy_v5", JSON.stringify(state));
       _wsApplyingRemote = false;
-      if (typeof setSection === "function") setSection(state.section);
+      if (typeof setSection === "function") {setSection(state.section);}
       toast("🔄 Sincronizado con el workspace", true);
     }, function (err) { console.warn("Workspace listener error:", err); });
 }
@@ -1565,7 +1563,7 @@ function applyTheme(t) {
 let _tt = null;
 function toast(msg, ok = true) {
   const t = document.getElementById("toast-el");
-  if (!t) return;
+  if (!t) {return;}
   t.textContent = msg;
   t.style.background = ok ? "var(--ok)" : "var(--err)";
   t.style.color = "var(--bg)";
@@ -1577,12 +1575,12 @@ function toast(msg, ok = true) {
 function setSection(s) {
   // [OCULTO] Secciones aún no listas: Planos/Fotos y Carpeta del Proyecto
   if (s === "documents" || s === "folder") {
-    if (typeof toast === "function") toast("Esa sección estará disponible próximamente", false);
+    if (typeof toast === "function") {toast("Esa sección estará disponible próximamente", false);}
     s = "global_dashboard";
   }
   state.section = s;
   // Cerrar drawer automáticamente al navegar (UX mobile)
-  if (typeof closeSidebar === 'function') closeSidebar();
+  if (typeof closeSidebar === 'function') {closeSidebar();}
   const titles = { 
     budget: "Presupuesto de Obra", 
     ot: "Orden de Trabajo", 
@@ -1608,52 +1606,52 @@ function setSection(s) {
     cloud: "☁️ Cloud"
   };
   const vtitle = document.getElementById("view-title");
-  if (vtitle) vtitle.textContent = titles[s] || "Puntero";
+  if (vtitle) {vtitle.textContent = titles[s] || "Puntero";}
 
   ["global_dashboard", "budget", "ot", "schedule", "contractors", "jornaleros", "contratos", "prices", "dashboard", "themes", "logs", "materials", "finances", "cajachica", "performance", "documents", "suppliers", "resources", "projects", "clients", "aftercare", "computo", "folder", "accounts", "cloud"].forEach(x => {
     const el = document.getElementById("section-" + x);
-    if (el) el.style.display = s === x ? "" : "none";
+    if (el) {el.style.display = s === x ? "" : "none";}
     const b = document.getElementById("btn-" + x);
-    if (b) b.className = "nbtn" + (s === x ? " on" : "");
+    if (b) {b.className = "nbtn" + (s === x ? " on" : "");}
   });
-  if (s === "global_dashboard") renderGlobalDashboard();
-  if (s === "projects") renderProjects();
-  if (s === "clients") renderClients();
-  if (s === "budget") renderBudget();
-  if (s === "ot") renderOT();
-  if (s === "computo") renderComputoSection();
-  if (s === "aftercare") renderAftercare();
-  if (s === "prices") renderPrices();
-  if (s === "themes") renderThemes();
-  if (s === "dashboard") renderDashboard();
-  if (s === "schedule") renderSchedule();
-  if (s === "contractors") renderContractors();
-  if (s === "jornaleros") renderJornaleros();
-  if (s === "contratos") renderContratos();
-  if (s === "logs") renderLogs();
-  if (s === "materials") renderMaterials();
-  if (s === "finances") renderFinances();
-  if (s === "cajachica") renderCajaChica();
-  if (s === "performance") renderPerformance();
+  if (s === "global_dashboard") {renderGlobalDashboard();}
+  if (s === "projects") {renderProjects();}
+  if (s === "clients") {renderClients();}
+  if (s === "budget") {renderBudget();}
+  if (s === "ot") {renderOT();}
+  if (s === "computo") {renderComputoSection();}
+  if (s === "aftercare") {renderAftercare();}
+  if (s === "prices") {renderPrices();}
+  if (s === "themes") {renderThemes();}
+  if (s === "dashboard") {renderDashboard();}
+  if (s === "schedule") {renderSchedule();}
+  if (s === "contractors") {renderContractors();}
+  if (s === "jornaleros") {renderJornaleros();}
+  if (s === "contratos") {renderContratos();}
+  if (s === "logs") {renderLogs();}
+  if (s === "materials") {renderMaterials();}
+  if (s === "finances") {renderFinances();}
+  if (s === "cajachica") {renderCajaChica();}
+  if (s === "performance") {renderPerformance();}
   // [OCULTO] if (s === "documents") renderDocuments();
-  if (s === "suppliers") renderSuppliers();
-  if (s === "resources") renderResources();
+  if (s === "suppliers") {renderSuppliers();}
+  if (s === "resources") {renderResources();}
   // [OCULTO] if (s === "folder") renderFolder();
-  if (s === "accounts") renderAccountsSettings();
+  if (s === "accounts") {renderAccountsSettings();}
   // [CLOUD OFF] desactivado: reactivar quitando el comentario
   // if (s === "cloud") renderCloudSettings();
 }
 
 function renderDashboard() {
   const el = document.getElementById("section-dashboard");
-  if (!el) return;
+  if (!el) {return;}
   const p = getActiveProject();
   if (!p) { el.innerHTML = "<div class='empty'>Seleccioná un proyecto.</div>"; return; }
-  if (!p.execution) p.execution = { schedules: {}, dailyLogs: [], materialOrders: [], finances: { income: [], expenses: [] }, documents: [], aftercare: [] };
-  if (!p.execution.schedules) p.execution.schedules = {};
-  if (!p.execution.finances) p.execution.finances = { income: [], expenses: [] };
-  if (!p.execution.finances.income) p.execution.finances.income = [];
-  if (!p.execution.finances.expenses) p.execution.finances.expenses = [];
+  if (!p.execution) {p.execution = { schedules: {}, dailyLogs: [], materialOrders: [], finances: { income: [], expenses: [] }, documents: [], aftercare: [] };}
+  if (!p.execution.schedules) {p.execution.schedules = {};}
+  if (!p.execution.finances) {p.execution.finances = { income: [], expenses: [] };}
+  if (!p.execution.finances.income) {p.execution.finances.income = [];}
+  if (!p.execution.finances.expenses) {p.execution.finances.expenses = [];}
 
   const { totalProgress } = calcOverallProgress();
   const { total } = getTotals();
@@ -1827,9 +1825,9 @@ function renderDashboard() {
 
 function updateProjectDate(type, val) {
     const p = getActiveProject();
-    if (!p) return;
-    if (type === 'start') p.execution.projectStartDate = val;
-    else p.execution.projectEndDate = val;
+    if (!p) {return;}
+    if (type === 'start') {p.execution.projectStartDate = val;}
+    else {p.execution.projectEndDate = val;}
     save();
     toast("Fecha actualizada ✓");
 }
@@ -1837,15 +1835,15 @@ function updateProjectDate(type, val) {
 function calcOverallProgress() {
     const p = getActiveProject();
     const adenda = getActiveAdenda();
-    if (!p || !adenda || adenda.items.length === 0) return { totalProgress: 0 };
-    if (!p.execution.schedules) p.execution.schedules = {};
+    if (!p || !adenda || adenda.items.length === 0) {return { totalProgress: 0 };}
+    if (!p.execution.schedules) {p.execution.schedules = {};}
 
     const items = adenda.items;
     let completed = 0;
     items.forEach(i => {
         const s = p.execution.schedules[i.id];
-        if (s && s.status === 'done') completed++;
-        else if (s && s.status === 'progress') completed += 0.5;
+        if (s && s.status === 'done') {completed++;}
+        else if (s && s.status === 'progress') {completed += 0.5;}
     });
     return { totalProgress: Math.round((completed / items.length) * 100) };
 }
@@ -1855,9 +1853,9 @@ function calcOverallProgress() {
  */
 async function exportDailyPDF(logId) {
   const proj = getActiveProject();
-  if (!proj) return toast("Sin proyecto activo", false);
+  if (!proj) {return toast("Sin proyecto activo", false);}
   const log = (proj.execution.dailyLogs || []).find(l => l.id === logId);
-  if (!log) return;
+  if (!log) {return;}
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
@@ -1930,7 +1928,7 @@ async function exportDailyPDF(logId) {
         const photoUrl = typeof ph === 'string' ? ph : (ph.url || '');
         const areaId = typeof ph === 'object' ? (ph.areaId || '') : '';
         let areaName = '';
-        if (areaId && typeof getAreaName === 'function') areaName = getAreaName(areaId);
+        if (areaId && typeof getAreaName === 'function') {areaName = getAreaName(areaId);}
         try {
             doc.addImage(photoUrl, 'JPEG', px, py, 80, 60);
             if (areaName) {
@@ -1962,7 +1960,7 @@ async function exportDailyPDF(logId) {
 
 async function exportWeeklyReport() {
   const proj = getActiveProject();
-  if (!proj) return toast("Sin proyecto activo", false);
+  if (!proj) {return toast("Sin proyecto activo", false);}
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
   const theme = PDF_THEMES.find(t => t.id === state.pdfTheme) || PDF_THEMES[0];
@@ -2032,12 +2030,12 @@ async function exportWeeklyReport() {
     grouped[''] = { name: 'Sin área', color: '#999', photos: [] };
     allWeeklyPhotos.forEach(ph => {
       const key = ph.areaId || '';
-      if (!grouped[key]) grouped[key] = { name: 'Sin área', color: '#999', photos: [] };
+      if (!grouped[key]) {grouped[key] = { name: 'Sin área', color: '#999', photos: [] };}
       grouped[key].photos.push(ph);
     });
     let py = 45;
     Object.keys(grouped).forEach(key => {
-      if (grouped[key].photos.length === 0) return;
+      if (grouped[key].photos.length === 0) {return;}
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
       doc.setTextColor(grouped[key].color);
@@ -2074,7 +2072,7 @@ async function exportMonthlyReport() {
 // ── IVA CALCULATIONS ──────────────────────────────────────────────────
 function calcIVA(matCost, laborCost, qty = 1) {
   const adenda = getActiveAdenda();
-  if (!adenda || !adenda.ivaEnabled) return { ivaMat: 0, ivaLab: 0, ivaTotal: 0 };
+  if (!adenda || !adenda.ivaEnabled) {return { ivaMat: 0, ivaLab: 0, ivaTotal: 0 };}
   const ivaMat = Math.round(matCost * qty * IVA_MAT);
   const ivaLab = Math.round(laborCost * qty * IVA_LAB);
   return { ivaMat, ivaLab, ivaTotal: ivaMat + ivaLab };
@@ -2085,8 +2083,8 @@ function addItem(cat, name) {
   const adenda = getActiveAdenda();
   const p = getActiveProject();
   if (!adenda || !p) { toast("Seleccioná un proyecto", false); return; }
-  if (!p.execution) p.execution = {};
-  if (!p.execution.schedules) p.execution.schedules = {};
+  if (!p.execution) {p.execution = {};}
+  if (!p.execution.schedules) {p.execution.schedules = {};}
 
   if (!DB[cat]) { toast("Categoría no encontrada", false); return; }
   const data = DB[cat][name];
@@ -2103,7 +2101,7 @@ function addItem(cat, name) {
     Object.values(p.execution.schedules).forEach(s => {
       if (s.end) {
         const endTs = new Date(s.end).getTime();
-        if (endTs > maxEnd) maxEnd = endTs;
+        if (endTs > maxEnd) {maxEnd = endTs;}
       }
     });
     if (maxEnd > 0) {
@@ -2132,8 +2130,8 @@ function addCustomItem() {
   const mat = Math.round(price * 0.65); const lab = Math.round(price * 0.35);
   const id = Date.now() + Math.random();
   adenda.items.push({ cat: "PERSONALIZADOS", name: n, unit: u, unitPrice: price, matCost: mat, laborCost: lab, mats: [], qty: 1, id, custom: true, disc: 0, note: "" });
-  if (!pj.execution.schedules) pj.execution.schedules = {};
-  if (!pj.execution.schedules[id]) pj.execution.schedules[id] = { status: 'pending', start: '', end: '', contractorId: null };
+  if (!pj.execution.schedules) {pj.execution.schedules = {};}
+  if (!pj.execution.schedules[id]) {pj.execution.schedules[id] = { status: 'pending', start: '', end: '', contractorId: null };}
   document.getElementById("ci-name").value = ""; document.getElementById("ci-price").value = ""; document.getElementById("ci-unit").value = "";
   renderTable(); save(); toast("Ítem agregado ✓");
 }
@@ -2141,7 +2139,7 @@ function addCustomItem() {
 function updateQty(id, val) {
   const adenda = getActiveAdenda();
   const p = getActiveProject();
-  if (!adenda || !p) return;
+  if (!adenda || !p) {return;}
   const i = adenda.items.find(x => x.id == id);
   if (i) {
     i.qty = parseFloat(val) || 0;
@@ -2149,7 +2147,7 @@ function updateQty(id, val) {
     const dbItem = DB[cat] ? DB[cat][name] : null;
     const yieldRate = (dbItem && dbItem.y) ? dbItem.y : (DEFAULT_YIELDS[cat] || 10);
     const days = Math.max(1, Math.ceil(i.qty / yieldRate));
-    if (!p.execution.schedules) p.execution.schedules = {};
+    if (!p.execution.schedules) {p.execution.schedules = {};}
     const sch = p.execution.schedules[id];
     if (sch && sch.start) {
       const startDate = new Date(sch.start);
@@ -2158,13 +2156,13 @@ function updateQty(id, val) {
     renderTotals(); applyItemTotals(id); save();
   }
 }
-function updateDisc(id, v) { const adenda = getActiveAdenda(); if (!adenda) return; const i = adenda.items.find(x => x.id == id); if (i) { i.disc = Math.max(0, Math.min(100, parseFloat(v) || 0)); renderTotals(); applyItemTotals(id); save(); } }
+function updateDisc(id, v) { const adenda = getActiveAdenda(); if (!adenda) {return;} const i = adenda.items.find(x => x.id == id); if (i) { i.disc = Math.max(0, Math.min(100, parseFloat(v) || 0)); renderTotals(); applyItemTotals(id); save(); } }
 function removeItem(id) {
   const adenda = getActiveAdenda();
   const p = getActiveProject();
-  if (!adenda) return;
+  if (!adenda) {return;}
   adenda.items = adenda.items.filter(i => i.id != id);
-  if (p && p.execution.schedules) delete p.execution.schedules[id];
+  if (p && p.execution.schedules) {delete p.execution.schedules[id];}
   renderTable(); save();
 }
 
@@ -2172,7 +2170,7 @@ function newBudget() {
   const adenda = getActiveAdenda();
   const p = getActiveProject();
   if (!adenda || !p) { toast("No hay proyecto activo", false); return; }
-  if (adenda.items.length > 0 && !confirm("¿Limpiar este presupuesto? Se borrarán los ítems.")) return;
+  if (adenda.items.length > 0 && !confirm("¿Limpiar este presupuesto? Se borrarán los ítems.")) {return;}
 
   // Borrar schedules de los items de esta adenda
   if (p.execution.schedules) {
@@ -2188,12 +2186,12 @@ function newBudget() {
 function saveVersion() {
     const adenda = getActiveAdenda();
     const p = getActiveProject();
-    if (!adenda || !p) return toast("Sin proyecto activo", false);
+    if (!adenda || !p) {return toast("Sin proyecto activo", false);}
 
     const name = prompt("Nombre de esta versión (ej: v1 - Inicial, v2 - Ajustado):", `v${(p.versions || []).length + 1}`);
-    if (!name) return;
+    if (!name) {return;}
 
-    if (!p.versions) p.versions = [];
+    if (!p.versions) {p.versions = [];}
 
     const snapshot = {
         id: 'v_' + Date.now() + '_' + Math.floor(Math.random()*1000),
@@ -2214,13 +2212,13 @@ function saveVersion() {
 
 function loadVersion(id) {
     const p = getActiveProject();
-    if (!p || !p.versions) return;
+    if (!p || !p.versions) {return;}
     const v = p.versions.find(b => b.id === id);
-    if (!v) return;
-    if (!confirm(`¿Cargar la versión "${v.name}"? Esto reemplazará los ítems actuales de la adenda.`)) return;
+    if (!v) {return;}
+    if (!confirm(`¿Cargar la versión "${v.name}"? Esto reemplazará los ítems actuales de la adenda.`)) {return;}
 
     const adenda = p.budgets.find(b => b.id === v.adendaId) || getActiveAdenda();
-    if (!adenda) return toast("Adenda no encontrada", false);
+    if (!adenda) {return toast("Adenda no encontrada", false);}
     state.activeAdendaId = adenda.id;
 
     adenda.items = JSON.parse(JSON.stringify(v.items));
@@ -2236,9 +2234,9 @@ function loadVersion(id) {
 }
 
 function deleteVersion(id) {
-    if (!confirm("¿Eliminar esta versión?")) return;
+    if (!confirm("¿Eliminar esta versión?")) {return;}
     const p = getActiveProject();
-    if (!p || !p.versions) return;
+    if (!p || !p.versions) {return;}
     p.versions = p.versions.filter(b => b.id !== id);
     save();
 }
@@ -2254,7 +2252,7 @@ function itemLineTotal(item, ivaEnabled) {
 }
 function getTotals() {
   const adenda = getActiveAdenda();
-  if (!adenda) return { totalMats:0, totalLabor:0, subtotal:0, ivaMat:0, ivaLab:0, ivaTotal:0, profitAmt:0, total:0 };
+  if (!adenda) {return { totalMats:0, totalLabor:0, subtotal:0, ivaMat:0, ivaLab:0, ivaTotal:0, profitAmt:0, total:0 };}
   
   const totalMats = adenda.items.reduce((s, i) => s + (Number(i.matCost) || 0) * (1 - (i.disc || 0) / 100) * (Number(i.qty) || 0), 0);
   const totalLabor = adenda.items.reduce((s, i) => s + (Number(i.laborCost) || 0) * (1 - (i.disc || 0) / 100) * (Number(i.qty) || 0), 0);
@@ -2275,9 +2273,9 @@ function getTotals() {
 
 function addAdenda() {
     const p = getActiveProject();
-    if (!p) return;
+    if (!p) {return;}
     const name = prompt("Nombre de la Adenda (ej: Adenda 1 - Muro Perimetral):");
-    if (!name) return;
+    if (!name) {return;}
     const newA = {
         id: 'ad_' + Date.now(),
         name: name,
@@ -2295,10 +2293,10 @@ function addAdenda() {
 
 function getGrouped() { 
     const adenda = getActiveAdenda();
-    if (!adenda) return {};
+    if (!adenda) {return {};}
     const g = {}; 
     for (const i of adenda.items) { 
-        if (!g[i.cat]) g[i.cat] = []; 
+        if (!g[i.cat]) {g[i.cat] = [];} 
         g[i.cat].push(i); 
     } 
     return g; 
@@ -2315,13 +2313,13 @@ function getBreakdown() {
 
 function calcItemMaterials(item) {
   const out = [];
-  if (!item || !item.mats) return out;
+  if (!item || !item.mats) {return out;}
   for (const mat of item.mats) {
     // Soportar ambos formatos: el compacto {n,q,u} de la DB y el extendido {name,qty,unit}
     const name = mat.name || mat.n;
     const unit = mat.unit || mat.u;
     const qty = mat.qty != null ? mat.qty : mat.q;
-    if (!name || qty == null) continue;
+    if (!name || qty == null) {continue;}
     out.push({ name, unit: unit || "", qty: qty * (item.qty || 0) });
   }
   return out;
@@ -2329,14 +2327,14 @@ function calcItemMaterials(item) {
 
 function calcMaterials() {
   const p = getActiveProject();
-  if (!p) return [];
+  if (!p) {return [];}
 
   const allItems = p.budgets.flatMap(b => b.items);
   const m = {};
   for (const item of allItems) {
     for (const mat of calcItemMaterials(item)) {
       const key = mat.name + "|" + mat.unit;
-      if (!m[key]) m[key] = { name: mat.name, unit: mat.unit, qty: 0 };
+      if (!m[key]) {m[key] = { name: mat.name, unit: mat.unit, qty: 0 };}
       m[key].qty += mat.qty;
     }
   }
@@ -2351,14 +2349,14 @@ function renderCatalog() {
   const ivaActive = adenda && adenda.ivaEnabled;
   const filtered = Object.entries(DB).reduce((acc, [cat, items]) => {
     const f = Object.entries(items).filter(([n]) => n.toLowerCase().includes(state.search.toLowerCase()) || cat.toLowerCase().includes(state.search.toLowerCase()));
-    if (f.length) acc[cat] = Object.fromEntries(f); return acc;
+    if (f.length) {acc[cat] = Object.fromEntries(f);} return acc;
   }, {});
   let h = "";
   for (const [cat, items] of Object.entries(filtered)) {
     const on = state.expandedCat === cat;
     const ec = cat.replace(/'/g, "\\'");
     h += `<button class="cat-hdr${on ? " on" : ""}" onclick="toggleCat('${ec}')">${cat}<span style="opacity:.5;font-size:1rem">${on ? "▲" : "▼"}</span></button>`;
-    if (on) for (const [name, data] of Object.entries(items)) {
+    if (on) {for (const [name, data] of Object.entries(items)) {
       const en = name.replace(/'/g, "\\'");
       const { ivaMat, ivaLab } = calcIVA(data.matCost, data.laborCost);
       const totalDisp = data.total + ivaMat + ivaLab;
@@ -2373,18 +2371,18 @@ function renderCatalog() {
         <span class="utag">${data.unit}</span>
         <button class="addbtn" onclick="event.stopPropagation();addItem('${ec}','${en}')">+</button>
       </div>`;
-    }
+    }}
   }
-  const el = document.getElementById("catalog"); if (el) el.innerHTML = h;
+  const el = document.getElementById("catalog"); if (el) {el.innerHTML = h;}
 }
 function toggleCat(c) { state.expandedCat = state.expandedCat === c ? null : c; renderCatalog(); }
 
 // ── TOTALS RENDER ────────────────────────────────────────────────────
 function renderTotals() {
   const adenda = getActiveAdenda();
-  if (!adenda) return;
+  if (!adenda) {return;}
   const { totalMats, totalLabor, subtotal, ivaMat, ivaLab, ivaTotal, profitAmt, total } = getTotals();
-  const el = document.getElementById("totals-area"); if (!el) return;
+  const el = document.getElementById("totals-area"); if (!el) {return;}
   let h = `<div class="totals">
     <div class="tot-row"><span class="tot-lbl">Materiales</span><span class="tot-val tot-mat">₲ ${fmt(totalMats)}</span></div>
     <div class="tot-row"><span class="tot-lbl">Mano de obra</span><span class="tot-val tot-lab">₲ ${fmt(totalLabor)}</span></div>
@@ -2394,7 +2392,7 @@ function renderTotals() {
         <div class="tot-row"><span class="tot-lbl" style="color:var(--iva)">IVA mano de obra (5%)</span><span class="tot-val tot-iva">₲ ${fmt(ivaLab)}</span></div>
         <div class="tot-row"><span class="tot-lbl" style="color:var(--iva);font-weight:600">Total IVA</span><span class="tot-val tot-iva">₲ ${fmt(ivaTotal)}</span></div>`;
   }
-  if (adenda.profitPct > 0) h += `<div class="tot-row"><span class="tot-lbl">Honorarios (${adenda.profitPct}%)</span><span class="tot-val" style="color:var(--ok)">₲ ${fmt(profitAmt)}</span></div>`;
+  if (adenda.profitPct > 0) {h += `<div class="tot-row"><span class="tot-lbl">Honorarios (${adenda.profitPct}%)</span><span class="tot-val" style="color:var(--ok)">₲ ${fmt(profitAmt)}</span></div>`;}
   h += `<div class="tot-row tot-main"><span class="tot-lbl">TOTAL${adenda.ivaEnabled ? " (IVA inc.)" : ""}</span><span class="tot-val">₲ ${fmt(total)}</span></div>
     <div class="disc">Precios incluyen materiales y mano de obra${adenda.ivaEnabled ? ", con IVA incluido" : ""} — Válido ${state.validDays || 15} días desde la fecha de emisión</div>
   </div>`;
@@ -2404,22 +2402,22 @@ function renderTotals() {
 // ── TABLE RENDER ─────────────────────────────────────────────────────
 // Configuración de fases de un presupuesto (adenda).
 function getPhaseConfig(adenda) {
-  if (!adenda || !Array.isArray(adenda.phases)) return [];
+  if (!adenda || !Array.isArray(adenda.phases)) {return [];}
   return adenda.phases;
 }
 
 // Layout por fases: [{ id, name, items }]. Sin fases configuradas ni ítems
 // asignados devuelve null (se mantiene el agrupado solo por categoría).
 function getPhaseLayout(adenda) {
-  if (!adenda) return null;
+  if (!adenda) {return null;}
   const phases = getPhaseConfig(adenda);
   const anyAssigned = (adenda.items || []).some(i => i.phase);
-  if (phases.length === 0 && !anyAssigned) return null;
+  if (phases.length === 0 && !anyAssigned) {return null;}
   const groups = [];
   const map = {};
   phases.forEach(p => { map[p.id] = { id: p.id, name: p.name, items: [] }; groups.push(map[p.id]); });
   map[""] = map[""] || { id: "", name: "Etapa final / otros", items: [] };
-  if (!phases.some(p => p.id === "")) groups.push(map[""]);
+  if (!phases.some(p => p.id === "")) {groups.push(map[""]);}
   (adenda.items || []).forEach(i => {
     const ph = phases.some(p => p.id === i.phase) ? i.phase : "";
     map[ph].items.push(i);
@@ -2429,12 +2427,12 @@ function getPhaseLayout(adenda) {
 
 function phaseSubtotalIn(adenda, phaseId) {
   const layout = getPhaseLayout(adenda);
-  if (!layout) return 0;
+  if (!layout) {return 0;}
   const phases = getPhaseConfig(adenda);
   let s = 0;
   (adenda.items || []).forEach(i => {
     const ph = phases.some(p => p.id === i.phase) ? i.phase : "";
-    if (ph === (phaseId || "")) s += itemLineTotal(i, adenda.ivaEnabled);
+    if (ph === (phaseId || "")) {s += itemLineTotal(i, adenda.ivaEnabled);}
   });
   return s;
 }
@@ -2444,26 +2442,26 @@ function catSubtotalIn(adenda, phaseId, cat) {
   const phases = getPhaseConfig(adenda);
   let s = 0;
   (adenda.items || []).forEach(i => {
-    if (i.cat !== cat) return;
+    if (i.cat !== cat) {return;}
     const inPhase = layout ? (phases.some(p => p.id === i.phase) ? i.phase : "") : "";
-    if (!layout || inPhase === (phaseId || "")) s += itemLineTotal(i, adenda.ivaEnabled);
+    if (!layout || inPhase === (phaseId || "")) {s += itemLineTotal(i, adenda.ivaEnabled);}
   });
   return s;
 }
 
 // Actualiza en vivo totales de una fila + subtotales + panel m² sin perder foco.
 function applyItemTotals(id) {
-  const adenda = getActiveAdenda(); if (!adenda) return;
-  const item = adenda.items.find(x => x.id == id); if (!item) return;
+  const adenda = getActiveAdenda(); if (!adenda) {return;}
+  const item = adenda.items.find(x => x.id == id); if (!item) {return;}
   const ep = effPrice(item);
   const iva = adenda.ivaEnabled ? calcIVA(Number(item.matCost) || 0, Number(item.laborCost) || 0, Number(item.qty) || 0).ivaTotal : 0;
   const totalItem = ep * (Number(item.qty) || 0) + iva;
   const totEl = document.getElementById("it-tot-" + id);
-  if (totEl) totEl.textContent = "₲" + fmt(totalItem);
+  if (totEl) {totEl.textContent = "₲" + fmt(totalItem);}
   const uniEl = document.getElementById("it-uni-" + id);
-  if (uniEl) uniEl.textContent = "₲" + fmt(ep);
+  if (uniEl) {uniEl.textContent = "₲" + fmt(ep);}
   const ivaEl = document.getElementById("it-iva-" + id);
-  if (ivaEl) ivaEl.textContent = "₲" + fmt(iva);
+  if (ivaEl) {ivaEl.textContent = "₲" + fmt(iva);}
   document.querySelectorAll('td[data-role="catsub"]').forEach(td => {
     const ph = td.getAttribute("data-phase") || "";
     const cat = td.getAttribute("data-cat") || "";
@@ -2478,7 +2476,7 @@ function applyItemTotals(id) {
 
 function renderM2Panel() {
   const pane = document.getElementById("m2-panel-area");
-  if (!pane) return;
+  if (!pane) {return;}
   const m2Area = getActiveProject()?.m2Area || 0;
   const totals = getTotals();
   pane.innerHTML = m2Area > 0
@@ -2492,9 +2490,9 @@ function renderM2Panel() {
 
 function setItemPhase(id, phase) {
   const adenda = getActiveAdenda();
-  if (!adenda) return;
+  if (!adenda) {return;}
   const i = adenda.items.find(x => x.id == id);
-  if (!i) return;
+  if (!i) {return;}
   i.phase = phase;
   renderTable(); save();
 }
@@ -2508,12 +2506,12 @@ function phaseOptions(phases, current) {
 }
 
 function renderTable() {
-  const el = document.getElementById("table-area"); if (!el) return;
+  const el = document.getElementById("table-area"); if (!el) {return;}
   const adenda = getActiveAdenda();
   if (!adenda || adenda.items.length === 0) {
     el.innerHTML = `<div class="empty"><div class="empty-ico">📋</div><div>Seleccioná rubros del catálogo</div></div>`;
-    const ta = document.getElementById("totals-area"); if (ta) ta.innerHTML = "";
-    const mp = document.getElementById("m2-panel-area"); if (mp) mp.innerHTML = "";
+    const ta = document.getElementById("totals-area"); if (ta) {ta.innerHTML = "";}
+    const mp = document.getElementById("m2-panel-area"); if (mp) {mp.innerHTML = "";}
     return;
   }
   const ivaEnabled = adenda.ivaEnabled;
@@ -2567,7 +2565,7 @@ function renderTable() {
     for (const phase of layout) {
       h += `<tr class="tbl-phase phase-row"><td colspan="${colSpanFull}"><span class="ph-flag">FASE</span> ${escapeHtml(phase.name)}</td></tr>`;
       const cats = {};
-      for (const i of phase.items) { if (!cats[i.cat]) cats[i.cat] = []; cats[i.cat].push(i); }
+      for (const i of phase.items) { if (!cats[i.cat]) {cats[i.cat] = [];} cats[i.cat].push(i); }
       let phaseSum = 0;
       const phaseCatTotals = [];
       for (const [cat, ci] of Object.entries(cats)) {
@@ -2579,8 +2577,8 @@ function renderTable() {
     }
   } else {
     const cats = {};
-    for (const i of adenda.items) { if (!cats[i.cat]) cats[i.cat] = []; cats[i.cat].push(i); }
-    for (const [cat, ci] of Object.entries(cats)) renderCat(cat, ci, "");
+    for (const i of adenda.items) { if (!cats[i.cat]) {cats[i.cat] = [];} cats[i.cat].push(i); }
+    for (const [cat, ci] of Object.entries(cats)) {renderCat(cat, ci, "");}
   }
 
   h += `</tbody></table>`;
@@ -2590,7 +2588,7 @@ function renderTable() {
 // ── BUDGET SECTION ────────────────────────────────────────────────────
 function renderBudget() {
   const el = document.getElementById("budget-main-area");
-  if (!el) return;
+  if (!el) {return;}
   const p = getActiveProject();
   if (!p) { el.innerHTML = "Seleccioná un proyecto."; return; }
   const adenda = getActiveAdenda();
@@ -2669,28 +2667,28 @@ function renderBudget() {
 
 function phaseChipsHtml(adenda) {
   const phases = getPhaseConfig(adenda);
-  if (!phases.length) return '<span style="font-size:.8rem;color:var(--tx3)">Sin fases — dividí el presupuesto en etapas de obra.</span>';
+  if (!phases.length) {return '<span style="font-size:.8rem;color:var(--tx3)">Sin fases — dividí el presupuesto en etapas de obra.</span>';}
   return phases.map(p => `<span class="phase-chip"><span class="chp">${escapeHtml(p.name)}</span><button class="chx" onclick="removePhase('${p.id}')" title="Quitar fase">✕</button></span>`).join("");
 }
 function addPhase() {
-  const adenda = getActiveAdenda(); if (!adenda) return;
+  const adenda = getActiveAdenda(); if (!adenda) {return;}
   const inp = document.getElementById("new-phase-name");
   const name = (inp ? inp.value : "").trim();
-  if (!name) return toast("Ingresá un nombre para la fase", false);
-  if (!Array.isArray(adenda.phases)) adenda.phases = [];
+  if (!name) {return toast("Ingresá un nombre para la fase", false);}
+  if (!Array.isArray(adenda.phases)) {adenda.phases = [];}
   adenda.phases.push({ id: "ph" + (state.phaseIdSeq++), name: name });
   renderBudget(); save();
 }
 function removePhase(id) {
-  const adenda = getActiveAdenda(); if (!adenda) return;
-  if (!Array.isArray(adenda.phases)) return;
+  const adenda = getActiveAdenda(); if (!adenda) {return;}
+  if (!Array.isArray(adenda.phases)) {return;}
   adenda.phases = adenda.phases.filter(p => p.id !== id);
-  (adenda.items || []).forEach(i => { if (i.phase === id) i.phase = ""; });
-  if (!adenda.phases.length) delete adenda.phases;
+  (adenda.items || []).forEach(i => { if (i.phase === id) {i.phase = "";} });
+  if (!adenda.phases.length) {delete adenda.phases;}
   renderBudget(); save();
 }
 function setBudgetClient(id) {
-  const adenda = getActiveAdenda(); if (!adenda) return;
+  const adenda = getActiveAdenda(); if (!adenda) {return;}
   adenda.clientId = id || null;
   save(); renderBudget();
 }
@@ -2698,7 +2696,7 @@ function setBudgetClient(id) {
 // ── PRICES SECTION ────────────────────────────────────────────────────
 function renderPrices() {
   const el = document.getElementById("section-prices");
-  if (!el) return;
+  if (!el) {return;}
   let h = `<div class="prices-wrap">
     <div class="prices-toolbar">
       <span style="font-family:var(--font-display);font-size:1.05rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em">Base de Precios</span>
@@ -2722,15 +2720,15 @@ function renderPrices() {
       const ek = key.replace(/'/g, "\\'");
       h += `<div class="price-row"><div class="pname">${name} <span style="font-size:.875rem;color:var(--tx3)">${data.unit}</span></div><div class="pfields">`;
       if (state.priceEditMode === "breakdown") {
-        if (isEdit && state.editField === "matCost") h += `<input class="pedit" type="number" value="${data.matCost}" autofocus onblur="editPrice('${ek}','matCost',this.value)" onkeydown="if(event.key==='Enter')this.blur()">`;
-        else h += `<span class="pchip mat" onclick="state.editPriceKey='${ek}';state.editField='matCost';renderPrices()">Mat ₲${fmt(data.matCost)}</span>`;
-        if (isEdit && state.editField === "laborCost") h += `<input class="pedit" type="number" value="${data.laborCost}" autofocus onblur="editPrice('${ek}','laborCost',this.value)" onkeydown="if(event.key==='Enter')this.blur()">`;
-        else h += `<span class="pchip lab" onclick="state.editPriceKey='${ek}';state.editField='laborCost';renderPrices()">MO ₲${fmt(data.laborCost)}${data.laborPct != null ? `<span class="pctbadge">${data.laborPct}%</span>` : ""}</span>`;
+        if (isEdit && state.editField === "matCost") {h += `<input class="pedit" type="number" value="${data.matCost}" autofocus onblur="editPrice('${ek}','matCost',this.value)" onkeydown="if(event.key==='Enter')this.blur()">`;}
+        else {h += `<span class="pchip mat" onclick="state.editPriceKey='${ek}';state.editField='matCost';renderPrices()">Mat ₲${fmt(data.matCost)}</span>`;}
+        if (isEdit && state.editField === "laborCost") {h += `<input class="pedit" type="number" value="${data.laborCost}" autofocus onblur="editPrice('${ek}','laborCost',this.value)" onkeydown="if(event.key==='Enter')this.blur()">`;}
+        else {h += `<span class="pchip lab" onclick="state.editPriceKey='${ek}';state.editField='laborCost';renderPrices()">MO ₲${fmt(data.laborCost)}${data.laborPct != null ? `<span class="pctbadge">${data.laborPct}%</span>` : ""}</span>`;}
         h += `<span class="pchip tot ro">= ₲${fmt(data.total)}</span>`;
       } else {
         h += `<span class="pct-pill mat">${Math.round(data.matCost / (data.total || 1) * 100)}% mat</span><span class="pct-pill lab">${Math.round(data.laborCost / (data.total || 1) * 100)}% MO</span>`;
-        if (isEdit) h += `<input class="pedit" type="number" value="${data.total}" autofocus onblur="editPrice('${ek}','total',this.value)" onkeydown="if(event.key==='Enter')this.blur()">`;
-        else h += `<span class="pchip tot" onclick="state.editPriceKey='${ek}';state.editField='total';renderPrices()">₲${fmt(data.total)}</span>`;
+        if (isEdit) {h += `<input class="pedit" type="number" value="${data.total}" autofocus onblur="editPrice('${ek}','total',this.value)" onkeydown="if(event.key==='Enter')this.blur()">`;}
+        else {h += `<span class="pchip tot" onclick="state.editPriceKey='${ek}';state.editField='total';renderPrices()">₲${fmt(data.total)}</span>`;}
       }
       h += `</div></div>`;
     }
@@ -2743,7 +2741,7 @@ function editPrice(key, field, val) {
   const v = parseFloat(val); if (isNaN(v) || v < 0) { state.editPriceKey = null; renderPrices(); return; }
   const sep = key.indexOf("||"); const cat = key.slice(0, sep); const name = key.slice(sep + 2);
   const item = { ...DB[cat][name] };
-  if (field === "matCost") { item.matCost = v; if (item.laborPct != null) item.laborCost = Math.round(v * item.laborPct / 100); item.total = item.matCost + item.laborCost; }
+  if (field === "matCost") { item.matCost = v; if (item.laborPct != null) {item.laborCost = Math.round(v * item.laborPct / 100);} item.total = item.matCost + item.laborCost; }
   else if (field === "laborCost") { item.laborCost = v; item.laborPct = null; item.total = item.matCost + v; }
   else { const r = v / (item.total || 1); item.matCost = Math.round(item.matCost * r); item.laborCost = Math.round(item.laborCost * r); item.total = v; }
   DB[cat][name] = item; state.editPriceKey = null; save(); renderPrices();
@@ -2754,11 +2752,11 @@ function applyGlobalAdjust() {
   if (isNaN(pct) || pct === 0) { toast("Ingresá un % de ajuste", false); return; }
   const factor = 1 + pct / 100;
   for (const cat of Object.values(DB))
-    for (const item of Object.values(cat)) {
+    {for (const item of Object.values(cat)) {
       item.matCost = Math.round(item.matCost * factor);
       item.laborCost = Math.round(item.laborCost * factor);
       item.total = item.matCost + item.laborCost;
-    }
+    }}
   save(); renderPrices(); updateBadge(); toast(`Precios ajustados ${pct > 0 ? "+" : ""}${pct}% ✓`);
 }
 
@@ -2789,9 +2787,9 @@ const PDF_THEMES = [
 
 function renderThemes() {
   const el = document.getElementById("section-themes");
-  if (!el) return;
+  if (!el) {return;}
 
-  let appCards = THEMES.map(t => {
+  const appCards = THEMES.map(t => {
     const p = t.prev; const isActive = state.theme === t.id;
     return `<div class="theme-card${isActive ? " active" : ""}" onclick="selectTheme('${t.id}')" style="background:${p.sur};border-color:${isActive ? "var(--acc)" : "transparent"}">
       <div class="theme-preview" style="background:${p.bg}">
@@ -2812,7 +2810,7 @@ function renderThemes() {
     </div>`;
   }).join("");
 
-  let pdfCards = PDF_THEMES.map(t => {
+  const pdfCards = PDF_THEMES.map(t => {
     const isA = state.pdfTheme === t.id;
     return `<div class="pdf-theme-card${isA ? " active" : ""}" onclick="state.pdfTheme='${t.id}';save();renderThemes();" style="background:${t.sur};border-color:${isA ? "var(--acc)" : "var(--bor)"}; padding: 10px; border-radius: 8px; border: 2px solid transparent; cursor: pointer">
       <div class="pdf-preview" style="background:${t.bg}; height: 60px; border-radius: 4px; position: relative; overflow: hidden; margin-bottom: 8px">
@@ -2842,7 +2840,7 @@ function selectTheme(id) { state.theme = id; applyTheme(id); save(); renderTheme
 function exportXLS() {
   const p = getActiveProject();
   const adenda = getActiveAdenda();
-  if (!p || !adenda) return;
+  if (!p || !adenda) {return;}
 
   const { totalMats, totalLabor, subtotal, ivaMat, ivaLab, ivaTotal, profitAmt, total } = getTotals();
   const grouped = getGrouped();
@@ -2866,17 +2864,17 @@ function exportXLS() {
     const ivaRow = adenda.ivaEnabled ? q(Math.round(ivaMat)) + "," + q(Math.round(ivaLab)) + "," + q(Math.round(ivaTotal)) + "," : "";
     csv += q(cat) + "," + q(item.name) + "," + q(item.unit) + "," + q(item.qty) + "," + q(item.disc || 0) + "," + q(Math.round(item.matCost)) + "," + q(Math.round(item.laborCost)) + "," + q(Math.round(ep)) + "," + ivaRow + q(Math.round(totalItem)) + "," + q(item.note || "") + nl;
   };
-  const csvBlank = (label) => { const cells = [q(label)]; for (let i = 1; i < csvCols; i++) cells.push('""'); csv += cells.join(",") + nl; };
+  const csvBlank = (label) => { const cells = [q(label)]; for (let i = 1; i < csvCols; i++) {cells.push('""');} csv += cells.join(",") + nl; };
   const layout = getPhaseLayout(adenda);
   if (layout) {
     for (const phase of layout) {
       csvBlank("FASE: " + phase.name);
       const pcat = {};
-      for (const i of phase.items) { if (!pcat[i.cat]) pcat[i.cat] = []; pcat[i.cat].push(i); }
-      for (const [cat, ci] of Object.entries(pcat)) for (const item of ci) csvItem(cat, item);
+      for (const i of phase.items) { if (!pcat[i.cat]) {pcat[i.cat] = [];} pcat[i.cat].push(i); }
+      for (const [cat, ci] of Object.entries(pcat)) {for (const item of ci) {csvItem(cat, item);}}
     }
   } else {
-    for (const [cat, ci] of Object.entries(grouped)) for (const item of ci) csvItem(cat, item);
+    for (const [cat, ci] of Object.entries(grouped)) {for (const item of ci) {csvItem(cat, item);}}
   }
   csv += nl;
   csv += q("RESUMEN") + nl;
@@ -2888,7 +2886,7 @@ function exportXLS() {
     csv += q("IVA Mano de Obra (5%)") + ",,,,,,," + q(Math.round(ivaLab)) + nl;
     csv += q("Total IVA") + ",,,,,,," + q(Math.round(ivaTotal)) + nl;
   }
-  if ((adenda.profitPct || 0) > 0) csv += q("Honorarios (" + adenda.profitPct + "%)") + ",,,,,,," + q(Math.round(profitAmt)) + nl;
+  if ((adenda.profitPct || 0) > 0) {csv += q("Honorarios (" + adenda.profitPct + "%)") + ",,,,,,," + q(Math.round(profitAmt)) + nl;}
   csv += q("TOTAL" + (adenda.ivaEnabled ? " (IVA incluido)" : "")) + ",,,,,,," + q(Math.round(total)) + nl;
   const mats = calcMaterials();
   if (mats.length > 0) {
@@ -2899,7 +2897,7 @@ function exportXLS() {
       csv += q(m.name) + "," + q(fmtD(m.qty, 3)) + "," + q(m.unit) + "," + q(isCem ? Math.ceil(m.qty / 50) : "") + nl;
     }
   }
-  if ((adenda.notes || "").trim()) csv += nl + q("NOTAS") + nl + q(adenda.notes) + nl;
+  if ((adenda.notes || "").trim()) {csv += nl + q("NOTAS") + nl + q(adenda.notes) + nl;}
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -2915,7 +2913,7 @@ function exportXLS() {
 // ── EXPORT FINANZAS CSV ──────────────────────────────────────────────
 function exportFinancesCSV() {
   const p = getActiveProject();
-  if (!p || !p.execution || !p.execution.finances) return toast("Sin datos financieros", false);
+  if (!p || !p.execution || !p.execution.finances) {return toast("Sin datos financieros", false);}
   const finances = p.execution.finances;
   const BOM = "\uFEFF", nl = "\r\n", q = v => `"${String(v).replace(/"/g, '""')}"`;
   let csv = BOM;
@@ -2936,7 +2934,7 @@ function exportFinancesCSV() {
 
 // ── EXPORT JORNALEROS CSV ────────────────────────────────────────────
 function exportJornalerosCSV() {
-  if (!state.jornaleros || state.jornaleros.length === 0) return toast("Sin jornaleros registrados", false);
+  if (!state.jornaleros || state.jornaleros.length === 0) {return toast("Sin jornaleros registrados", false);}
   const BOM = "\uFEFF", nl = "\r\n", q = v => `"${String(v).replace(/"/g, '""')}"`;
   let csv = BOM;
   csv += q("Nombre") + "," + q("Apellido") + "," + q("Cédula") + "," + q("Rol") + "," + q("Jornal Diario") + "," + q("Activo") + "," + q("IPS") + "," + q("Total Jornadas") + "," + q("Total Devengado") + nl;
@@ -2957,9 +2955,9 @@ function exportJornalerosCSV() {
 function exportToGoogleSheets() {
   const p = getActiveProject();
   const adenda = getActiveAdenda();
-  if (!p || !adenda) return toast("Sin proyecto activo", false);
-  if (!adenda.items.length) return toast("El presupuesto está vacío", false);
-  if (typeof XLSXWriter === 'undefined') return toast("No se pudo cargar el generador de Excel", false);
+  if (!p || !adenda) {return toast("Sin proyecto activo", false);}
+  if (!adenda.items.length) {return toast("El presupuesto está vacío", false);}
+  if (typeof XLSXWriter === 'undefined') {return toast("No se pudo cargar el generador de Excel", false);}
 
   toast("Generando archivo Excel...");
 
@@ -2985,7 +2983,7 @@ function exportToGoogleSheets() {
   ws.row([{ v: 'Superficie', s: 'lbl' }, { v: (p.m2Area || '-') + ' m²', s: 'val' }]);
   ws.row([{ v: 'Fecha', s: 'lbl' }, { v: formatDatePY(new Date()), s: 'val' }]);
   if ((adenda.profitPct || 0) > 0)
-    ws.row([{ v: 'Honorarios', s: 'lbl' }, { v: adenda.profitPct + '%', s: 'val' }]);
+    {ws.row([{ v: 'Honorarios', s: 'lbl' }, { v: adenda.profitPct + '%', s: 'val' }]);}
   ws.row([], { h: 8 });
 
   // ── ENCABEZADOS de tabla ──
@@ -2994,7 +2992,7 @@ function exportToGoogleSheets() {
     { v: 'UND', s: 'hdrC' }, { v: 'CANT.', s: 'hdrC' }, { v: 'DESC.%', s: 'hdrC' },
     { v: 'MATERIALES (Gs.)', s: 'hdrR' }, { v: 'MANO OBRA (Gs.)', s: 'hdrR' }, { v: 'P.UNIT (Gs.)', s: 'hdrR' }
   ];
-  if (ivaOn) hdr.push({ v: 'IVA Mat (Gs.)', s: 'hdrR' }, { v: 'IVA MO (Gs.)', s: 'hdrR' }, { v: 'IVA Total (Gs.)', s: 'hdrR' });
+  if (ivaOn) {hdr.push({ v: 'IVA Mat (Gs.)', s: 'hdrR' }, { v: 'IVA MO (Gs.)', s: 'hdrR' }, { v: 'IVA Total (Gs.)', s: 'hdrR' });}
   hdr.push({ v: 'TOTAL (Gs.)', s: 'hdrR' }, { v: 'NOTA INTERNA', s: 'hdr' });
   ws.row(hdr, { h: 24 });
 
@@ -3008,13 +3006,13 @@ function exportToGoogleSheets() {
       { v: item.qty, s: 'numC' }, { v: item.disc || 0, s: 'numC' },
       { v: Math.round(item.matCost), s: 'num' }, { v: Math.round(item.laborCost), s: 'num' }, { v: Math.round(ep), s: 'num' }
     ];
-    if (ivaOn) cells.push({ v: Math.round(im), s: 'numIva' }, { v: Math.round(il), s: 'numIva' }, { v: Math.round(it), s: 'numIva' });
+    if (ivaOn) {cells.push({ v: Math.round(im), s: 'numIva' }, { v: Math.round(il), s: 'numIva' }, { v: Math.round(it), s: 'numIva' });}
     cells.push({ v: Math.round(totalItem), s: 'numTotal' }, { v: item.note || '', s: 'dNote' });
     ws.row(cells);
   };
   const xlPhaseRow = (label) => {
     const cells = [{ v: label, s: 'phaseRow' }];
-    for (let i = 1; i < totalCols; i++) cells.push({ s: 'phaseRow' });
+    for (let i = 1; i < totalCols; i++) {cells.push({ s: 'phaseRow' });}
     ws.row(cells, { h: 22 });
   };
   const layout = getPhaseLayout(adenda);
@@ -3022,20 +3020,20 @@ function exportToGoogleSheets() {
     for (const phase of layout) {
       xlPhaseRow('FASE: ' + phase.name);
       const pcat = {};
-      for (const i of phase.items) { if (!pcat[i.cat]) pcat[i.cat] = []; pcat[i.cat].push(i); }
+      for (const i of phase.items) { if (!pcat[i.cat]) {pcat[i.cat] = [];} pcat[i.cat].push(i); }
       for (const [cat, items] of Object.entries(pcat)) {
         const catCells = [{ v: cat, s: 'catRow' }];
-        for (let i = 1; i < totalCols; i++) catCells.push({ s: 'catRow' });
+        for (let i = 1; i < totalCols; i++) {catCells.push({ s: 'catRow' });}
         ws.row(catCells, { h: 22 });
-        for (const item of items) xlItems(cat, item);
+        for (const item of items) {xlItems(cat, item);}
       }
     }
   } else {
     for (const [cat, items] of Object.entries(grouped)) {
       const catCells = [{ v: cat, s: 'catRow' }];
-      for (let i = 1; i < totalCols; i++) catCells.push({ s: 'catRow' });
+      for (let i = 1; i < totalCols; i++) {catCells.push({ s: 'catRow' });}
       ws.row(catCells, { h: 22 });
-      for (const item of items) xlItems(cat, item);
+      for (const item of items) {xlItems(cat, item);}
     }
   }
 
@@ -3045,10 +3043,10 @@ function exportToGoogleSheets() {
   const sumRow = (label, val, st) => {
     const style = st || 'sumLbl';
     const cells = [{ v: label, s: style }];
-    for (let i = 0; i < sumLabelSpan - 1; i++) cells.push({ s: style });
+    for (let i = 0; i < sumLabelSpan - 1; i++) {cells.push({ s: style });}
     cells.push({ v: Math.round(val), s: style === 'totalLbl' ? 'totalNum' : 'sumNum' });
     if (totalCols > sumLabelSpan + 1) {
-      for (let i = 0; i < totalCols - (sumLabelSpan + 1); i++) cells.push({ s: style });
+      for (let i = 0; i < totalCols - (sumLabelSpan + 1); i++) {cells.push({ s: style });}
     }
     ws.row(cells, { h: 22 });
   };
@@ -3062,17 +3060,17 @@ function exportToGoogleSheets() {
     sumRow('Total IVA', ivaTotal);
   }
   if ((adenda.profitPct || 0) > 0)
-    sumRow('Honorarios Profesionales (' + adenda.profitPct + '%)', profitAmt);
+    {sumRow('Honorarios Profesionales (' + adenda.profitPct + '%)', profitAmt);}
   sumRow('TOTAL GENERAL' + (ivaOn ? ' (IVA incluido)' : ''), total, 'totalLbl');
 
   // ── NOTAS ──
   if ((adenda.notes || '').trim()) {
     ws.row([], { h: 8 });
     const noteHdr = [{ v: 'NOTAS / CONDICIONES', s: 'catRow' }];
-    for (let i = 1; i < totalCols; i++) noteHdr.push({ s: 'catRow' });
+    for (let i = 1; i < totalCols; i++) {noteHdr.push({ s: 'catRow' });}
     ws.row(noteHdr, { h: 22 });
     const noteCells = [{ v: adenda.notes, s: 'd' }];
-    for (let i = 1; i < totalCols; i++) noteCells.push({ s: 'd' });
+    for (let i = 1; i < totalCols; i++) {noteCells.push({ s: 'd' });}
     ws.row(noteCells, { h: 40 });
   }
 
@@ -3204,7 +3202,7 @@ function generarPDF() {
   const clientPhone = (cliPdf && cliPdf.phone) || proj.phone || "";
   const clientRuc = (cliPdf && cliPdf.ruc) || "";
   const notes = adenda.notes || "";
-  const { subtotal, ivaMat, ivaLab, ivaTotal, profitAmt, total } = getTotals();
+  const { subtotal, ivaMat, ivaLab, total } = getTotals();
   const grouped = getGrouped();
   const today = new Date().toLocaleDateString("es-PY", { year: "numeric", month: "long", day: "numeric" });
   const PALETTES = {
@@ -3241,12 +3239,12 @@ function generarPDF() {
   doc.setFontSize(7); doc.setFont("helvetica", "normal");
   doc.setTextColor(...C.hdrTx2);
   const lines = [];
-  if (p.professional) lines.push(pdfTxt(p.professional + (p.matricula ? " - " + p.matricula : "")));
-  if (p.ruc) lines.push("RUC: " + pdfTxt(p.ruc));
-  if (p.phone || p.email) lines.push([p.phone, p.email].filter(Boolean).join("  |  "));
-  if (p.address) lines.push(pdfTxt(p.address));
+  if (p.professional) {lines.push(pdfTxt(p.professional + (p.matricula ? " - " + p.matricula : "")));}
+  if (p.ruc) {lines.push("RUC: " + pdfTxt(p.ruc));}
+  if (p.phone || p.email) {lines.push([p.phone, p.email].filter(Boolean).join("  |  "));}
+  if (p.address) {lines.push(pdfTxt(p.address));}
   const social = [p.instagram, p.whatsapp, p.website].filter(Boolean).join("  |  ");
-  if (social) lines.push(pdfTxt(social));
+  if (social) {lines.push(pdfTxt(social));}
   lines.forEach((l, i) => doc.text(l, tX, 20 + i * 4.2));
   // Right side: document type + number
   doc.setFontSize(7); doc.setFont("helvetica", "bold"); doc.setTextColor(...C.accentTx);
@@ -3275,9 +3273,9 @@ function generarPDF() {
   doc.text(pdfTxt(clientName) || "-", M + 8, y + 12, { maxWidth: colW - 14 });
   doc.setFontSize(7); doc.setTextColor(...C.mutedTx);
   const clientExtra = [];
-  if (clientAddress) clientExtra.push(clientAddress);
-  if (clientPhone) clientExtra.push("Tel: " + clientPhone);
-  if (clientRuc) clientExtra.push("RUC: " + clientRuc);
+  if (clientAddress) {clientExtra.push(clientAddress);}
+  if (clientPhone) {clientExtra.push("Tel: " + clientPhone);}
+  if (clientRuc) {clientExtra.push("RUC: " + clientRuc);}
   clientExtra.forEach((txt, i) => doc.text(txt, M + 8, y + 17 + i * 3.6, { maxWidth: colW - 14 }));
   // Project card
   const c2 = M + colW + 6;
@@ -3332,16 +3330,16 @@ function generarPDF() {
     for (const phase of pdfLayout) {
       rows.push([{ content: "FASE — " + pdfTxt(phase.name), colSpan: 6, _type: "phase", styles: { fillColor: C.accentBg, textColor: C.accentTx, fontStyle: "bold", fontSize: 8, cellPadding: { top: 4, bottom: 4, left: 5, right: 4 } } }]);
       const pcat = {};
-      for (const i of phase.items) { if (!pcat[i.cat]) pcat[i.cat] = []; pcat[i.cat].push(i); }
+      for (const i of phase.items) { if (!pcat[i.cat]) {pcat[i.cat] = [];} pcat[i.cat].push(i); }
       let phaseSum = 0;
-      for (const [cat, ci] of Object.entries(pcat)) phaseSum += renderPdfCat(cat, ci);
+      for (const [cat, ci] of Object.entries(pcat)) {phaseSum += renderPdfCat(cat, ci);}
       rows.push([
         { content: "Subtotal " + pdfTxt(phase.name), colSpan: 5, _type: "phasesub", styles: { halign: "right", fontStyle: "bold", fontSize: 8, fillColor: C.hdrBg, textColor: C.hdrTx, cellPadding: { top: 4.5, bottom: 4.5, left: 4, right: 4 } } },
         { content: "Gs. " + fmt(phaseSum), styles: { halign: "right", fontStyle: "bold", fontSize: 9, fillColor: C.hdrBg, textColor: C.hdrTx, cellPadding: { top: 4.5, bottom: 4.5, left: 4, right: 4 } } },
       ]);
     }
   } else {
-    for (const [cat, ci] of Object.entries(grouped)) renderPdfCat(cat, ci);
+    for (const [cat, ci] of Object.entries(grouped)) {renderPdfCat(cat, ci);}
   }
   doc.autoTable({
     startY: y,
@@ -3426,10 +3424,10 @@ function pickClientForProject(clientId, prefix) {
   var nameEl = document.getElementById(prefix + "-client");
   var phoneEl = document.getElementById(prefix + "-phone");
   var addrEl = document.getElementById(prefix + "-addr");
-  if (!nameEl) return;
+  if (!nameEl) {return;}
   nameEl.value = c ? c.name : "";
-  if (phoneEl) phoneEl.value = c ? (c.phone || "") : "";
-  if (addrEl) addrEl.value = c ? (c.address || "") : "";
+  if (phoneEl) {phoneEl.value = c ? (c.phone || "") : "";}
+  if (addrEl) {addrEl.value = c ? (c.address || "") : "";}
 }
 
 // Muestra/oculta el formulario "crear cliente nuevo" dentro del modal de proyecto.
@@ -3437,16 +3435,16 @@ function toggleNewClient(prefix) {
   var wrap = document.getElementById(prefix + "-nc-wrap");
   var selWrap = document.getElementById(prefix + "-client-id-wrap");
   var btn = document.getElementById(prefix + "-nc-btn");
-  if (!wrap) return;
+  if (!wrap) {return;}
   var active = wrap.style.display !== "none";
   wrap.style.display = active ? "none" : "block";
-  if (selWrap) selWrap.style.display = active ? "" : "none";
-  if (btn) btn.textContent = active ? "＋ Crear cliente nuevo" : "✕ Volver a la base";
+  if (selWrap) {selWrap.style.display = active ? "" : "none";}
+  if (btn) {btn.textContent = active ? "＋ Crear cliente nuevo" : "✕ Volver a la base";}
   if (active) {
     pickClientForProject("", prefix);
   } else {
     var f = document.getElementById(prefix + "-nc-name");
-    if (f) f.focus();
+    if (f) {f.focus();}
   }
 }
 
@@ -3479,7 +3477,7 @@ function applyNewClientToProject(p, prefix) {
 
 function createProject() {
     const name = document.getElementById("np-name").value.trim();
-    if (!name) return toast("El nombre es obligatorio", false);
+    if (!name) {return toast("El nombre es obligatorio", false);}
 
     const newP = {
         id: 'p_' + Date.now(),
@@ -3559,13 +3557,13 @@ state.projects.push(newP);
     state.activeAdendaId = 'main';
     _pendingFolderHandle = null;
     _pendingFolderName = '';
-    if (typeof ensureClients === "function") syncProjectClient(newP, {
+    if (typeof ensureClients === "function") {syncProjectClient(newP, {
       name: newP.client || "",
       phone: newP.phone || "",
       email: newP.email || "",
       address: newP.address || "",
       ruc: newP.ruc || ""
-    });
+    });}
     save();
         closeModal();
         setSection('budget');
@@ -3577,15 +3575,15 @@ var _pendingFolderHandle = null;
 var _pendingFolderName = '';
 
 async function selectNewProjectFolder() {
-    if (!supportsFileSystemAccess()) return;
+    if (!supportsFileSystemAccess()) {return;}
     try {
         var dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
         _pendingFolderHandle = dirHandle;
         _pendingFolderName = dirHandle.name;
         var nameEl = document.getElementById("np-folder-name");
         var btnEl = document.getElementById("np-folder-btn");
-        if (nameEl) nameEl.innerHTML = '✅ <strong>' + escapeHtml(dirHandle.name) + '</strong>';
-        if (btnEl) btnEl.textContent = '🔄 Cambiar carpeta';
+        if (nameEl) {nameEl.innerHTML = '✅ <strong>' + escapeHtml(dirHandle.name) + '</strong>';}
+        if (btnEl) {btnEl.textContent = '🔄 Cambiar carpeta';}
     } catch (e) {
         if (e.name !== 'AbortError') {
             toast("Error: " + e.message, false);
@@ -3595,9 +3593,9 @@ async function selectNewProjectFolder() {
 
 function saveEditProject(id) {
     const p = state.projects.find(x => x.id === id);
-    if (!p) return;
+    if (!p) {return;}
     const name = document.getElementById("ep-name").value.trim();
-    if (!name) return toast("El nombre es obligatorio", false);
+    if (!name) {return toast("El nombre es obligatorio", false);}
     p.name = name;
     var ncWrap = document.getElementById("ep-nc-wrap");
     var ncActive = ncWrap && ncWrap.style.display !== "none";
@@ -3613,13 +3611,13 @@ function saveEditProject(id) {
       p.phone = document.getElementById("ep-phone").value;
       p.address = document.getElementById("ep-addr").value;
     }
-    if (typeof ensureClients === "function") syncProjectClient(p, {
+    if (typeof ensureClients === "function") {syncProjectClient(p, {
       name: p.client || "",
       phone: p.phone || "",
       email: p.email || "",
       address: p.address || "",
       ruc: p.ruc || ""
-    });
+    });}
     p.m2Area = parseFloat(document.getElementById("ep-m2").value) || 0;
     save(); closeModal(); renderProjects();
     toast("Proyecto actualizado ✓");
@@ -3627,7 +3625,7 @@ function saveEditProject(id) {
 
 function archiveProject(id) {
     const p = state.projects.find(x => x.id === id);
-    if (!p) return;
+    if (!p) {return;}
     p.archived = true;
     if (state.activeProjectId === id) {
         const next = state.projects.find(x => x.id !== id && !x.archived);
@@ -3639,7 +3637,7 @@ function archiveProject(id) {
 
 function unarchiveProject(id) {
     const p = state.projects.find(x => x.id === id);
-    if (!p) return;
+    if (!p) {return;}
     p.archived = false;
     save(); renderProjects();
     toast("Proyecto restaurado ✓");
@@ -3647,8 +3645,8 @@ function unarchiveProject(id) {
 
 function deleteProject(id) {
     const p = state.projects.find(x => x.id === id);
-    if (!p) return;
-    if (!confirm(`¿Eliminar el proyecto "${p.name}" permanentemente?\n\nSe borrarán todos los presupuestos, cronogramas, bitácoras, finanzas y documentos asociados.\n\nEsta acción no se puede deshacer.`)) return;
+    if (!p) {return;}
+    if (!confirm(`¿Eliminar el proyecto "${p.name}" permanentemente?\n\nSe borrarán todos los presupuestos, cronogramas, bitácoras, finanzas y documentos asociados.\n\nEsta acción no se puede deshacer.`)) {return;}
     if (confirm("¿Hacer una copia de seguridad antes de eliminar?")) {
         exportSingleProject(id);
     }
@@ -3663,7 +3661,7 @@ function deleteProject(id) {
 
 function exportSingleProject(id) {
     const p = state.projects.find(x => x.id === id);
-    if (!p) return;
+    if (!p) {return;}
     const assignedConIds = new Set(
         Object.values(p.execution.schedules || {})
             .map(s => s && s.contractorId)
@@ -3682,7 +3680,7 @@ function exportSingleProject(id) {
 
 function showModal(type, arg) {
   const el = document.getElementById("modal-area");
-  if (!el) return;
+  if (!el) {return;}
 
   if (window.modals && typeof window.modals[type] === 'function') {
     el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">${window.modals[type](arg)}</div></div>`;
@@ -3721,7 +3719,7 @@ function showModal(type, arg) {
   else if (type === "edit_project") {
       const pid = arg;
       const p = state.projects.find(x => x.id === pid);
-      if (!p) return;
+      if (!p) {return;}
       el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:550px">
       <div class="modal-title">Modificar Proyecto<button class="delbtn" onclick="closeModal()">✕</button></div>
       <div class="grid2">
@@ -3752,7 +3750,7 @@ function showModal(type, arg) {
   else if (type === "load_version") {
     const p = getActiveProject();
     const versions = (p && p.versions) || [];
-    let rows = versions.map(v => `
+    const rows = versions.map(v => `
         <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; border-bottom:1px solid var(--bor)">
             <div>
                 <div style="font-weight:700">${v.name}</div>
@@ -3813,7 +3811,7 @@ function showModal(type, arg) {
 
   else if (type === "computo") {
     const mats = calcMaterials();
-    let cards = mats.length === 0 ? `<p style="font-size:1rem;color:var(--tx3)">Agregá ítems al presupuesto.</p>` : `<div class="mat-grid">` +
+    const cards = mats.length === 0 ? `<p style="font-size:1rem;color:var(--tx3)">Agregá ítems al presupuesto.</p>` : `<div class="mat-grid">` +
       mats.map(m => {
         const isCem = m.name.toLowerCase().includes("cemento");
         const bolsas = isCem ? Math.ceil(m.qty / 50) : null;
@@ -3832,7 +3830,7 @@ function showModal(type, arg) {
     const bkAdenda = getActiveAdenda();
     const bkIva = bkAdenda && bkAdenda.ivaEnabled;
     const bkProfit = bkAdenda ? (bkAdenda.profitPct || 0) : 0;
-    const bk = getBreakdown(); const { totalMats, totalLabor, subtotal, ivaMat, ivaLab, ivaTotal, profitAmt, total } = getTotals();
+    const bk = getBreakdown(); const { totalMats, totalLabor, subtotal, ivaTotal, profitAmt, total } = getTotals();
     const rows = bk.map(r => `<tr class="bk-row"><td>${r.cat}</td><td style="color:var(--mat);font-weight:600">₲ ${fmt(r.matCost)}</td><td style="color:var(--lab);font-weight:600">₲ ${fmt(r.laborCost)}</td><td class="bk-subtotal">₲ ${fmt(r.total)}</td></tr>`).join("");
     el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
       <div class="modal-title">📊 Desglose Mat / MO<button class="delbtn" onclick="closeModal()">✕</button></div>
@@ -3968,13 +3966,13 @@ let _modalDragCurrent = 0;
 let _modalElement = null;
 function attachModalSwipeGestures() {
   const modal = document.querySelector('#modal-area .modal');
-  if (!modal || window.innerWidth > 768) return;
+  if (!modal || window.innerWidth > 768) {return;}
 
   modal.addEventListener('touchstart', e => {
     // Solo iniciar swipe si toca el área superior (los primeros 60px = la "agarradera")
     const rect = modal.getBoundingClientRect();
     const y = e.touches[0].clientY;
-    if (y - rect.top > 60) return;
+    if (y - rect.top > 60) {return;}
     _modalDragStart = y;
     _modalDragCurrent = y;
     _modalElement = modal;
@@ -3982,7 +3980,7 @@ function attachModalSwipeGestures() {
   }, { passive: true });
 
   modal.addEventListener('touchmove', e => {
-    if (!_modalElement) return;
+    if (!_modalElement) {return;}
     _modalDragCurrent = e.touches[0].clientY;
     const delta = _modalDragCurrent - _modalDragStart;
     if (delta > 0) {
@@ -3991,7 +3989,7 @@ function attachModalSwipeGestures() {
   }, { passive: true });
 
   modal.addEventListener('touchend', () => {
-    if (!_modalElement) return;
+    if (!_modalElement) {return;}
     const delta = _modalDragCurrent - _modalDragStart;
     _modalElement.style.transition = 'transform 0.25s ease';
     if (delta > 100) {
@@ -4015,7 +4013,7 @@ function exportDB() {
 
 function exportProject() {
   const proj = getActiveProject();
-  if (!proj) return toast("Sin proyecto activo", false);
+  if (!proj) {return toast("Sin proyecto activo", false);}
 
   // Solo incluir contratistas asignados a este proyecto
   const assignedConIds = new Set(
@@ -4051,13 +4049,13 @@ function importProject() {
   inp.accept = ".ppy,.json";
   inp.onchange = e => {
     const file = e.target.files[0];
-    if (!file) return;
+    if (!file) {return;}
     const reader = new FileReader();
     reader.onload = ev => {
       try {
         const data = JSON.parse(ev.target.result);
         const validApps = ["Puntero", "PresupuestadorPY"]; // retrocompatibilidad con .ppy viejos
-        if (!validApps.includes(data.app) && !confirm("El archivo no parece ser un proyecto oficial. ¿Intentar importar de todos modos?")) return;
+        if (!validApps.includes(data.app) && !confirm("El archivo no parece ser un proyecto oficial. ¿Intentar importar de todos modos?")) {return;}
 
         // Soporte para formato nuevo (v7) y legacy (v5)
         let newProject;
@@ -4105,7 +4103,7 @@ function importProject() {
         // Combinar contratistas sin duplicar
         if (data.contractors && Array.isArray(data.contractors)) {
           data.contractors.forEach(c => {
-            if (!state.contractors.find(ex => ex.id === c.id)) state.contractors.push(c);
+            if (!state.contractors.find(ex => ex.id === c.id)) {state.contractors.push(c);}
           });
         }
 
@@ -4125,12 +4123,12 @@ function importProject() {
 function importDB() {
   const inp = document.createElement("input"); inp.type = "file"; inp.accept = ".json";
   inp.onchange = e => {
-    const file = e.target.files[0]; if (!file) return;
+    const file = e.target.files[0]; if (!file) {return;}
     const reader = new FileReader();
     reader.onload = ev => {
       try {
         const d = JSON.parse(ev.target.result);
-        if (typeof d !== "object" || !Object.values(d)[0]) throw new Error("Formato inválido");
+        if (typeof d !== "object" || !Object.values(d)[0]) {throw new Error("Formato inválido");}
         DB = d; save(); renderPrices && renderPrices(); closeModal(); toast("DB importada ✓");
       } catch (err) { toast("Error al importar: " + err.message, false); }
     };
@@ -4147,7 +4145,7 @@ function doSaveProfile() {
 // ── Update DB badge ──
 function updateBadge() {
   const el = document.getElementById("db-badge-hdr");
-  if (el) el.textContent = "Precios base mercado PY" + (state.adjustPct ? ` +${state.adjustPct}%` : "");
+  if (el) {el.textContent = "Precios base mercado PY" + (state.adjustPct ? ` +${state.adjustPct}%` : "");}
 }
 
 // ── GLOBAL STATS (FORMERLY DASHBOARD) ─────────────────────────────────────────
@@ -4185,10 +4183,10 @@ window._TEMPLATES = _TEMPLATES_DATA;
 function applyTemplate(idx) {
   const adenda = getActiveAdenda();
   const proj = getActiveProject();
-  if (!adenda || !proj) return toast("Sin proyecto activo", false);
+  if (!adenda || !proj) {return toast("Sin proyecto activo", false);}
 
   const t = window._TEMPLATES[idx];
-  if (!confirm('¿Cargar plantilla "' + t.name + '" al presupuesto actual? Se agregarán los ítems.')) return;
+  if (!confirm('¿Cargar plantilla "' + t.name + '" al presupuesto actual? Se agregarán los ítems.')) {return;}
   let added = 0;
   for (const [cat, name, qty] of t.items) {
     if (DB[cat] && DB[cat][name]) {
@@ -4215,7 +4213,7 @@ function closeFab() { _fabOpen = false; document.getElementById("fab-items").cla
 function toggleSidebar() {
   const sb = document.querySelector('.sidebar');
   const ov = document.getElementById('drawer-overlay');
-  if (!sb || !ov) return;
+  if (!sb || !ov) {return;}
   const isOpen = sb.classList.contains('open');
   if (isOpen) {
     sb.classList.remove('open');
@@ -4230,14 +4228,14 @@ function toggleSidebar() {
 function closeSidebar() {
   const sb = document.querySelector('.sidebar');
   const ov = document.getElementById('drawer-overlay');
-  if (sb) sb.classList.remove('open');
-  if (ov) ov.classList.remove('show');
+  if (sb) {sb.classList.remove('open');}
+  if (ov) {ov.classList.remove('show');}
   document.body.style.overflow = '';
 }
 
 // ── LOGO UPLOAD ───────────────────────────────────────────────────────────────────────
 function uploadLogo(input) {
-  const file = input.files[0]; if (!file) return;
+  const file = input.files[0]; if (!file) {return;}
   if (file.size > 500000) { toast("Logo muy grande. Maximo 500KB", false); return; }
   const reader = new FileReader();
   reader.onload = e => {
@@ -4252,7 +4250,7 @@ function uploadLogo(input) {
 let _signDraw = false, _signCtx = null, _signCanvas = null;
 function initSignatureCanvas() {
   _signCanvas = document.getElementById("sign-canvas");
-  if (!_signCanvas) return;
+  if (!_signCanvas) {return;}
   _signCtx = _signCanvas.getContext("2d");
   _signCtx.strokeStyle = "#1a1a1a"; _signCtx.lineWidth = 2; _signCtx.lineCap = "round"; _signCtx.lineJoin = "round";
   const rect = _signCanvas.getBoundingClientRect();
@@ -4261,16 +4259,16 @@ function initSignatureCanvas() {
   _signCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
   _signCtx.strokeStyle = "#1a1a1a"; _signCtx.lineWidth = 2; _signCtx.lineCap = "round";
   _signCanvas.addEventListener("mousedown", e => { _signDraw = true; _signCtx.beginPath(); const r = _signCanvas.getBoundingClientRect(); _signCtx.moveTo(e.clientX - r.left, e.clientY - r.top); });
-  _signCanvas.addEventListener("mousemove", e => { if (!_signDraw) return; const r = _signCanvas.getBoundingClientRect(); _signCtx.lineTo(e.clientX - r.left, e.clientY - r.top); _signCtx.stroke(); });
+  _signCanvas.addEventListener("mousemove", e => { if (!_signDraw) {return;} const r = _signCanvas.getBoundingClientRect(); _signCtx.lineTo(e.clientX - r.left, e.clientY - r.top); _signCtx.stroke(); });
   _signCanvas.addEventListener("mouseup", () => _signDraw = false);
   _signCanvas.addEventListener("mouseleave", () => _signDraw = false);
   _signCanvas.addEventListener("touchstart", e => { e.preventDefault(); _signDraw = true; _signCtx.beginPath(); const r = _signCanvas.getBoundingClientRect(); const t = e.touches[0]; _signCtx.moveTo(t.clientX - r.left, t.clientY - r.top); }, { passive: false });
-  _signCanvas.addEventListener("touchmove", e => { e.preventDefault(); if (!_signDraw) return; const r = _signCanvas.getBoundingClientRect(); const t = e.touches[0]; _signCtx.lineTo(t.clientX - r.left, t.clientY - r.top); _signCtx.stroke(); }, { passive: false });
+  _signCanvas.addEventListener("touchmove", e => { e.preventDefault(); if (!_signDraw) {return;} const r = _signCanvas.getBoundingClientRect(); const t = e.touches[0]; _signCtx.lineTo(t.clientX - r.left, t.clientY - r.top); _signCtx.stroke(); }, { passive: false });
   _signCanvas.addEventListener("touchend", () => _signDraw = false);
 }
 function clearSignature() { if (_signCtx && _signCanvas) { _signCtx.clearRect(0, 0, _signCanvas.width, _signCanvas.height); } }
 function saveSignature() {
-  if (!_signCanvas) return;
+  if (!_signCanvas) {return;}
   state.signDataUrl = _signCanvas.toDataURL("image/png");
   save(); closeModal(); toast("Firma guardada ✓");
 }
@@ -4327,7 +4325,7 @@ function loadDemoProject() {
 
 function renderCurrencyArea() {
     const el = document.getElementById("currency-area");
-    if (!el) return;
+    if (!el) {return;}
     el.innerHTML = `
         <select id="global-currency" style="width:100px; font-weight:700; background:var(--sur); border:1px solid var(--bor); border-radius:var(--rad); padding:4px" onchange="state.currency=this.value; save(); renderCurrencyArea(); setSection(state.section)">
             <option value="PYG" ${state.currency === 'PYG' ? 'selected' : ''}>₲ PYG</option>
@@ -4347,7 +4345,7 @@ window._currentUser = null;
 // cualquier usuario de Firebase que inicie sesión fue creado por el admin (o es la
 // identidad técnica de sincronización) y entra sin confirmar.
 function isAdminAccount(email) {
-  if (!email) return false;
+  if (!email) {return false;}
   var n = String(email).trim().toLowerCase();
   return getAccounts().some(function (a) { return a.firebase === true && String(a.username).trim().toLowerCase() === n; });
 }
@@ -4365,23 +4363,23 @@ function masteredOrVerified(u) {
 
 function applyAppLock() {
   var lock = document.getElementById("app-lock");
-  if (!lock) return;
+  if (!lock) {return;}
   var locked = state._requireAccount !== false && !masteredOrVerified(window._currentUser);
   // Botón de administrador: visible solo para la cuenta maestra
   var btnAcc = document.getElementById("btn-accounts");
-  if (btnAcc) btnAcc.style.display = (window._currentUser && window._currentUser.isMaster) ? "" : "none";
+  if (btnAcc) {btnAcc.style.display = (window._currentUser && window._currentUser.isMaster) ? "" : "none";}
   lock.style.display = locked ? "flex" : "none";
   document.body.style.overflow = locked ? "hidden" : "";
-  if (!locked) return;
+  if (!locked) {return;}
   var u = window._currentUser;
   var unverified = !!u && !masteredOrVerified(u);
   var authBox = document.getElementById("app-lock-auth");
   var verifyBox = document.getElementById("app-lock-verify");
-  if (authBox) authBox.style.display = unverified ? "none" : "block";
-  if (verifyBox) verifyBox.style.display = unverified ? "block" : "none";
+  if (authBox) {authBox.style.display = unverified ? "none" : "block";}
+  if (verifyBox) {verifyBox.style.display = unverified ? "block" : "none";}
   if (unverified) {
     var ve = document.getElementById("verify-email");
-    if (ve) ve.textContent = u.email || "tu correo";
+    if (ve) {ve.textContent = u.email || "tu correo";}
   }
 }
 
@@ -4436,7 +4434,7 @@ function initFirebaseAuth() {
 }
 
 async function loadFromFirestore() {
-  if (!window._currentUser) return;
+  if (!window._currentUser) {return;}
   try {
     var doc = await window._FIRESTORE.collection("users").doc(window._currentUser.uid).get();
     if (!doc.exists || !doc.data().appState) {
@@ -4453,7 +4451,7 @@ async function loadFromFirestore() {
     Object.assign(state, doc.data().appState);
     localStorage.setItem("ppy_v5", JSON.stringify(state));
     toast("Datos sincronizados desde la nube ✓");
-    if (typeof setSection === "function") setSection(state.section || prevSection || "global_dashboard");
+    if (typeof setSection === "function") {setSection(state.section || prevSection || "global_dashboard");}
   } catch (e) { console.warn("Firestore load error:", e); }
 }
 
@@ -4500,7 +4498,7 @@ function showAuthModal() {
 async function login() {
   var email = document.getElementById("auth-email").value.trim();
   var pass = document.getElementById("auth-pass").value;
-  if (!email || !pass) return toast("Completá todos los campos", false);
+  if (!email || !pass) {return toast("Completá todos los campos", false);}
   // Cuenta maestra (dueño): martin no necesita correo registrado ni confirmación
   if (email.toLowerCase() === "martin" && pass === "6J89dfrh") {
     localStorage.setItem("pte_master_session", "1");
@@ -4520,7 +4518,7 @@ async function login() {
   if (demoAcc) {
     if (demoAcc.expiresAt <= Date.now()) {
       removeAccountLocal(demoAcc.id);
-      if (window._isAdminSyncUser) pushAccountsSync();
+      if (window._isAdminSyncUser) {pushAccountsSync();}
       var errD = document.getElementById("auth-error");
       if (errD) { errD.textContent = "La cuenta demo venció (72h). Pedile una nueva al administrador."; errD.style.display = ""; }
       return;
@@ -4536,10 +4534,10 @@ async function login() {
     startDemoSession(demoAcc);
     return;
   }
-  if (!window._AUTH) return toast("Sin conexión. Usá el modo invitado.", false);
+  if (!window._AUTH) {return toast("Sin conexión. Usá el modo invitado.", false);}
   try {
     var cred = await window._AUTH.signInWithEmailAndPassword(email, pass);
-    if (!cred.user) return;
+    if (!cred.user) {return;}
     deleteGuestSession();
     closeModal();
     // El registro público está bloqueado: toda cuenta de Firebase fue creada por
@@ -4558,9 +4556,9 @@ async function register() {
   }
   var email = document.getElementById("auth-email").value.trim();
   var pass = document.getElementById("auth-pass").value;
-  if (!email || !pass) return toast("Completá todos los campos", false);
-  if (pass.length < 6) return toast("La contraseña debe tener al menos 6 caracteres", false);
-  if (!window._AUTH) return toast("Sin conexión. Usá el modo invitado.", false);
+  if (!email || !pass) {return toast("Completá todos los campos", false);}
+  if (pass.length < 6) {return toast("La contraseña debe tener al menos 6 caracteres", false);}
+  if (!window._AUTH) {return toast("Sin conexión. Usá el modo invitado.", false);}
   try {
     var cred = await window._AUTH.createUserWithEmailAndPassword(email, pass);
     deleteGuestSession();
@@ -4576,18 +4574,18 @@ async function register() {
 }
 
 function resendVerification() {
-  if (!window._AUTH) return toast("Sin conexión", false);
+  if (!window._AUTH) {return toast("Sin conexión", false);}
   var u = window._AUTH.currentUser;
-  if (!u) return toast("No hay sesión activa", false);
+  if (!u) {return toast("No hay sesión activa", false);}
   u.sendEmailVerification().then(function () {
     toast("Link de verificación reenviado 📧");
   }).catch(function (e) { toast(e.message || "Error al enviar", false); });
 }
 
 async function recheckVerification() {
-  if (!window._AUTH) return toast("Sin conexión", false);
+  if (!window._AUTH) {return toast("Sin conexión", false);}
   var u = window._AUTH.currentUser;
-  if (!u) return;
+  if (!u) {return;}
   try {
     await u.reload();
     if (u.emailVerified) {
@@ -4604,9 +4602,9 @@ async function recheckVerification() {
 }
 
 async function forgotPassword() {
-  if (!window._AUTH) return toast("Sin conexión", false);
+  if (!window._AUTH) {return toast("Sin conexión", false);}
   var email = document.getElementById("auth-email").value.trim();
-  if (!email) return toast("Ingresá tu correo primero", false);
+  if (!email) {return toast("Ingresá tu correo primero", false);}
   try {
     await window._AUTH.sendPasswordResetEmail(email);
     closeModal();
@@ -4628,7 +4626,7 @@ async function logout() {
     window._isAdminSyncUser = false;
     window._lastAccountSync = 0;
     // Cerrar también la identidad técnica de sincronización si estaba activa
-    try { if (window._AUTH && window._AUTH.currentUser) await window._AUTH.signOut(); } catch (e) {}
+    try { if (window._AUTH && window._AUTH.currentUser) {await window._AUTH.signOut();} } catch (e) {}
     applyAppLock();
     closeModal();
     toast("Sesión cerrada ✓");
@@ -4667,7 +4665,7 @@ function guestRemainingMs() {
 
 function guestUser() {
   var g = guestSession();
-  if (!g || g.expiresAt <= Date.now()) return null;
+  if (!g || g.expiresAt <= Date.now()) {return null;}
   return { uid: g.uid, email: g.email, isGuest: true };
 }
 
@@ -4679,7 +4677,7 @@ function startDemoSession(acc) {
   // Si hay una sesión Firebase activa (ej: cuenta permanente del mismo dispositivo),
   // cerrarla para que onAuthStateChanged no pise la sesión demo.
   try {
-    if (window._AUTH && window._AUTH.currentUser) window._AUTH.signOut();
+    if (window._AUTH && window._AUTH.currentUser) {window._AUTH.signOut();}
   } catch (e) {}
   var slug = accUserNameSlug(acc.username);
   localStorage.setItem("pte_guest_session", JSON.stringify({
@@ -4705,12 +4703,12 @@ function deleteGuestSession() {
 function scheduleGuestExpiry() {
   stopGuestExpiry();
   var g = guestSession();
-  if (!g || !window._currentUser || !window._currentUser.isGuest) return;
+  if (!g || !window._currentUser || !window._currentUser.isGuest) {return;}
   var rest = guestRemainingMs();
-  if (rest <= 0) return expireGuestSession();
+  if (rest <= 0) {return expireGuestSession();}
   _guestTimer = setInterval(function () {
     var r = guestRemainingMs();
-    if (r <= 0) return expireGuestSession();
+    if (r <= 0) {return expireGuestSession();}
     if (r <= 60 * 60 * 1000 && !window._guestWarned) {
       window._guestWarned = true;
       toast("Tu cuenta demo expira en menos de 1 hora ⏳", false);
@@ -4741,13 +4739,13 @@ function expireGuestSession() {
 
 function initGuestSession() {
   var g = guestSession();
-  if (!g) return;
+  if (!g) {return;}
   if (g.expiresAt <= Date.now()) {
     setAccounts(getAccounts().filter(function (a) { return !(a.type === "demo" && accUserNameSlug(a.username) === g.email.split("@")[0]); }));
     deleteGuestSession();
     return;
   }
-  if (!window._currentUser) window._currentUser = guestUser();
+  if (!window._currentUser) {window._currentUser = guestUser();}
   scheduleGuestExpiry();
 }
 
@@ -4792,16 +4790,16 @@ function seedDemoAccounts() {
     } else if (!existing.expiresAt || existing.expiresAt <= Date.now()) {
       existing.created = Date.now();
       existing.expiresAt = Date.now() + GUEST_TTL_MS;
-      if (!existing.password) existing.password = d.password;
+      if (!existing.password) {existing.password = d.password;}
       changed = true;
     }
   });
-  if (changed) setAccounts(list);
+  if (changed) {setAccounts(list);}
 }
 
 function renderAccountsSettings() {
   var el = document.getElementById("section-accounts");
-  if (!el) return;
+  if (!el) {return;}
   if (!isMasterAcc()) {
     el.innerHTML = "<div class='empty'>🔒 Solo el administrador gestiona las cuentas.</div>";
     return;
@@ -4880,14 +4878,14 @@ function setAccType(type) {
 }
 
 async function adminCreateTab() {
-  if (!isMasterAcc()) return toast("Solo el administrador crea cuentas 🔒", false);
+  if (!isMasterAcc()) {return toast("Solo el administrador crea cuentas 🔒", false);}
   var type = window._accTypeSel || "permanente";
   var user = document.getElementById("acc-user").value.trim();
   var pass = document.getElementById("acc-pass").value;
-  if (!user || !pass) return toast("Completá usuario y contraseña", false);
-  if (pass.length < 6) return toast("Contraseña mínima de 6 caracteres", false);
+  if (!user || !pass) {return toast("Completá usuario y contraseña", false);}
+  if (pass.length < 6) {return toast("Contraseña mínima de 6 caracteres", false);}
   if (type === "demo") {
-    if (findDemoAccountByUsername(user)) return toast("Ya existe una cuenta demo con ese usuario", false);
+    if (findDemoAccountByUsername(user)) {return toast("Ya existe una cuenta demo con ese usuario", false);}
     var list = getAccounts();
     list.push({ id: "acc-" + Date.now().toString(36), username: user, password: pass, passwordHash: await hashAccountPassword(pass), type: "demo", created: Date.now(), updatedAt: Date.now(), expiresAt: Date.now() + GUEST_TTL_MS, firebase: false });
     setAccounts(list);
@@ -4897,15 +4895,15 @@ async function adminCreateTab() {
     renderAccountsSettings();
     return;
   }
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(user)) return toast("Para permanente/VIP ingresá un correo válido", false);
-  if (!window._AUTH) return toast("Sin conexión. Necesitás internet para crear cuentas de pago.", false);
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(user)) {return toast("Para permanente/VIP ingresá un correo válido", false);}
+  if (!window._AUTH) {return toast("Sin conexión. Necesitás internet para crear cuentas de pago.", false);}
   try {
     var cred = await window._AUTH.createUserWithEmailAndPassword(user, pass);
     var list2 = getAccounts();
     list2.push({ id: "acc-" + Date.now().toString(36), username: user, password: pass, type: type, created: Date.now(), updatedAt: Date.now(), expiresAt: null, firebase: true, uid: cred.user.uid });
     setAccounts(list2);
     try { await window._AUTH.signOut(); } catch (e) {}
-    if (localStorage.getItem("pte_master_session") === "1") window._currentUser = { uid: "master", email: "martin@puntero.local", isMaster: true };
+    if (localStorage.getItem("pte_master_session") === "1") {window._currentUser = { uid: "master", email: "martin@puntero.local", isMaster: true };}
     applyAppLock();
     // reactivar la identidad técnica para que el ledger llegue a Firestore
     await ensureAdminSync();
@@ -4917,24 +4915,24 @@ async function adminCreateTab() {
 
 function adminCopyAccount(id) {
   var a = getAccounts().find(function (x) { return x.id === id; });
-  if (!a) return;
+  if (!a) {return;}
   var txt = "Usuario: " + a.username + "\nContraseña: " + a.password + "\nTipo: " + a.type;
-  if (navigator.clipboard) navigator.clipboard.writeText(txt).then(function () { toast("Credenciales copiadas ✓"); });
-  else toast(txt, false);
+  if (navigator.clipboard) {navigator.clipboard.writeText(txt).then(function () { toast("Credenciales copiadas ✓"); });}
+  else {toast(txt, false);}
 }
 
 async function adminResendVerify(id) {
-  if (!isMasterAcc()) return toast("Solo el administrador", false);
-  if (!window._AUTH) return toast("Sin conexión", false);
+  if (!isMasterAcc()) {return toast("Solo el administrador", false);}
+  if (!window._AUTH) {return toast("Sin conexión", false);}
   var a = getAccounts().find(function (x) { return x.id === id; });
-  if (!a || a.type === "demo") return;
+  if (!a || a.type === "demo") {return;}
   try {
     await window._AUTH.signInWithEmailAndPassword(a.username, a.password);
     if (window._AUTH.currentUser && window._AUTH.currentUser.sendEmailVerification) {
       await window._AUTH.currentUser.sendEmailVerification();
     }
     try { await window._AUTH.signOut(); } catch (e) {}
-    if (localStorage.getItem("pte_master_session") === "1") window._currentUser = { uid: "master", email: "martin@puntero.local", isMaster: true };
+    if (localStorage.getItem("pte_master_session") === "1") {window._currentUser = { uid: "master", email: "martin@puntero.local", isMaster: true };}
     applyAppLock();
     toast("Link de verificación reenviado a " + a.username + " ✓");
   } catch (e) { toast((e && e.message) || "No se pudo reenviar", false); }
@@ -4942,9 +4940,9 @@ async function adminResendVerify(id) {
 
 function adminDeleteAccount(id) {
   var a = getAccounts().find(function (x) { return x.id === id; });
-  if (!a) return;
+  if (!a) {return;}
   var note = a.firebase ? "\n\n(La cuenta en Firebase sigue en Auth; para borrarla de verdad usá la consola de Firebase.)" : "";
-  if (!confirm("¿Eliminar la cuenta " + a.username + " de la lista?" + note)) return;
+  if (!confirm("¿Eliminar la cuenta " + a.username + " de la lista?" + note)) {return;}
   removeAccountLocal(id);
   ensureAdminSync().then(function () { pushAccountsSync(); });
   renderAccountsSettings();
@@ -4968,20 +4966,20 @@ function _accountsMaxUpdatedAt(list) {
 
 // SHA-256 hex de una contraseña (para el ledger compartido)
 function hashAccountPassword(pass) {
-  if (!pass) return Promise.resolve("");
-  if (!(window.crypto && crypto.subtle && crypto.subtle.digest)) return Promise.resolve("");
+  if (!pass) {return Promise.resolve("");}
+  if (!(window.crypto && crypto.subtle && crypto.subtle.digest)) {return Promise.resolve("");}
   var data = new TextEncoder().encode(String(pass));
   return crypto.subtle.digest("SHA-256", data).then(function (buf) {
     var bytes = new Uint8Array(buf);
     var hex = "";
-    for (var i = 0; i < bytes.length; i++) hex += ("0" + bytes[i].toString(16)).slice(-2);
+    for (var i = 0; i < bytes.length; i++) {hex += ("0" + bytes[i].toString(16)).slice(-2);}
     return hex;
   });
 }
 
 // Quita una cuenta de la lista local (sin dialogo)
 function removeAccountLocal(id) {
-  if (!id) return;
+  if (!id) {return;}
   setAccounts(getAccounts().filter(function (a) { return a.id !== id; }));
 }
 
@@ -4989,7 +4987,7 @@ function removeAccountLocal(id) {
 // llevan el hash (o lo calculan al vuelo).
 async function _sanitizeAccountForLedger(a) {
   var copy = {};
-  Object.keys(a).forEach(function (k) { if (k !== "password") copy[k] = a[k]; });
+  Object.keys(a).forEach(function (k) { if (k !== "password") {copy[k] = a[k];} });
   if (a.type === "demo" && !copy.passwordHash) {
     copy.passwordHash = await hashAccountPassword(a.password || "");
   }
@@ -5011,21 +5009,21 @@ function _mergeRemoteAccounts(remote, local, remoteTs) {
   (local || []).forEach(function (a) { byLocal[a.id] = a; });
   var merged = (remote || []).map(function (r) {
     var l = byLocal[r.id];
-    if (l && l.password && !r.password) r = Object.assign({}, r, { password: l.password });
+    if (l && l.password && !r.password) {r = Object.assign({}, r, { password: l.password });}
     return r;
   });
   var mergedIds = {};
   merged.forEach(function (m) { mergedIds[m.id] = true; });
   (local || []).forEach(function (l) {
-    if (!mergedIds[l.id] && (l.updatedAt || 0) > (remoteTs || 0)) merged.push(l);
+    if (!mergedIds[l.id] && (l.updatedAt || 0) > (remoteTs || 0)) {merged.push(l);}
   });
   return merged;
 }
 
 async function ensureAdminSync() {
-  if (!window._AUTH || !window._FIRESTORE) return;
-  if (navigator && navigator.onLine === false) return;
-  if (window._isAdminSyncUser) return pullAccounts();
+  if (!window._AUTH || !window._FIRESTORE) {return;}
+  if (navigator && navigator.onLine === false) {return;}
+  if (window._isAdminSyncUser) {return pullAccounts();}
   try {
     try {
       await window._AUTH.signInWithEmailAndPassword(ADMIN_SYNC_EMAIL, ADMIN_SYNC_PASS);
@@ -5044,9 +5042,9 @@ async function ensureAdminSync() {
 
 // Trae el ledger a CUALQUIER dispositivo (lectura pública). Con merge inteligente.
 async function pullAccounts() {
-  if (!window._FIRESTORE) return;
+  if (!window._FIRESTORE) {return;}
   var now = Date.now();
-  if (now - window._lastAccountSync < 15000) return;
+  if (now - window._lastAccountSync < 15000) {return;}
   window._lastAccountSync = now;
   try {
     var ref = window._FIRESTORE.collection("accounts").doc("ledger");
@@ -5058,19 +5056,19 @@ async function pullAccounts() {
     if (remote && remote.length && remoteTs >= _accountsMaxUpdatedAt(local)) {
       setAccounts(_pruneExpiredDemos(_mergeRemoteAccounts(remote, getAccounts(), remoteTs)));
       // El admin auto-repara el ledger (borra demos vencidas)
-      if (window._isAdminSyncUser) pushAccountsSync();
+      if (window._isAdminSyncUser) {pushAccountsSync();}
     } else if ((!remote || !remote.length) && local.length && window._isAdminSyncUser) {
       await pushAccountsSync();
     }
     // Reasegurar las demos base por si el remoto no las traía
     seedDemoAccounts();
     var el = document.getElementById("section-accounts");
-    if (el && el.style.display !== "none") renderAccountsSettings();
+    if (el && el.style.display !== "none") {renderAccountsSettings();}
   } catch (e) { console.warn("pull cuentas:", e.code || e.message); }
 }
 
 async function pushAccountsSync() {
-  if (!window._isAdminSyncUser || !window._FIRESTORE) return;
+  if (!window._isAdminSyncUser || !window._FIRESTORE) {return;}
   try {
     var now = Date.now();
     var local = getAccounts().map(function (a) { return Object.assign({}, a, { updatedAt: a.updatedAt || now }); });
@@ -5103,23 +5101,23 @@ function showCreateAccountModal() {
 function randomPass() {
   var c = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
   var s = "";
-  for (var i = 0; i < 12; i++) s += c.charAt(Math.floor(Math.random() * c.length));
+  for (var i = 0; i < 12; i++) {s += c.charAt(Math.floor(Math.random() * c.length));}
   return s;
 }
 
 function genAccPass() {
   var inp = document.getElementById("new-acc-pass");
-  if (inp) inp.value = randomPass();
+  if (inp) {inp.value = randomPass();}
 }
 
 async function adminCreateAccount() {
-  if (!window._currentUser || window._currentUser.isMaster !== true) return toast("Solo el administrador puede crear cuentas 🔒", false);
-  if (!window._AUTH) return toast("Sin conexión. Necesitás internet para crear cuentas.", false);
+  if (!window._currentUser || window._currentUser.isMaster !== true) {return toast("Solo el administrador puede crear cuentas 🔒", false);}
+  if (!window._AUTH) {return toast("Sin conexión. Necesitás internet para crear cuentas.", false);}
   var email = document.getElementById("new-acc-email").value.trim();
   var pass = document.getElementById("new-acc-pass").value;
   var msg = document.getElementById("create-acc-msg");
-  if (!email || !pass) return toast("Completá correo y contraseña", false);
-  if (pass.length < 6) return toast("Contraseña mínima de 6 caracteres", false);
+  if (!email || !pass) {return toast("Completá correo y contraseña", false);}
+  if (pass.length < 6) {return toast("Contraseña mínima de 6 caracteres", false);}
   try {
     await window._AUTH.createUserWithEmailAndPassword(email, pass);
     // Restaurar sesión maestra (al crear, Firebase inicia sesión como el nuevo usuario)
@@ -5139,7 +5137,7 @@ async function adminCreateAccount() {
 // ── CLOUD SETTINGS ─────────────────────────────────────────────────────────
 function renderCloudSettings() {
   var el = document.getElementById("section-cloud");
-  if (!el) return;
+  if (!el) {return;}
   var user = window._currentUser;
   var syncEnabled = state._cloudSyncEnabled !== false;
   var dataSize = new Blob([JSON.stringify(state)]).size;
@@ -5229,13 +5227,13 @@ function importBackup() {
   inp.accept = ".json";
   inp.onchange = function (e) {
     var file = e.target.files[0];
-    if (!file) return;
+    if (!file) {return;}
     var reader = new FileReader();
     reader.onload = function (ev) {
       try {
         var d = JSON.parse(ev.target.result);
-        if (d.state) Object.assign(state, d.state);
-        if (d.db) DB = d.db;
+        if (d.state) {Object.assign(state, d.state);}
+        if (d.db) {DB = d.db;}
         save();
         toast("Backup restaurado ✓");
         setSection(state.section || "cloud");
@@ -5247,8 +5245,8 @@ function importBackup() {
 }
 
 async function clearCloudData() {
-  if (!window._currentUser) return toast("No hay sesión activa", false);
-  if (!confirm("¿Borrar todos los datos de la nube?\n\nLos datos locales NO se borran. Esta acción no se puede deshacer.")) return;
+  if (!window._currentUser) {return toast("No hay sesión activa", false);}
+  if (!confirm("¿Borrar todos los datos de la nube?\n\nLos datos locales NO se borran. Esta acción no se puede deshacer.")) {return;}
   try {
     await window._FIRESTORE.collection("users").doc(window._currentUser.uid).delete();
     toast("Datos de la nube borrados ✓");
@@ -5271,7 +5269,7 @@ window.addEventListener("unhandledrejection", function (e) {
 // ── AUTO EXCHANGE RATE ─────────────────────────────────────────────────────
 function fetchExchangeRate() {
   var cached = state._exchangeRateCache;
-  if (cached && Date.now() - cached.ts < 86400000) return;
+  if (cached && Date.now() - cached.ts < 86400000) {return;}
   fetch("https://open.er-api.com/v6/latest/USD").then(function (r) { return r.json(); }).then(function (d) {
     if (d && d.rates && d.rates.PYG) {
       state.exchangeRate = d.rates.PYG;
@@ -5283,8 +5281,8 @@ function fetchExchangeRate() {
 
 // ── BASE64 TO STORAGE MIGRATION ────────────────────────────────────────────
 function migrateBase64ToStorage() {
-  if (!window._STORAGE || !window._currentUser) return;
-  if (state._base64Migrated) return;
+  if (!window._STORAGE || !window._currentUser) {return;}
+  if (state._base64Migrated) {return;}
   var found = 0;
   // Scan materialOrders for base64 delivery photos
   (state.projects || []).forEach(function (p) {
@@ -5295,7 +5293,7 @@ function migrateBase64ToStorage() {
         var mime = o.deliveryPhoto.split(",")[0].match(/:(.*?);/)[1];
         var ab = new ArrayBuffer(byteString.length);
         var ia = new Uint8Array(ab);
-        for (var i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+        for (var i = 0; i < byteString.length; i++) {ia[i] = byteString.charCodeAt(i);}
         var blob = new Blob([ab], { type: mime });
         var ref = window._STORAGE.ref("users/" + window._currentUser.uid + "/migrated/" + o.id + ".jpg");
         ref.put(blob).then(function (snap) { return snap.ref.getDownloadURL(); }).then(function (url) {
@@ -5305,18 +5303,18 @@ function migrateBase64ToStorage() {
       }
     });
   });
-  if (found > 0) toast("Migrando " + found + " fotos a la nube...");
+  if (found > 0) {toast("Migrando " + found + " fotos a la nube...");}
   state._base64Migrated = true;
   save();
 }
 
 // ── INIT ───────────────────────────────────────────────────────────────────
 window.onload = () => {
-  if (!state.finances) state.finances = { income: [], expenses: [] };
-  if (!state.materialOrders) state.materialOrders = [];
-  if (!state.contractors) state.contractors = [];
-  if (!state.jornaleros) state.jornaleros = [];
-  if (!state.jornalConfig) state.jornalConfig = { ayudante: 80000, oficial: 110000, puntero: 140000 };
+  if (!state.finances) {state.finances = { income: [], expenses: [] };}
+  if (!state.materialOrders) {state.materialOrders = [];}
+  if (!state.contractors) {state.contractors = [];}
+  if (!state.jornaleros) {state.jornaleros = [];}
+  if (!state.jornalConfig) {state.jornalConfig = { ayudante: 80000, oficial: 110000, puntero: 140000 };}
   
   migrateToV7();
   migrateToV9();
@@ -5331,7 +5329,7 @@ window.onload = () => {
   
   // Mobile-first: daily log como landing en celular
   var isMobile = window.innerWidth < 768 || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
-  if (isMobile && state.section !== "logs") state.section = "logs";
+  if (isMobile && state.section !== "logs") {state.section = "logs";}
   setSection(state.section || (isMobile ? "logs" : "global_dashboard"));
 
   updateBadge();
@@ -5346,7 +5344,7 @@ window.onload = () => {
  */
 function showProjectLocationModal() {
     const p = getActiveProject();
-    if (!p) return;
+    if (!p) {return;}
     const loc = p.location || { lat: -25.26, lng: -57.57, address: "" };
 
     const el = document.getElementById("modal-area");
@@ -5400,12 +5398,12 @@ function initProjectMap(loc) {
 
 function saveProjectLocation() {
     const p = getActiveProject();
-    if (!p) return;
+    if (!p) {return;}
     const lat = parseFloat(document.getElementById('loc-lat').value);
     const lng = parseFloat(document.getElementById('loc-lng').value);
     const address = document.getElementById('loc-address').value;
 
-    if (!lat || !lng) return toast("Marcá la ubicación en el mapa", false);
+    if (!lat || !lng) {return toast("Marcá la ubicación en el mapa", false);}
 
     p.location = { lat, lng, address };
     save();
@@ -5421,7 +5419,7 @@ function shareProjectLocation() {
     const lng = document.getElementById('loc-lng').value || (p.location && p.location.lng);
     const address = document.getElementById('loc-address').value || (p.location && p.location.address);
 
-    if (!lat || !lng) return toast("No hay ubicación guardada", false);
+    if (!lat || !lng) {return toast("No hay ubicación guardada", false);}
 
     const googleMapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
     const text = `📍 *Ubicación de Obra: ${p.name}*\nDirección: ${address || 'Ver mapa'}\n\nLink: ${googleMapsUrl}`;

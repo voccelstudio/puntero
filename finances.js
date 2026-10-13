@@ -13,11 +13,11 @@ var FINANCE_CHART_COLORS = ["#3b82f6","#ef4444","#22c55e","#f59e0b","#8b5cf6","#
 
 function renderFinances() {
     var el = document.getElementById("section-finances");
-    if (!el) return;
+    if (!el) {return;}
     var p = getActiveProject();
     if (!p) { el.innerHTML = "<div class='empty'>Seleccioná un proyecto para ver sus finanzas.</div>"; return; }
-    if (!p.execution) p.execution = {};
-    if (!p.execution.finances) p.execution.finances = { income: [], expenses: [], pettyCash: { fundAmount: 0, transactions: [] } };
+    if (!p.execution) {p.execution = {};}
+    if (!p.execution.finances) {p.execution.finances = { income: [], expenses: [], pettyCash: { fundAmount: 0, transactions: [] } };}
 
     var finances = p.execution.finances;
     var filterType = (window._finFilterType || "all");
@@ -28,10 +28,10 @@ function renderFinances() {
     var all = allIncome.concat(allExpenses).sort(function(a,b) { return (parseDate(b.date) || 0) - (parseDate(a.date) || 0); });
     
     var filtered = all;
-    if (filterType === "in") filtered = allIncome;
-    else if (filterType === "ex") filtered = allExpenses;
+    if (filterType === "in") {filtered = allIncome;}
+    else if (filterType === "ex") {filtered = allExpenses;}
     
-    if (filterCat) filtered = filtered.filter(function(m) { return m.category === filterCat; });
+    if (filterCat) {filtered = filtered.filter(function(m) { return m.category === filterCat; });}
 
     var incomeTotal = allIncome.reduce(function(s, i) { return s + i.amount; }, 0);
     var expensesTotal = allExpenses.reduce(function(s, e) { return s + e.amount; }, 0);
@@ -50,10 +50,10 @@ function renderFinances() {
                 var rate = 0;
                 if (att.origin === 'Equipo Propio') {
                     var m = (state.ownTeam || []).find(function(o) { return o.name + " " + o.surname === att.name; });
-                    if (m) rate = m.dailyRate;
+                    if (m) {rate = m.dailyRate;}
                 } else if (att.origin === 'Jornalero') {
                     var m = (p.execution.dayWorkers || []).find(function(d) { return d.name + " " + d.surname === att.name; });
-                    if (m) rate = m.dailyRate;
+                    if (m) {rate = m.dailyRate;}
                 }
                 laborCostTotal += rate;
             }
@@ -154,15 +154,15 @@ function renderFinances() {
 // ── Draw expense pie chart on canvas ──
 function drawFinanceChart() {
   var canvas = document.getElementById("fin-chart-pie");
-  if (!canvas) return;
+  if (!canvas) {return;}
   var ctx = canvas.getContext("2d");
   var p = getActiveProject();
-  if (!p || !p.execution || !p.execution.finances) return;
+  if (!p || !p.execution || !p.execution.finances) {return;}
   var expenses = p.execution.finances.expenses || [];
   var catTotals = {};
   expenses.forEach(function(e) { var c = e.category || "Varios"; catTotals[c] = (catTotals[c] || 0) + e.amount; });
   var entries = Object.entries(catTotals).sort(function(a,b) { return b[1] - a[1]; });
-  if (entries.length === 0) return;
+  if (entries.length === 0) {return;}
   var total = entries.reduce(function(s, e) { return s + e[1]; }, 0);
   var cx = 100, cy = 100, r = 80, ir = 50;
   var startAngle = -Math.PI / 2;
@@ -190,19 +190,19 @@ function drawFinanceChart() {
 // ── Cash flow by month (mini aggregation) ──
 function getMonthlyCashFlow() {
   var p = getActiveProject();
-  if (!p || !p.execution || !p.execution.finances) return [];
+  if (!p || !p.execution || !p.execution.finances) {return [];}
   var all = [];
   (p.execution.finances.income || []).forEach(function(i) { all.push({ date: i.date, amount: i.amount, t: "in" }); });
   (p.execution.finances.expenses || []).forEach(function(e) { all.push({ date: e.date, amount: -e.amount, t: "ex" }); });
   var monthly = {};
   all.forEach(function(m) {
-    if (!m.date) return;
+    if (!m.date) {return;}
     var parts = m.date.split("-");
-    if (parts.length < 2) return;
+    if (parts.length < 2) {return;}
     var key = parts[0] + "-" + parts[1];
-    if (!monthly[key]) monthly[key] = { income: 0, expenses: 0 };
-    if (m.t === "in") monthly[key].income += m.amount;
-    else monthly[key].expenses += Math.abs(m.amount);
+    if (!monthly[key]) {monthly[key] = { income: 0, expenses: 0 };}
+    if (m.t === "in") {monthly[key].income += m.amount;}
+    else {monthly[key].expenses += Math.abs(m.amount);}
   });
   return Object.entries(monthly).sort().map(function(e) { return { month: e[0], income: e[1].income, expenses: e[1].expenses }; });
 }
@@ -210,7 +210,7 @@ function getMonthlyCashFlow() {
 // ── Export Finance PDF ──
 function exportFinancePDF() {
   var p = getActiveProject();
-  if (!p || !p.execution || !p.execution.finances) return toast("Sin datos financieros", false);
+  if (!p || !p.execution || !p.execution.finances) {return toast("Sin datos financieros", false);}
   if (typeof window.jspdf === "undefined" && typeof jsPDF === "undefined") { toast("jsPDF cargando, intentá en 2 segundos", false); return; }
   var JPDF = (window.jspdf || {}).jsPDF || window.jsPDF;
   var doc = new JPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -279,7 +279,7 @@ function exportFinancePDF() {
 
   // Expense breakdown table
   var expensesByCat = {};
-  (finances.expenses || []).forEach(function(e) { var c = e.category || "Varios"; if (!expensesByCat[c]) expensesByCat[c] = 0; expensesByCat[c] += e.amount; });
+  (finances.expenses || []).forEach(function(e) { var c = e.category || "Varios"; if (!expensesByCat[c]) {expensesByCat[c] = 0;} expensesByCat[c] += e.amount; });
   var catEntries = Object.entries(expensesByCat).sort(function(a,b) { return b[1] - a[1]; });
   if (catEntries.length > 0) {
     if (y + 30 > 270) { doc.addPage(); y = 20; }
@@ -351,7 +351,7 @@ window.modals.finance_entry = function(arg) {
 
 function saveFinanceEntry() {
   var p = getActiveProject();
-  if (!p.execution.finances) p.execution.finances = { income: [], expenses: [] };
+  if (!p.execution.finances) {p.execution.finances = { income: [], expenses: [] };}
   var finances = p.execution.finances;
   var type = document.getElementById("fin-type").value;
   var id = document.getElementById("fin-id").value || String(Date.now());
@@ -363,8 +363,8 @@ function saveFinanceEntry() {
   var method = document.getElementById("fin-method").value;
   var note = document.getElementById("fin-note").value.trim();
   
-  if (!date) return toast("Fecha requerida", false);
-  if (!amount || amount <= 0) return toast("Monto inválido", false);
+  if (!date) {return toast("Fecha requerida", false);}
+  if (!amount || amount <= 0) {return toast("Monto inválido", false);}
   
   var existing = list.findIndex(function(e) { return String(e.id) === String(id); });
   var entry = { id: id, date: date, amount: amount, category: category, method: method, note: note };
@@ -380,19 +380,19 @@ function saveFinanceEntry() {
 }
 
 function deleteFinanceEntry(id, type) {
-  if (!confirm("¿Eliminar este movimiento?")) return;
+  if (!confirm("¿Eliminar este movimiento?")) {return;}
   var p = getActiveProject();
-  if (!p.execution.finances) return;
+  if (!p.execution.finances) {return;}
   var list = type === 'in' ? p.execution.finances.income : p.execution.finances.expenses;
   var idx = list.findIndex(function(e) { return e.id === id; });
-  if (idx >= 0) list.splice(idx, 1);
+  if (idx >= 0) {list.splice(idx, 1);}
   save(); renderFinances();
   toast("Movimiento eliminado ✓");
 }
 
 function exportFinancesCSV() {
   var p = getActiveProject();
-  if (!p || !p.execution.finances) return toast("Sin datos financieros", false);
+  if (!p || !p.execution.finances) {return toast("Sin datos financieros", false);}
   var rows = [["Fecha","Tipo","Categoría","Concepto","Método de pago","Monto"]];
   (p.execution.finances.income || []).forEach(function(i) {
     rows.push([i.date,"Ingreso",i.category||"",i.note||"",i.method||"",i.amount]);

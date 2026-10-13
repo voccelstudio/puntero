@@ -4,7 +4,7 @@
 
 function renderContractors() {
     const el = document.getElementById("section-contractors");
-    if (!el) return;
+    if (!el) {return;}
     const p = getActiveProject();
     const adenda = getActiveAdenda();
 
@@ -151,7 +151,7 @@ function showAddContractorModal() {
 
 function addContractor() {
     const name = document.getElementById("cn-name").value.trim();
-    if (!name) return toast("Nombre requerido", false);
+    if (!name) {return toast("Nombre requerido", false);}
     const newCon = {
         id: 'con_' + Date.now(),
         name,
@@ -161,14 +161,14 @@ function addContractor() {
         ratingAvg: 0, ratingCount: 0, ratings: {},
         payments: [], staff: []
     };
-    if (!state.contractors) state.contractors = [];
+    if (!state.contractors) {state.contractors = [];}
     state.contractors.push(newCon);
     save(); closeModal(); renderContractors();
     toast("Contratista registrado ✓");
 }
 
 function deleteContractor(id) {
-    if (!confirm("¿Eliminar este contratista?")) return;
+    if (!confirm("¿Eliminar este contratista?")) {return;}
     state.contractors = state.contractors.filter(c => c.id !== id);
     (state.projects || []).forEach(function (p) {
         if (p.execution && p.execution.schedules) {
@@ -184,8 +184,8 @@ function deleteContractor(id) {
 
 function showPaymentModal(conId) {
     const con = state.contractors.find(c => c.id === conId);
-    if (!con) return;
-    let payRows = (con.payments || []).map((p, idx) => `
+    if (!con) {return;}
+    const payRows = (con.payments || []).map((p, idx) => `
         <div style="display:grid; grid-template-columns:1fr 1fr 40px; gap:8px; align-items:center; padding:6px 0; border-bottom:1px solid var(--bor)">
             <div>${formatDatePY(p.date)} - ${p.note}</div>
             <div style="font-weight:700; text-align:right">${fmt(p.amount)}</div>
@@ -210,14 +210,14 @@ function addPayment(conId) {
     const amt = parseFloat(document.getElementById("pay-amt").value);
     const date = document.getElementById("pay-date").value;
     const note = document.getElementById("pay-note").value || "Pago a cuenta";
-    if (!amt) return toast("Monto inválido", false);
+    if (!amt) {return toast("Monto inválido", false);}
     const con = state.contractors.find(c => c.id === conId);
     if (con) {
-        if (!con.payments) con.payments = [];
+        if (!con.payments) {con.payments = [];}
         con.payments.push({ amount: amt, date, note, id: Date.now() });
         const proj = getActiveProject();
         if (proj && proj.execution) {
-            if (!proj.execution.finances) proj.execution.finances = { income: [], expenses: [] };
+            if (!proj.execution.finances) {proj.execution.finances = { income: [], expenses: [] };}
             proj.execution.finances.expenses.push({
                 id: Date.now() + 1,
                 amount: amt,
@@ -249,10 +249,10 @@ function deletePayment(conId, idx) {
 function showAssignItemsModal(conId) {
     const p = getActiveProject();
     const adenda = getActiveAdenda();
-    if (!p || !adenda) return toast("Seleccioná un proyecto", false);
+    if (!p || !adenda) {return toast("Seleccioná un proyecto", false);}
     const con = state.contractors.find(c => c.id === conId);
 
-    let itemsHtml = adenda.items.map(item => {
+    const itemsHtml = adenda.items.map(item => {
         const isAssigned = p.execution.schedules[item.id]?.contractorId === conId;
         return `<tr>
             <td style="width:36px; text-align:center; padding:7px 4px"><input type="checkbox" ${isAssigned ? 'checked' : ''} onchange="assignItemToContractor('${item.id}', this.checked ? '${conId}' : null)"></td>
@@ -277,17 +277,17 @@ function showAssignItemsModal(conId) {
 
 function assignItemToContractor(itemId, conId) {
     const p = getActiveProject();
-    if (!p) return;
-    if (!p.execution.schedules) p.execution.schedules = {};
-    if (!p.execution.schedules[itemId]) p.execution.schedules[itemId] = { status: 'pending', start: '', end: '', contractorId: null };
+    if (!p) {return;}
+    if (!p.execution.schedules) {p.execution.schedules = {};}
+    if (!p.execution.schedules[itemId]) {p.execution.schedules[itemId] = { status: 'pending', start: '', end: '', contractorId: null };}
     p.execution.schedules[itemId].contractorId = conId;
     save();
 }
 
 function showStaffModal(conId) {
     const con = state.contractors.find(c => c.id === conId);
-    if (!con) return;
-    if (!con.staff) con.staff = [];
+    if (!con) {return;}
+    if (!con.staff) {con.staff = [];}
     const el = document.getElementById("modal-area");
     el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:600px">
         <div class="modal-title">Personal de ${con.name}<button class="delbtn" onclick="closeModal()">✕</button></div>
@@ -305,7 +305,7 @@ function showStaffModal(conId) {
 
 function renderStaffList(conId) {
     const con = state.contractors.find(c => c.id === conId);
-    if (!con || !con.staff || con.staff.length === 0) return `<p style="text-align:center; padding:20px">Sin personal.</p>`;
+    if (!con || !con.staff || con.staff.length === 0) {return `<p style="text-align:center; padding:20px">Sin personal.</p>`;}
     return `<table class="tbl sm">
         <thead><tr><th>Nombre</th><th>Cédula</th><th>IPS</th><th>Ant.</th><th></th></tr></thead>
         <tbody>${con.staff.map((s, idx) => `<tr>

@@ -1,9 +1,9 @@
 var _otCache = null;
 
 function buildOTData() {
-    if (_otCache) return _otCache;
+    if (_otCache) {return _otCache;}
     const adenda = getActiveAdenda();
-    if (!adenda) return null;
+    if (!adenda) {return null;}
     const grouped = {};
     for (const i of adenda.items) {
         (grouped[i.cat] || (grouped[i.cat] = [])).push(i);
@@ -20,7 +20,7 @@ function buildOTData() {
 
 function renderOT() {
     const el = document.getElementById("section-ot");
-    if (!el) return;
+    if (!el) {return;}
     const p = getActiveProject();
     if (!p) { el.innerHTML = "<div class='empty'>Seleccioná un proyecto.</div>"; return; }
     const adenda = getActiveAdenda();
@@ -70,7 +70,7 @@ function renderOT() {
 
 function renderOTBody() {
     const tbody = document.getElementById("ot-body");
-    if (!tbody) return;
+    if (!tbody) {return;}
     const ot = buildOTData();
     if (!ot) { tbody.innerHTML = '<tr><td colspan="3" class="empty">Sin rubros</td></tr>'; return; }
 
@@ -89,13 +89,13 @@ function renderOTBody() {
 
 function printOT() {
     const el = document.getElementById("section-ot");
-    if (!el) return toast("No hay contenido para imprimir", false);
+    if (!el) {return toast("No hay contenido para imprimir", false);}
 
     const ot = buildOTData();
-    if (!ot) return toast("No hay orden de trabajo generada", false);
+    if (!ot) {return toast("No hay orden de trabajo generada", false);}
 
     const p = getActiveProject();
-    if (!p) return toast("Sin proyecto activo", false);
+    if (!p) {return toast("Sin proyecto activo", false);}
 
     const rows = renderOTPrintRows(ot);
 

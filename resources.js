@@ -5,7 +5,7 @@
 
 function renderResources() {
     const el = document.getElementById("section-resources");
-    if (!el) return;
+    if (!el) {return;}
 
     // Historial de precios (usando los datos de state.priceHistory)
     const histHtml = (state.priceHistory || []).map(h => {

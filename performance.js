@@ -5,12 +5,12 @@
 
 function renderPerformance() {
     const el = document.getElementById("section-performance");
-    if (!el) return;
+    if (!el) {return;}
     const p = getActiveProject();
     const adenda = getActiveAdenda();
     if (!p || !adenda) { el.innerHTML = "<div class='empty'>Seleccioná un proyecto.</div>"; return; }
-    if (!p.execution) p.execution = {};
-    if (!p.execution.schedules) p.execution.schedules = {};
+    if (!p.execution) {p.execution = {};}
+    if (!p.execution.schedules) {p.execution.schedules = {};}
 
     const { totalProgress } = calcOverallProgress();
     const { totalLabor } = getTotals();

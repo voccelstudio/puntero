@@ -4,7 +4,7 @@
 
 function renderSchedule() {
     var el = document.getElementById("section-schedule");
-    if (!el) return;
+    if (!el) {return;}
     var p = getActiveProject();
     var adenda = getActiveAdenda();
     if (!p || !adenda || !adenda.items || adenda.items.length === 0) {
@@ -159,8 +159,6 @@ function renderSchedule() {
 
 function renderExecutionCell(itemId, sch) {
     var mode = sch.executionMode || "contractor";
-    var modeIcons = { contractor: "👷", own_team: "🏗️", day_workers: "👤" };
-    var modeLabels = { contractor: "Contratista", own_team: "Equipo Propio", day_workers: "Jornaleros" };
 
     var h = '<select style="width:100%;padding:4px;border:1px solid var(--bor);border-radius:4px;background:var(--bg);color:var(--tx);font-size:0.78rem" ' +
         'onchange="updateSchedule(\'' + itemId + "', 'executionMode', this.value);renderSchedule()\">" +
@@ -177,7 +175,6 @@ function renderExecutionCell(itemId, sch) {
             }).join("") + '</select>';
     } else {
         var assigned = sch.assignedStaff || [];
-        var listName = mode === "own_team" ? "Equipo Propio" : "Jornaleros";
         var count = assigned.length;
         h += '<div style="margin-top:4px;display:flex;gap:4px">' +
             '<span style="font-size:0.7rem;color:var(--tx3);flex:1;line-height:1.6">' + count + ' personas asignadas</span>' +
@@ -203,12 +200,12 @@ function setSchFilter(cat) {
 
 function updateSchedule(itemId, field, value) {
     var p = getActiveProject();
-    if (!p) return;
-    if (!p.execution.schedules) p.execution.schedules = {};
-    if (!p.execution.schedules[itemId]) p.execution.schedules[itemId] = { status: "pending", start: "", end: "", contractorId: null, executionMode: "contractor" };
+    if (!p) {return;}
+    if (!p.execution.schedules) {p.execution.schedules = {};}
+    if (!p.execution.schedules[itemId]) {p.execution.schedules[itemId] = { status: "pending", start: "", end: "", contractorId: null, executionMode: "contractor" };}
     p.execution.schedules[itemId][field] = value;
     save();
-    if (field === "executionMode" || field === "status") renderSchedule();
+    if (field === "executionMode" || field === "status") {renderSchedule();}
 }
 
 function showAssignPersonnelModal(itemId) {
@@ -217,7 +214,7 @@ function showAssignPersonnelModal(itemId) {
     var sch = p.execution.schedules[itemId] || { executionMode: "contractor", assignedStaff: [] };
     var isOwn = sch.executionMode === "own_team";
     var list = isOwn ? state.ownTeam : (p.execution.dayWorkers || []);
-    if (!sch.assignedStaff) sch.assignedStaff = [];
+    if (!sch.assignedStaff) {sch.assignedStaff = [];}
 
     var el = document.getElementById("modal-area");
     el.innerHTML = '<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:400px">' +
@@ -235,10 +232,10 @@ function showAssignPersonnelModal(itemId) {
 function toggleStaffAssignment(itemId, staffId, checked) {
     var p = getActiveProject();
     var sch = p.execution.schedules[itemId];
-    if (!sch) return;
-    if (!sch.assignedStaff) sch.assignedStaff = [];
+    if (!sch) {return;}
+    if (!sch.assignedStaff) {sch.assignedStaff = [];}
     if (checked) {
-        if (sch.assignedStaff.indexOf(staffId) === -1) sch.assignedStaff.push(staffId);
+        if (sch.assignedStaff.indexOf(staffId) === -1) {sch.assignedStaff.push(staffId);}
     } else {
         sch.assignedStaff = sch.assignedStaff.filter(function (id) { return id !== staffId; });
     }
@@ -247,7 +244,7 @@ function toggleStaffAssignment(itemId, staffId, checked) {
 
 function setProjectStartDate(dateStr) {
     var p = getActiveProject();
-    if (!p || !dateStr) return;
+    if (!p || !dateStr) {return;}
     p.execution.projectStartDate = dateStr;
     save();
     recalculateScheduleDates();
@@ -256,17 +253,17 @@ function setProjectStartDate(dateStr) {
 function recalculateScheduleDates() {
     var p = getActiveProject();
     var adenda = getActiveAdenda();
-    if (!p || !adenda) return;
-    if (!p.execution.projectStartDate && adenda.items.length > 0) p.execution.projectStartDate = todayISO();
-    if (!p.execution.projectStartDate) return;
+    if (!p || !adenda) {return;}
+    if (!p.execution.projectStartDate && adenda.items.length > 0) {p.execution.projectStartDate = todayISO();}
+    if (!p.execution.projectStartDate) {return;}
     var currentStartStr = p.execution.projectStartDate;
-    if (!p.execution.schedules) p.execution.schedules = {};
+    if (!p.execution.schedules) {p.execution.schedules = {};}
     adenda.items.forEach(function (item) {
         var days = 5;
         var startDate = new Date(currentStartStr);
         var endDate = new Date(startDate.getTime() + (days - 1) * 86400000);
         var endStr = endDate.toISOString().split("T")[0];
-        if (!p.execution.schedules[item.id]) p.execution.schedules[item.id] = { status: "pending" };
+        if (!p.execution.schedules[item.id]) {p.execution.schedules[item.id] = { status: "pending" };}
         p.execution.schedules[item.id].start = currentStartStr;
         p.execution.schedules[item.id].end = endStr;
         currentStartStr = new Date(endDate.getTime() + 86400000).toISOString().split("T")[0];
@@ -279,19 +276,19 @@ function recalculateScheduleDates() {
 function renderGanttChart() {
     var p = getActiveProject();
     var adenda = getActiveAdenda();
-    if (!p || !adenda || adenda.items.length === 0) return "";
+    if (!p || !adenda || adenda.items.length === 0) {return "";}
     var filter = state._schFilter || "";
     var ganttItems = filter ? adenda.items.filter(function (it) { return it.cat === filter; }) : adenda.items;
-    if (ganttItems.length === 0) return '<p style="color:var(--tx3);font-size:0.85rem;padding:16px;text-align:center">No hay items en esta categoría para el Gantt.</p>';
+    if (ganttItems.length === 0) {return '<p style="color:var(--tx3);font-size:0.85rem;padding:16px;text-align:center">No hay items en esta categoría para el Gantt.</p>';}
 
     var minTs = Infinity, maxTs = -Infinity;
     var schedules = p.execution.schedules || {};
     ganttItems.forEach(function (item) {
         var sch = schedules[item.id] || {};
-        if (sch.start) minTs = Math.min(minTs, new Date(sch.start).getTime());
-        if (sch.end) maxTs = Math.max(maxTs, new Date(sch.end).getTime());
+        if (sch.start) {minTs = Math.min(minTs, new Date(sch.start).getTime());}
+        if (sch.end) {maxTs = Math.max(maxTs, new Date(sch.end).getTime());}
     });
-    if (minTs === Infinity || maxTs === -Infinity) return '<p style="color:var(--tx3);font-size:0.85rem;padding:16px;text-align:center">Definí las fechas del cronograma para ver el diagrama de Gantt.</p>';
+    if (minTs === Infinity || maxTs === -Infinity) {return '<p style="color:var(--tx3);font-size:0.85rem;padding:16px;text-align:center">Definí las fechas del cronograma para ver el diagrama de Gantt.</p>';}
     maxTs += 2 * 86400000;
     var daysTotal = Math.ceil((maxTs - minTs) / 86400000) + 1;
 
@@ -334,7 +331,7 @@ function renderGanttChart() {
 function exportScheduleCSV() {
     var p = getActiveProject();
     var adenda = getActiveAdenda();
-    if (!p || !adenda) return toast("Sin proyecto activo", false);
+    if (!p || !adenda) {return toast("Sin proyecto activo", false);}
     var schedules = p.execution.schedules || {};
     var rows = [["#", "Rubro", "Unidad", "Cantidad", "Inicio", "Fin", "Duración (días)", "Estado", "Ejecución"]];
     adenda.items.forEach(function (item, idx) {

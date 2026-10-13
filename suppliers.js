@@ -5,10 +5,10 @@
 
 function renderSuppliers() {
     const el = document.getElementById("section-suppliers");
-    if (!el) return;
+    if (!el) {return;}
 
-    if (!state.suppliers) state.suppliers = [];
-    if (!state._quotes) state._quotes = []; // Registro de cotizaciones { supplierId, materialName, price, date }
+    if (!state.suppliers) {state.suppliers = [];}
+    if (!state._quotes) {state._quotes = [];} // Registro de cotizaciones { supplierId, materialName, price, date }
 
     const suppliers = state.suppliers;
 
@@ -58,7 +58,7 @@ function renderSuppliers() {
 }
 
 function deleteSupplier(id) {
-    if (!confirm("¿Eliminar este proveedor?")) return;
+    if (!confirm("¿Eliminar este proveedor?")) {return;}
     state.suppliers = state.suppliers.filter(s => s.id != id);
     save();
     renderSuppliers();
@@ -66,7 +66,7 @@ function deleteSupplier(id) {
 
 function viewSupplier(id) {
     const s = (state.suppliers || []).find(x => x.id == id);
-    if (!s) return;
+    if (!s) {return;}
     const quotes = (state._quotes || []).filter(q => q.supplierId == id);
     const el = document.getElementById("modal-area");
     el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:500px">
@@ -127,7 +127,7 @@ function createSupplier() {
     const category = document.getElementById("s-cat").value;
     const address = document.getElementById("s-address").value;
 
-    if (!name) return toast("El nombre es obligatorio", false);
+    if (!name) {return toast("El nombre es obligatorio", false);}
 
     const newSup = {
         id: Date.now(),
@@ -146,7 +146,7 @@ window.modals.compare_prices = () => {
     const materials = calcMaterials();
     const suppliers = state.suppliers;
 
-    if (!suppliers.length) return `<div class="modal-title">Comparativa</div><p>Primero registrá al menos un proveedor.</p>`;
+    if (!suppliers.length) {return `<div class="modal-title">Comparativa</div><p>Primero registrá al menos un proveedor.</p>`;}
     
     return `
     <div class="modal-title">Comparativa de Precios por Proveedor</div>
@@ -192,7 +192,7 @@ window.modals.compare_prices = () => {
 };
 
 function saveQuote(supplierId, materialName, price) {
-    if (!state._quotes) state._quotes = [];
+    if (!state._quotes) {state._quotes = [];}
     const p = parseFloat(price);
     
     // Eliminar anterior si existe

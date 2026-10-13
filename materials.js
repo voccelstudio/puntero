@@ -4,7 +4,7 @@
 
 function renderMaterials() {
     const el = document.getElementById("section-materials");
-    if (!el) return;
+    if (!el) {return;}
     const p = getActiveProject();
     if (!p) { el.innerHTML = "<div class='empty'>Seleccioná un proyecto para gestionar materiales.</div>"; return; }
 
@@ -151,10 +151,10 @@ function showDeliveryModal(orderId) {
 
 var _tempDeliveryPhoto = "";
 function handleDeliveryPhoto(input) {
-    if (!input.files || !input.files[0]) return;
+    if (!input.files || !input.files[0]) {return;}
     var file = input.files[0];
     var preview = document.getElementById("del-photo-preview");
-    if (!preview) return;
+    if (!preview) {return;}
     preview.innerHTML = "<div style='padding:20px;color:var(--tx3)'>Subiendo foto...</div>";
 
     // [CLOUD OFF] subida a Storage desactivada — la foto se guarda en base64 local.
@@ -189,11 +189,11 @@ function fallbackPhotoUpload(file, preview) {
 
 function confirmDelivery(orderId) {
     const p = getActiveProject();
-    if (!p) return toast("Seleccioná un proyecto", false);
+    if (!p) {return toast("Seleccioná un proyecto", false);}
     const order = p.execution.materialOrders.find(o => o.id == orderId);
     const date = document.getElementById("del-date").value;
     
-    if (!date) return toast("La fecha de llegada es requerida", false);
+    if (!date) {return toast("La fecha de llegada es requerida", false);}
 
     if (order) {
         order.status = 'delivered';
@@ -220,17 +220,17 @@ function previewImage(src) {
 
 function payOrder(id) {
     const p = getActiveProject();
-    if (!p) return;
-    if (!p.execution) p.execution = {};
-    if (!p.execution.materialOrders) p.execution.materialOrders = [];
+    if (!p) {return;}
+    if (!p.execution) {p.execution = {};}
+    if (!p.execution.materialOrders) {p.execution.materialOrders = [];}
     const o = p.execution.materialOrders.find(x => x.id == id);
-    if (!o) return;
+    if (!o) {return;}
     if (confirm(`¿Registrar pago de ${fmt(o.total)} a ${o.supplier}?`)) {
         o.isPaid = true;
         o.paymentDate = todayISO();
 
-        if (!p.execution.finances) p.execution.finances = { income: [], expenses: [] };
-        if (!p.execution.finances.expenses) p.execution.finances.expenses = [];
+        if (!p.execution.finances) {p.execution.finances = { income: [], expenses: [] };}
+        if (!p.execution.finances.expenses) {p.execution.finances.expenses = [];}
         p.execution.finances.expenses.push({
             id: 'mo_pay_' + Date.now(),
             amount: o.total || 0,
@@ -246,9 +246,9 @@ function payOrder(id) {
 
 function removeOrder(id) {
     const p = getActiveProject();
-    if (!p) return;
-    if (!confirm("¿Eliminar esta orden de compra?")) return;
-    if (!p.execution.materialOrders) p.execution.materialOrders = [];
+    if (!p) {return;}
+    if (!confirm("¿Eliminar esta orden de compra?")) {return;}
+    if (!p.execution.materialOrders) {p.execution.materialOrders = [];}
     p.execution.materialOrders = p.execution.materialOrders.filter(o => o.id != id);
     save();
     renderMaterials();
@@ -256,7 +256,7 @@ function removeOrder(id) {
 
 function createOrder() {
     const p = getActiveProject();
-    if (!p) return toast("Seleccioná un proyecto", false);
+    if (!p) {return toast("Seleccioná un proyecto", false);}
     const supplier = document.getElementById("mo-supplier").value;
     const total = parseFloat(document.getElementById("mo-total").value) || 0;
     const date = document.getElementById("mo-date").value;
@@ -269,15 +269,15 @@ function createOrder() {
         }
     });
 
-    if (items.length === 0) return toast("Agregá al menos un material", false);
+    if (items.length === 0) {return toast("Agregá al menos un material", false);}
 
     const newOrder = {
         id: Date.now() + Math.floor(Math.random() * 1000),
         supplier, total, date, items, status: 'pending', isPaid: false
     };
 
-    if (!p.execution) p.execution = {};
-    if (!p.execution.materialOrders) p.execution.materialOrders = [];
+    if (!p.execution) {p.execution = {};}
+    if (!p.execution.materialOrders) {p.execution.materialOrders = [];}
     p.execution.materialOrders.push(newOrder);
     save();
     closeModal();
@@ -289,7 +289,7 @@ function createOrder() {
 window.modals = window.modals || {};
 window.modals.new_order = () => {
     const p = getActiveProject();
-    if (!p) return `<div class="modal-title">Sin proyecto<button class="delbtn" onclick="closeModal()">✕</button></div><p>Seleccioná un proyecto primero.</p>`;
+    if (!p) {return `<div class="modal-title">Sin proyecto<button class="delbtn" onclick="closeModal()">✕</button></div><p>Seleccioná un proyecto primero.</p>`;}
 
     const materialsNeeded = calcMaterials();
     const today = todayISO();

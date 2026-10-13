@@ -14,7 +14,7 @@
 (function (global) {
   'use strict';
 
-  if (global.XLSXWriter) return;
+  if (global.XLSXWriter) {return;}
 
   // ── Utilidades de escape ──────────────────────────────────────────────
   function escXml(s) {
@@ -37,7 +37,7 @@
     const t = [];
     for (let n = 0; n < 256; n++) {
       let c = n;
-      for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      for (let k = 0; k < 8; k++) {c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);}
       t[n] = c >>> 0;
     }
     return t;
@@ -45,7 +45,7 @@
 
   function crc32(bytes) {
     let c = 0xFFFFFFFF;
-    for (let i = 0; i < bytes.length; i++) c = crcTable[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+    for (let i = 0; i < bytes.length; i++) {c = crcTable[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);}
     return (c ^ 0xFFFFFFFF) >>> 0;
   }
 
@@ -219,11 +219,11 @@
       p.push(`fillId="${fi}"`);
       p.push(`borderId="${bi}"`);
       p.push(`xfId="0"`);
-      if (num) p.push(`applyNumberFormat="1"`);
+      if (num) {p.push(`applyNumberFormat="1"`);}
       p.push('applyFont="1"');
-      if (fi) p.push('applyFill="1"');
-      if (bi) p.push('applyBorder="1"');
-      if (align) p.push(`applyAlignment="1"`);
+      if (fi) {p.push('applyFill="1"');}
+      if (bi) {p.push('applyBorder="1"');}
+      if (align) {p.push(`applyAlignment="1"`);}
       xfs += `<xf ${p.join(' ')}>${align ? alignmentXml(align) : ''}</xf>`;
     });
     return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -250,7 +250,7 @@ ${NUMFMT}
   function addRow(sheet, cells, opts) {
     sheet.rows.push({
       cells: (cells || []).map(c => {
-        if (typeof c === 'number' || typeof c === 'string') return { v: c };
+        if (typeof c === 'number' || typeof c === 'string') {return { v: c };}
         return { v: c && c.v !== undefined ? c.v : null, s: c && c.s != null ? STYLE_INDEX[c.s] : null };
       }),
       ht: opts && opts.h

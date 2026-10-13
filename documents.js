@@ -14,7 +14,7 @@ var _folderView = 'grid'; // 'grid' | 'list'
 // ── RENDER PRINCIPAL: CARPETA DEL PROYECTO ─────────────────────────────
 function renderFolder() {
     var el = document.getElementById("section-folder");
-    if (!el) return;
+    if (!el) {return;}
     var p = getActiveProject();
     if (!p) { el.innerHTML = "<div class='empty'>Seleccioná un proyecto.</div>"; return; }
 
@@ -64,7 +64,7 @@ function renderFolderLinked(p) {
     // Contar archivos por categoría
     var catCounts = {};
     cats.forEach(function(c) { catCounts[c.id] = 0; });
-    _folderFiles.forEach(function(f) { if (catCounts[f.category] !== undefined) catCounts[f.category]++; });
+    _folderFiles.forEach(function(f) { if (catCounts[f.category] !== undefined) {catCounts[f.category]++;} });
 
     var activeFilter = _folderFilter;
     var filtered = activeFilter === 'todos' ? _folderFiles : _folderFiles.filter(function(f) { return f.category === activeFilter; });
@@ -152,11 +152,11 @@ function renderFolderFileCard(file) {
     var preview = '';
     var iconFile = '📄';
 
-    if (isPdf) iconFile = '📕';
-    else if (file.type && (file.type.includes('word') || file.type.includes('document'))) iconFile = '📝';
-    else if (file.type && (file.type.includes('sheet') || file.type.includes('excel'))) iconFile = '📊';
-    else if (file.type && file.type.includes('dwg')) iconFile = '📐';
-    else if (file.type && file.type.includes('skp')) iconFile = '🏗️';
+    if (isPdf) {iconFile = '📕';}
+    else if (file.type && (file.type.includes('word') || file.type.includes('document'))) {iconFile = '📝';}
+    else if (file.type && (file.type.includes('sheet') || file.type.includes('excel'))) {iconFile = '📊';}
+    else if (file.type && file.type.includes('dwg')) {iconFile = '📐';}
+    else if (file.type && file.type.includes('skp')) {iconFile = '🏗️';}
 
     if (isImg) {
         preview = '<div class="folder-file-thumb" data-file-cat="' + file.category + '" data-file-name="' + escapeHtml(file.name) + '"></div>';
@@ -187,16 +187,16 @@ function renderFolderFileCard(file) {
 
 function renderFolderFiles() {
     var p = getActiveProject();
-    if (!p) return;
+    if (!p) {return;}
     var el = document.getElementById("section-folder");
-    if (!el) return;
+    if (!el) {return;}
     el.innerHTML = renderFolderLinked(p);
     loadFolderThumbnails();
     setupFolderDragDrop();
 }
 
 async function refreshFolderFiles(p) {
-    if (!p || !p.execution || !p.execution.folderHandle) return;
+    if (!p || !p.execution || !p.execution.folderHandle) {return;}
     _folderLoading = true;
     renderFolderFiles();
 
@@ -217,7 +217,7 @@ async function refreshFolderFiles(p) {
 
 async function refreshFolderScan() {
     var p = getActiveProject();
-    if (!p) return;
+    if (!p) {return;}
     _folderLoading = true;
     renderFolderFiles();
     _folderFiles = await scanFolder(p.execution.folderHandle);
@@ -230,7 +230,7 @@ async function refreshFolderScan() {
 
 function loadFolderThumbnails() {
     var p = getActiveProject();
-    if (!p || !p.execution || !p.execution.folderHandle) return;
+    if (!p || !p.execution || !p.execution.folderHandle) {return;}
     var thumbs = document.querySelectorAll('.folder-file-thumb[data-file-cat]');
     thumbs.forEach(function(thumb) {
         var catName = thumb.dataset.fileCat;
@@ -258,12 +258,12 @@ function folderTakePhoto() {
 
 async function handleFolderUpload(input) {
     var p = getActiveProject();
-    if (!p || !p.execution || !p.execution.folderHandle) return toast("Sin carpeta vinculada", false);
+    if (!p || !p.execution || !p.execution.folderHandle) {return toast("Sin carpeta vinculada", false);}
     var files = Array.from(input.files);
-    if (!files.length) return;
+    if (!files.length) {return;}
 
     var ok = await verifyFolderPermission(p.execution.folderHandle, true);
-    if (!ok) return toast("Sin permiso de escritura", false);
+    if (!ok) {return toast("Sin permiso de escritura", false);}
 
     var catName = _folderFilter !== 'todos'
         ? (p.execution.folderCategories || DEFAULT_FOLDER_CATEGORIES).find(function(c) { return c.id === _folderFilter; })?.name || 'Otros'
@@ -276,7 +276,7 @@ async function handleFolderUpload(input) {
         var isImg = file.type && file.type.startsWith('image/');
         var targetCat = isImg ? 'Fotos de Avance' : catName;
         var ok2 = await writeFileToFolder(p.execution.folderHandle, targetCat, file.name, file, file.type);
-        if (ok2) saved++;
+        if (ok2) {saved++;}
     }
 
     input.value = '';
@@ -286,9 +286,9 @@ async function handleFolderUpload(input) {
 
 async function openFolderFile(catId, fileName) {
     var p = getActiveProject();
-    if (!p || !p.execution || !p.execution.folderHandle) return;
+    if (!p || !p.execution || !p.execution.folderHandle) {return;}
     var file = _folderFiles.find(function(f) { return f.category === catId && f.name === fileName; });
-    if (!file || !file.handle) return;
+    if (!file || !file.handle) {return;}
 
     var blob = await file.handle.getFile();
     var url = URL.createObjectURL(blob);
@@ -323,7 +323,7 @@ async function openFolderFile(catId, fileName) {
 
 async function downloadFolderFile(catId, fileName) {
     var file = _folderFiles.find(function(f) { return f.category === catId && f.name === fileName; });
-    if (!file || !file.handle) return;
+    if (!file || !file.handle) {return;}
     var blob = await file.handle.getFile();
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
@@ -336,11 +336,11 @@ async function downloadFolderFile(catId, fileName) {
 }
 
 async function deleteFolderFile(catId, fileName) {
-    if (!confirm('¿Eliminar "' + fileName + '" de la carpeta del proyecto?')) return;
+    if (!confirm('¿Eliminar "' + fileName + '" de la carpeta del proyecto?')) {return;}
     var p = getActiveProject();
-    if (!p || !p.execution || !p.execution.folderHandle) return;
+    if (!p || !p.execution || !p.execution.folderHandle) {return;}
     var file = _folderFiles.find(function(f) { return f.category === catId && f.name === fileName; });
-    if (!file || !file.handle) return;
+    if (!file || !file.handle) {return;}
     var ok = await deleteFileFromFolder(file.handle);
     if (ok) {
         toast("Archivo eliminado ✓");
@@ -354,7 +354,7 @@ async function deleteFolderFile(catId, fileName) {
 
 async function linkProjectFolder() {
     var p = getActiveProject();
-    if (!p) return;
+    if (!p) {return;}
     var ok = await initProjectFolder(p);
     if (ok) {
         renderFolder();
@@ -362,9 +362,9 @@ async function linkProjectFolder() {
 }
 
 function unlinkProjectFolder() {
-    if (!confirm("¿Desvincular la carpeta del proyecto?\n\nLos archivos NO se borran del disco. Solo se desconecta la referencia de la app.")) return;
+    if (!confirm("¿Desvincular la carpeta del proyecto?\n\nLos archivos NO se borran del disco. Solo se desconecta la referencia de la app.")) {return;}
     var p = getActiveProject();
-    if (!p) return;
+    if (!p) {return;}
     p.execution.folderHandle = null;
     p.execution.folderPath = '';
     _folderFiles = [];
@@ -377,7 +377,7 @@ function unlinkProjectFolder() {
 
 function setupFolderDragDrop() {
     var container = document.getElementById('section-folder');
-    if (!container) return;
+    if (!container) {return;}
     var overlay = document.getElementById('folder-drop-overlay');
     var dragCounter = 0;
 
@@ -385,7 +385,7 @@ function setupFolderDragDrop() {
         e.preventDefault();
         e.stopPropagation();
         dragCounter++;
-        if (overlay) overlay.style.display = 'flex';
+        if (overlay) {overlay.style.display = 'flex';}
     });
 
     container.addEventListener('dragleave', function(e) {
@@ -394,7 +394,7 @@ function setupFolderDragDrop() {
         dragCounter--;
         if (dragCounter <= 0) {
             dragCounter = 0;
-            if (overlay) overlay.style.display = 'none';
+            if (overlay) {overlay.style.display = 'none';}
         }
     });
 
@@ -407,16 +407,16 @@ function setupFolderDragDrop() {
         e.preventDefault();
         e.stopPropagation();
         dragCounter = 0;
-        if (overlay) overlay.style.display = 'none';
+        if (overlay) {overlay.style.display = 'none';}
 
         var p = getActiveProject();
-        if (!p || !p.execution || !p.execution.folderHandle) return toast("Sin carpeta vinculada", false);
+        if (!p || !p.execution || !p.execution.folderHandle) {return toast("Sin carpeta vinculada", false);}
 
         var ok = await verifyFolderPermission(p.execution.folderHandle, true);
-        if (!ok) return toast("Sin permiso de escritura", false);
+        if (!ok) {return toast("Sin permiso de escritura", false);}
 
         var files = Array.from(e.dataTransfer.files);
-        if (!files.length) return;
+        if (!files.length) {return;}
 
         var saved = 0;
         for (var i = 0; i < files.length; i++) {
@@ -424,7 +424,7 @@ function setupFolderDragDrop() {
             var isImg = file.type && file.type.startsWith('image/');
             var targetCat = isImg ? 'Fotos de Avance' : 'Otros';
             var ok2 = await writeFileToFolder(p.execution.folderHandle, targetCat, file.name, file, file.type);
-            if (ok2) saved++;
+            if (ok2) {saved++;}
         }
         toast(saved + ' archivo(s) guardado(s) ✓');
         refreshFolderScan();
@@ -435,10 +435,10 @@ function setupFolderDragDrop() {
 
 function renderDocuments() {
     var el = document.getElementById("section-documents");
-    if (!el) return;
+    if (!el) {return;}
     var proj = getActiveProject();
     if (!proj) { el.innerHTML = "<div class='empty'>Seleccioná un proyecto.</div>"; return; }
-    if (!proj.execution.documents) proj.execution.documents = [];
+    if (!proj.execution.documents) {proj.execution.documents = [];}
     var dailyLogs = proj.execution.dailyLogs || [];
 
     var logPhotos = dailyLogs.flatMap(function(l) { return (l.photos || []).map(function(p, pi) {
@@ -509,10 +509,10 @@ function filterDocs(cat) {
 
 function uploadDocument(input) {
     var proj = getActiveProject();
-    if (!proj) return toast("Sin proyecto activo", false);
-    if (!proj.execution.documents) proj.execution.documents = [];
+    if (!proj) {return toast("Sin proyecto activo", false);}
+    if (!proj.execution.documents) {proj.execution.documents = [];}
     var files = Array.from(input.files);
-    if (!files.length) return;
+    if (!files.length) {return;}
     var loaded = 0;
     files.forEach(function(file) {
         var reader = new FileReader();
@@ -544,12 +544,12 @@ function uploadDocument(input) {
 
 function deleteDocument(id) {
     var proj = getActiveProject();
-    if (!proj) return;
+    if (!proj) {return;}
     if (typeof id === 'string' && id.indexOf('log-') === 0) {
         toast("Las fotos de bitácora deben borrarse desde el Libro de Obra", false);
         return;
     }
-    if (!confirm("¿Eliminar este documento?")) return;
+    if (!confirm("¿Eliminar este documento?")) {return;}
     proj.execution.documents = (proj.execution.documents || []).filter(function(d) { return d.id != id; });
     save();
     renderDocuments();
@@ -557,7 +557,7 @@ function deleteDocument(id) {
 
 function viewDocument(id) {
     var proj = getActiveProject();
-    if (!proj) return;
+    if (!proj) {return;}
     var dailyLogs = proj.execution.dailyLogs || [];
     var docs = proj.execution.documents || [];
     var allDocs = docs.concat(dailyLogs.flatMap(function(l) {
@@ -566,7 +566,7 @@ function viewDocument(id) {
         });
     }));
     var doc = allDocs.find(function(d) { return d.id == id; });
-    if (!doc) return;
+    if (!doc) {return;}
     showModal('viewer', doc);
 }
 

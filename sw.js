@@ -62,7 +62,7 @@ self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
   // Solo manejar GET (no POST a APIs como Google Drive)
-  if (event.request.method !== 'GET') return;
+  if (event.request.method !== 'GET') {return;}
 
   // No interferir con APIs externas que requieren red real
   if (url.hostname.includes('open-meteo.com') ||

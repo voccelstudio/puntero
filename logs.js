@@ -14,7 +14,7 @@ var _inspectionChecklist = [
 
 function renderLogs() {
     var el = document.getElementById("section-logs");
-    if (!el) return;
+    if (!el) {return;}
     var p = getActiveProject();
     if (!p) { el.innerHTML = "<div class='empty'>Seleccioná un proyecto para ver su bitácora.</div>"; return; }
     var dailyLogs = p.execution.dailyLogs || [];
@@ -122,7 +122,7 @@ function showDailyLogModal() {
     var today = todayISO();
     var el = document.getElementById("modal-area");
     var p = getActiveProject();
-    if (!p) return;
+    if (!p) {return;}
 
     var allStaff = [];
     var assignedConIds = new Set(Object.values(p.execution.schedules || {}).map(function (s) { return s.contractorId; }).filter(Boolean));
@@ -132,9 +132,9 @@ function showDailyLogModal() {
         }
     });
     var ownIds = new Set(Object.values(p.execution.schedules || {}).filter(function (s) { return s.executionMode === "own_team"; }).flatMap(function (s) { return s.assignedStaff || []; }));
-    (state.ownTeam || []).forEach(function (m) { if (ownIds.has(m.id)) allStaff.push({ id: m.id, name: m.name + " " + m.surname, origin: "Equipo Propio" }); });
+    (state.ownTeam || []).forEach(function (m) { if (ownIds.has(m.id)) {allStaff.push({ id: m.id, name: m.name + " " + m.surname, origin: "Equipo Propio" });} });
     var dayIds = new Set(Object.values(p.execution.schedules || {}).filter(function (s) { return s.executionMode === "day_workers"; }).flatMap(function (s) { return s.assignedStaff || []; }));
-    (p.execution.dayWorkers || []).forEach(function (m) { if (dayIds.has(m.id)) allStaff.push({ id: m.id, name: m.name + " " + m.surname, origin: "Jornalero" }); });
+    (p.execution.dayWorkers || []).forEach(function (m) { if (dayIds.has(m.id)) {allStaff.push({ id: m.id, name: m.name + " " + m.surname, origin: "Jornalero" });} });
     // Integración: agregar jornaleros globales a la lista de asistencia
     (state.jornaleros || []).filter(function (j) { return j.isActive !== false; }).forEach(function (j) {
         allStaff.push({ id: j.id, name: (j.name || '') + " " + (j.surname || ''), origin: "Jornalero Global" });
@@ -202,12 +202,11 @@ function showWalkthroughModal() {
 var _walkPhotos = [];
 
 function addWalkthroughPhoto(input) {
-    if (!input.files || !input.files[0]) return;
+    if (!input.files || !input.files[0]) {return;}
     var file = input.files[0];
     var preview = document.getElementById("walk-photos-preview");
-    if (!preview) return;
+    if (!preview) {return;}
     var idx = _walkPhotos.length;
-    var areaOpts = getAreaSelectorHtml('');
 
     var photoEntry = { url: '', areaId: '', uploading: true };
 
@@ -269,7 +268,7 @@ function removeWalkthroughPhoto(idx) {
 
 function updateWalkthroughPreviewUI() {
     var preview = document.getElementById("walk-photos-preview");
-    if (!preview) return;
+    if (!preview) {return;}
     preview.innerHTML = _walkPhotos.map(function (p, i) {
         var imgHtml = p.url ? '<div style="min-width:72px;height:72px;border-radius:6px;background:url(' + p.url + ') center/cover;border:1px solid var(--bor);flex-shrink:0"></div>' : '<div style="min-width:72px;height:72px;border-radius:6px;background:var(--sur2);border:1px dashed var(--bor);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--tx3)">Subiendo...</div>';
         return '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;position:relative">' +
@@ -302,11 +301,11 @@ function getWalkthroughLocation() {
 
 function saveWalkthrough() {
     var p = getActiveProject();
-    if (!p) return;
+    if (!p) {return;}
     var inspection = [];
     document.querySelectorAll(".insp-chk").forEach(function (ck) {
         var item = _inspectionChecklist.find(function (i) { return i.id === ck.dataset.id; });
-        if (item) inspection.push({ id: item.id, label: item.label, done: ck.checked });
+        if (item) {inspection.push({ id: item.id, label: item.label, done: ck.checked });}
     });
     var locationEl = document.getElementById("walk-location");
     var location = locationEl && locationEl.dataset.lat ? { lat: parseFloat(locationEl.dataset.lat), lng: parseFloat(locationEl.dataset.lng) } : null;
@@ -314,7 +313,7 @@ function saveWalkthrough() {
     // Leer áreas seleccionadas de cada foto
     document.querySelectorAll(".walk-area-sel").forEach(function(sel) {
         var idx = parseInt(sel.dataset.idx);
-        if (_walkPhotos[idx]) _walkPhotos[idx].areaId = sel.value;
+        if (_walkPhotos[idx]) {_walkPhotos[idx].areaId = sel.value;}
     });
 
     var newLog = {
@@ -325,7 +324,7 @@ function saveWalkthrough() {
         attendance: [], photos: _walkPhotos.slice(), location: location,
         inspection: inspection, isWalkthrough: true
     };
-    if (!p.execution.dailyLogs) p.execution.dailyLogs = [];
+    if (!p.execution.dailyLogs) {p.execution.dailyLogs = [];}
     p.execution.dailyLogs.push(newLog);
 
     // Auto-guardar fotos en la carpeta del proyecto (disco)
@@ -337,7 +336,7 @@ function saveWalkthrough() {
     }
 
     // Actualizar contadores de fotos por área
-    if (typeof updateAreaFotoCounts === 'function') updateAreaFotoCounts();
+    if (typeof updateAreaFotoCounts === 'function') {updateAreaFotoCounts();}
 
     save();
     closeModal();
@@ -346,15 +345,15 @@ function saveWalkthrough() {
 }
 
 async function savePhotosToProjectFolder(p, photos, logDate) {
-    if (!p || !p.execution || !p.execution.folderHandle) return;
+    if (!p || !p.execution || !p.execution.folderHandle) {return;}
     var ok = await verifyFolderPermission(p.execution.folderHandle, true);
-    if (!ok) return;
+    if (!ok) {return;}
 
     var saved = 0;
     for (var i = 0; i < photos.length; i++) {
         var ph = photos[i];
         var photoUrl = typeof ph === 'string' ? ph : (ph.url || '');
-        if (!photoUrl) continue;
+        if (!photoUrl) {continue;}
 
         var fileName = 'Foto_' + logDate.replace(/-/g, '') + '_' + (saved + 1) + '.jpg';
 
@@ -365,10 +364,10 @@ async function savePhotosToProjectFolder(p, photos, logDate) {
             var byteStr = atob(parts[1]);
             var ab = new ArrayBuffer(byteStr.length);
             var ia = new Uint8Array(ab);
-            for (var j = 0; j < byteStr.length; j++) ia[j] = byteStr.charCodeAt(j);
+            for (var j = 0; j < byteStr.length; j++) {ia[j] = byteStr.charCodeAt(j);}
             var blob = new Blob([ab], { type: mime });
             var ok2 = await writeFileToFolder(p.execution.folderHandle, 'Fotos de Avance', fileName, blob, mime);
-            if (ok2) saved++;
+            if (ok2) {saved++;}
         }
         // Si es URL de Firebase, descargar y escribir
         else if (photoUrl.indexOf('http') === 0) {
@@ -376,7 +375,7 @@ async function savePhotosToProjectFolder(p, photos, logDate) {
                 var resp = await fetch(photoUrl);
                 var blob2 = await resp.blob();
                 var ok3 = await writeFileToFolder(p.execution.folderHandle, 'Fotos de Avance', fileName, blob2, blob2.type);
-                if (ok3) saved++;
+                if (ok3) {saved++;}
             } catch (e) {
                 console.warn("[Folder] No se pudo descargar foto:", e);
             }
@@ -398,7 +397,7 @@ function saveDailyLog() {
         workDone: document.getElementById("log-work")?.value || "",
         attendance: attendance, photos: []
     };
-    if (!p.execution.dailyLogs) p.execution.dailyLogs = [];
+    if (!p.execution.dailyLogs) {p.execution.dailyLogs = [];}
     p.execution.dailyLogs.push(newLog);
     save();
     closeModal();
@@ -408,7 +407,7 @@ function saveDailyLog() {
 
 function deleteLog(id) {
     var p = getActiveProject();
-    if (!confirm("¿Eliminar entrada?")) return;
+    if (!confirm("¿Eliminar entrada?")) {return;}
     p.execution.dailyLogs = p.execution.dailyLogs.filter(function (l) { return l.id !== id; });
     save();
     renderLogs();
@@ -421,7 +420,7 @@ async function autoFetchWeather(date) {
         if (data && data.daily && data.daily.weathercode) {
             var c = data.daily.weathercode[0];
             var el = document.getElementById("log-weather");
-            if (el) el.value = (c >= 51 && c <= 67) ? "rainy" : (c >= 1 && c <= 3) ? "cloudy" : "sunny";
+            if (el) {el.value = (c >= 51 && c <= 67) ? "rainy" : (c >= 1 && c <= 3) ? "cloudy" : "sunny";}
         }
     } catch (e) {}
 }

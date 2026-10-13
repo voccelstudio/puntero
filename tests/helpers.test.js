@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 
 // Re-implement the pure functions here to test them in isolation
 
 function fmt(n) {
-  if (n === undefined || n === null || isNaN(n)) return "0";
+  if (n === undefined || n === null || isNaN(n)) {return "0";}
   var val = n;
   var symbol = "";
   var dec = 0;
@@ -20,14 +20,14 @@ function todayISO() {
 }
 
 function formatDatePY(input) {
-  if (!input) return "";
+  if (!input) {return "";}
   var d;
   if (input instanceof Date) {
     d = input;
   } else if (typeof input === "number") {
     d = new Date(input);
   } else if (typeof input === "string") {
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(input)) return input;
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(input)) {return input;}
     var pyLegacyMatch = input.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
     if (pyLegacyMatch) {
       var day = pyLegacyMatch[1], month = pyLegacyMatch[2], year = pyLegacyMatch[3];
@@ -39,7 +39,7 @@ function formatDatePY(input) {
     }
     d = new Date(input);
   }
-  if (!d || isNaN(d.getTime())) return "";
+  if (!d || isNaN(d.getTime())) {return "";}
   var day = String(d.getDate()).padStart(2, "0");
   var month = String(d.getMonth() + 1).padStart(2, "0");
   var year = d.getFullYear();
@@ -47,8 +47,8 @@ function formatDatePY(input) {
 }
 
 function parseDate(input) {
-  if (!input) return null;
-  if (input instanceof Date) return input;
+  if (!input) {return null;}
+  if (input instanceof Date) {return input;}
   if (typeof input === "string") {
     var pyMatch = input.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
     if (pyMatch) {
@@ -64,7 +64,7 @@ function parseDate(input) {
 }
 
 function escapeHtml(str) {
-  if (typeof str !== "string") return "";
+  if (typeof str !== "string") {return "";}
   var map = { "&": "&amp;", '"': "&quot;", "'": "&#39;", "<": "&lt;", ">": "&gt;" };
   return str.replace(/[&"'<>]/g, function (m) { return map[m]; });
 }

@@ -29,9 +29,8 @@ const CLAUSULAS_PREDEFINIDAS = {
 
 function renderContratos() {
   const el = document.getElementById("section-contratos");
-  if (!el) return;
-  if (!state.contratos) state.contratos = [];
-  const p = getActiveProject();
+  if (!el) {return;}
+  if (!state.contratos) {state.contratos = [];}
 
   let h = `<div class="prices-wrap">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; flex-wrap:wrap; gap:10px">
@@ -79,8 +78,8 @@ function renderContratos() {
   </div>`;
 
   const filtered = state.contratos.filter(c => {
-    if (filterTipo !== "all" && c.tipo !== filterTipo) return false;
-    if (filterStatus !== "all" && c.status !== filterStatus) return false;
+    if (filterTipo !== "all" && c.tipo !== filterTipo) {return false;}
+    if (filterStatus !== "all" && c.status !== filterStatus) {return false;}
     return true;
   });
 
@@ -191,9 +190,9 @@ function showNewContratoModal() {
 
 function saveNewContrato() {
   const tipo = document.getElementById("ctr-tipo").value;
-  if (!tipo) return toast("Seleccioná el tipo de contrato", false);
+  if (!tipo) {return toast("Seleccioná el tipo de contrato", false);}
   const titulo = document.getElementById("ctr-titulo").value.trim();
-  if (!titulo) return toast("El título es requerido", false);
+  if (!titulo) {return toast("El título es requerido", false);}
   const projectId = document.getElementById("ctr-project").value;
   const monto = parseFloat(document.getElementById("ctr-monto").value) || 0;
   const anticipoPct = parseFloat(document.getElementById("ctr-anticipo").value) || 0;
@@ -221,16 +220,16 @@ function saveNewContrato() {
 
   if (tipo === 'cliente') {
     contrato.clienteNombre = document.getElementById("ctr-cliente-nombre").value.trim();
-    if (!contrato.clienteNombre) return toast("Nombre del cliente requerido", false);
+    if (!contrato.clienteNombre) {return toast("Nombre del cliente requerido", false);}
   } else {
     const conId = document.getElementById("ctr-contratista-id").value;
     const con = state.contractors.find(c => c.id === conId);
     contrato.contratistaId = conId;
     contrato.contratistaNombre = con ? con.name : '';
-    if (!conId) return toast("Seleccioná un contratista", false);
+    if (!conId) {return toast("Seleccioná un contratista", false);}
   }
 
-  if (!state.contratos) state.contratos = [];
+  if (!state.contratos) {state.contratos = [];}
   state.contratos.push(contrato);
   save(); closeModal(); renderContratos();
   toast("Contrato creado ✓");
@@ -238,7 +237,7 @@ function saveNewContrato() {
 
 function showEditContratoModal(id) {
   const c = state.contratos.find(x => x.id === id);
-  if (!c) return;
+  if (!c) {return;}
   const el = document.getElementById("modal-area");
   const projects = (state.projects || []).map(pr => `<option value="${pr.id}"${pr.id === c.projectId ? ' selected' : ''}>${escapeHtml(pr.name)}</option>`).join("");
   const contractors = (state.contractors || []).map(con => `<option value="${con.id}"${con.id === c.contratistaId ? ' selected' : ''}>${escapeHtml(con.name)}</option>`).join("");
@@ -296,7 +295,7 @@ function showEditContratoModal(id) {
 
 function saveEditContrato(id) {
   const c = state.contratos.find(x => x.id === id);
-  if (!c) return;
+  if (!c) {return;}
   c.titulo = document.getElementById("ctr-titulo").value.trim();
   c.projectId = document.getElementById("ctr-project").value;
   c.monto = parseFloat(document.getElementById("ctr-monto").value) || 0;
@@ -320,7 +319,7 @@ function saveEditContrato(id) {
 }
 
 function deleteContrato(id) {
-  if (!confirm("¿Eliminar este contrato definitivamente?")) return;
+  if (!confirm("¿Eliminar este contrato definitivamente?")) {return;}
   state.contratos = state.contratos.filter(c => c.id !== id);
   save(); renderContratos();
 }
@@ -338,7 +337,7 @@ function showExportContratos() {
 }
 
 function exportContratosBulk() {
-  if (!state.contratos || state.contratos.length === 0) return toast("Sin contratos para exportar", false);
+  if (!state.contratos || state.contratos.length === 0) {return toast("Sin contratos para exportar", false);}
   (state.contratos || []).forEach((c, i) => {
     setTimeout(() => generarPDFContrato(c.id), i * 500);
   });
@@ -347,23 +346,23 @@ function exportContratosBulk() {
 
 // ── HELPER ─────────────────────────────────────────────────────────────
 function addDays(dateStr, days) {
-  if (!dateStr) return '';
+  if (!dateStr) {return '';}
   const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
+  if (isNaN(d.getTime())) {return dateStr;}
   d.setDate(d.getDate() + days);
   return d.toISOString().split('T')[0];
 }
 
 function numeroALetras(num) {
-  if (!num || isNaN(num)) return 'CERO';
+  if (!num || isNaN(num)) {return 'CERO';}
   const unidades = ['', 'UN', 'DOS', 'TRES', 'CUATRO', 'CINCO', 'SEIS', 'SIETE', 'OCHO', 'NUEVE', 'DIEZ', 'ONCE', 'DOCE', 'TRECE', 'CATORCE', 'QUINCE', 'DIECISÉIS', 'DIECISIETE', 'DIECIOCHO', 'DIECINUEVE', 'VEINTE'];
   const decenas = ['', 'VEINTI', 'TREINTA', 'CUARENTA', 'CINCUENTA', 'SESENTA', 'SETENTA', 'OCHENTA', 'NOVENTA'];
   const centenas = ['', 'CIENTO', 'DOSCIENTOS', 'TRESCIENTOS', 'CUATROCIENTOS', 'QUINIENTOS', 'SEISCIENTOS', 'SETECIENTOS', 'OCHOCIENTOS', 'NOVECIENTOS'];
 
-  let entero = Math.floor(num);
+  const entero = Math.floor(num);
   let resultado = '';
 
-  if (entero === 0) return 'CERO';
+  if (entero === 0) {return 'CERO';}
 
   const millones = Math.floor(entero / 1000000);
   const miles = Math.floor((entero % 1000000) / 1000);
@@ -376,20 +375,20 @@ function numeroALetras(num) {
     resultado += (miles === 1 ? 'MIL' : numeroALetras(miles) + ' MIL') + ' ';
   }
   if (resto > 0) {
-    if (resto === 100) resultado += 'CIEN ';
+    if (resto === 100) {resultado += 'CIEN ';}
     else {
       const c = Math.floor(resto / 100);
       const d = Math.floor((resto % 100) / 10);
       const u = resto % 10;
-      if (c > 0) resultado += centenas[c] + ' ';
+      if (c > 0) {resultado += centenas[c] + ' ';}
       if (d > 0) {
-        if (d === 1) resultado += unidades[10 + u] + ' ';
-        else if (d === 2 && u > 0) resultado += 'VEINTI' + unidades[u].toLowerCase() + ' ';
+        if (d === 1) {resultado += unidades[10 + u] + ' ';}
+        else if (d === 2 && u > 0) {resultado += 'VEINTI' + unidades[u].toLowerCase() + ' ';}
         else {
           resultado += decenas[d] + (u > 0 ? ' Y ' : ' ');
-          if (u > 0) resultado += unidades[u] + ' ';
+          if (u > 0) {resultado += unidades[u] + ' ';}
         }
-      } else if (u > 0) resultado += unidades[u] + ' ';
+      } else if (u > 0) {resultado += unidades[u] + ' ';}
     }
   }
   return resultado.trim() + ' GUARANÍES';
@@ -398,7 +397,7 @@ function numeroALetras(num) {
 // ── PREVISUALIZACIÓN ──────────────────────────────────────────────────
 function previewContrato(id) {
   const c = state.contratos.find(x => x.id === id);
-  if (!c) return;
+  if (!c) {return;}
   const proj = c.projectId ? (state.projects || []).find(p => p.id === c.projectId) : null;
   const profile = state.profile || {};
   const clausulas = c.tipo === 'cliente' ? CLAUSULAS_PREDEFINIDAS.client : CLAUSULAS_PREDEFINIDAS.contractor;
@@ -427,7 +426,7 @@ function previewContrato(id) {
       </div>`;
 
   clausulas.forEach((cla, idx) => {
-    let texto = cla.texto
+    const texto = cla.texto
       .replace('{total}', fmt(c.monto || 0))
       .replace('{totalLetras}', montoLetras)
       .replace('{anticipo}', c.anticipoPct)
@@ -493,7 +492,7 @@ function previewContrato(id) {
 // ── GENERAR PDF ──────────────────────────────────────────────────────
 function generarPDFContrato(id) {
   const c = state.contratos.find(x => x.id === id);
-  if (!c) return toast("Contrato no encontrado", false);
+  if (!c) {return toast("Contrato no encontrado", false);}
 
   const proj = c.projectId ? (state.projects || []).find(p => p.id === c.projectId) : null;
   const profile = state.profile || {};
@@ -502,7 +501,6 @@ function generarPDFContrato(id) {
   const direccion = proj ? (proj.address || proj.location?.address || '—') : '—';
   const inicioFmt = formatDatePY(c.fechaFirma);
   const finFmt = formatDatePY(c.fin);
-  const anticipoMontoLetras = numeroALetras(c.anticipoMonto || 0);
   const especialidad = c.tipo === 'contratista' ? (state.contractors.find(con => con.id === c.contratistaId)?.specialty || 'construcción') : 'construcción';
 
   const hoy = new Date();
@@ -537,7 +535,6 @@ function generarPDFContrato(id) {
     opts = opts || {};
     const fontSize = opts.size || 10;
     const bold = opts.bold || false;
-    const align = opts.align || 'left';
     const color = opts.color || [30, 30, 30];
     const indent = opts.indent || 0;
     const gap = opts.gap !== undefined ? opts.gap : 2;
@@ -545,8 +542,8 @@ function generarPDFContrato(id) {
     checkPage();
     doc.setFontSize(fontSize);
     doc.setTextColor(color[0], color[1], color[2]);
-    if (bold) doc.setFont('helvetica', 'bold');
-    else doc.setFont('helvetica', 'normal');
+    if (bold) {doc.setFont('helvetica', 'bold');}
+    else {doc.setFont('helvetica', 'normal');}
 
     const lines = doc.splitTextToSize(text, contentW - indent);
     lines.forEach(l => {
@@ -592,7 +589,7 @@ function generarPDFContrato(id) {
   // ── CLÁUSULAS ─────────────────────────────────────────────────
   clausulas.forEach((cla, idx) => {
     checkPage();
-    let texto = cla.texto
+    const texto = cla.texto
       .replace('{total}', fmt(c.monto || 0))
       .replace('{totalLetras}', montoLetras)
       .replace('{anticipo}', c.anticipoPct)

@@ -8,9 +8,9 @@ const DEFAULT_JORNAL = { ayudante: 80000, oficial: 110000, puntero: 140000 };
 function renderJornaleros() {
     try {
     const el = document.getElementById("section-jornaleros");
-    if (!el) return;
-    if (!state.jornaleros || !Array.isArray(state.jornaleros)) state.jornaleros = [];
-    if (!state.jornalConfig || typeof state.jornalConfig !== 'object') state.jornalConfig = { ...DEFAULT_JORNAL };
+    if (!el) {return;}
+    if (!state.jornaleros || !Array.isArray(state.jornaleros)) {state.jornaleros = [];}
+    if (!state.jornalConfig || typeof state.jornalConfig !== 'object') {state.jornalConfig = { ...DEFAULT_JORNAL };}
 
     const p = getActiveProject();
     const projName = p ? p.name : 'Sin proyecto activo';
@@ -177,7 +177,7 @@ function showEditJornaleroModal(id) {
 function addJornalero() {
     const name = document.getElementById("jor-name").value.trim();
     const surname = document.getElementById("jor-surname").value.trim();
-    if (!name || !surname) return toast("Nombre y apellido requeridos", false);
+    if (!name || !surname) {return toast("Nombre y apellido requeridos", false);}
     const newJ = {
         id: 'jor_' + Date.now(),
         name,
@@ -190,7 +190,7 @@ function addJornalero() {
         isActive: document.getElementById("jor-active").checked,
         jornadas: []
     };
-    if (!state.jornaleros) state.jornaleros = [];
+    if (!state.jornaleros) {state.jornaleros = [];}
     state.jornaleros.push(newJ);
     save(); closeModal(); renderJornaleros();
     toast("Jornalero registrado ✓");
@@ -198,7 +198,7 @@ function addJornalero() {
 
 function saveEditJornalero(id) {
     const j = state.jornaleros.find(x => x.id === id);
-    if (!j) return;
+    if (!j) {return;}
     j.name = document.getElementById("jor-name").value.trim();
     j.surname = document.getElementById("jor-surname").value.trim();
     j.idNumber = document.getElementById("jor-id").value.trim();
@@ -212,7 +212,7 @@ function saveEditJornalero(id) {
 }
 
 function deleteJornalero(id) {
-    if (!confirm("¿Eliminar este jornalero? Se perderán sus jornadas registradas.")) return;
+    if (!confirm("¿Eliminar este jornalero? Se perderán sus jornadas registradas.")) {return;}
     state.jornaleros = state.jornaleros.filter(j => j.id !== id);
     (state.projects || []).forEach(function (p) {
         if (p.execution && p.execution.schedules) {
@@ -228,7 +228,7 @@ function deleteJornalero(id) {
 }
 
 function showJornalConfigModal() {
-    if (!state.jornalConfig) state.jornalConfig = { ...DEFAULT_JORNAL };
+    if (!state.jornalConfig) {state.jornalConfig = { ...DEFAULT_JORNAL };}
     const el = document.getElementById("modal-area");
     el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:400px">
         <div class="modal-title">Configurar Jornales por Rol<button class="delbtn" onclick="closeModal()">✕</button></div>
@@ -266,17 +266,17 @@ function saveJornalConfig() {
 
 function showJornadaModal(jorId) {
     const j = state.jornaleros.find(x => x.id === jorId);
-    if (!j) return;
+    if (!j) {return;}
     const dw = j.dailyWage || state.jornalConfig[j.role] || 0;
     const jornadas = j.jornadas || [];
 
     function projNameFor(projectId) {
-        if (!projectId) return '';
+        if (!projectId) {return '';}
         const pp = (state.projects || []).find(pr => pr.id === projectId);
         return pp ? pp.name : '';
     }
 
-    let historial = jornadas.length === 0 ? '<p style="color:var(--tx3); text-align:center; padding:10px">Sin jornadas registradas.</p>'
+    const historial = jornadas.length === 0 ? '<p style="color:var(--tx3); text-align:center; padding:10px">Sin jornadas registradas.</p>'
         : `<div style="max-height:200px; overflow-y:auto">${jornadas.slice().reverse().map((jd, idx) => `
             <div style="display:grid; grid-template-columns:1fr 1fr 1fr 30px; gap:6px; align-items:center; padding:6px 0; border-bottom:1px solid var(--bor)">
                 <span style="font-size:0.85rem">${formatDatePY(jd.date)}</span>
@@ -313,18 +313,18 @@ function showJornadaModal(jorId) {
 
 function registerJornada(jorId) {
     const j = state.jornaleros.find(x => x.id === jorId);
-    if (!j) return;
+    if (!j) {return;}
     const date = document.getElementById("jor-jd-date").value;
     const horas = parseFloat(document.getElementById("jor-jd-horas").value) || 8;
     const monto = parseFloat(document.getElementById("jor-jd-monto").value) || 0;
-    if (!date) return toast("Fecha requerida", false);
-    if (monto <= 0) return toast("Monto inválido", false);
-    if (!j.jornadas) j.jornadas = [];
+    if (!date) {return toast("Fecha requerida", false);}
+    if (monto <= 0) {return toast("Monto inválido", false);}
+    if (!j.jornadas) {j.jornadas = [];}
     const proj = getActiveProject();
     j.jornadas.push({ id: Date.now(), date, horas, monto, projectId: proj ? proj.id : null });
     // Integración Jornaleros → Finanzas: registrar como egreso automático
     if (proj && proj.execution) {
-        if (!proj.execution.finances) proj.execution.finances = { income: [], expenses: [] };
+        if (!proj.execution.finances) {proj.execution.finances = { income: [], expenses: [] };}
         proj.execution.finances.expenses.push({
             id: Date.now() + 1,
             amount: monto,
