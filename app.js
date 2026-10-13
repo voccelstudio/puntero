@@ -1384,16 +1384,18 @@ function save() {
     return;
   }
   try {
+    state._localModifiedAt = Date.now();
     localStorage.setItem("ppy_v5", JSON.stringify(state));
     localStorage.setItem("ppy_db5", JSON.stringify(DB));
   } catch (e) { }
   dexieSave();
-  // [CLOUD OFF] desactivado: reactivar quitando el comentario
-  // firestoreSync();
+  firestoreSync();
 }
 
 function firestoreSync() {
   if (!window._currentUser) {return;}
+  // Cuentas maestra/invitado son locales por diseño: no van a la nube.
+  if (window._currentUser.isMaster === true || window._currentUser.isGuest === true) {return;}
   if (state._cloudSyncEnabled === false) {return;}
   clearTimeout(_saveTimer);
   _saveTimer = setTimeout(function () {
@@ -1420,7 +1422,9 @@ window.addEventListener("beforeunload", function () {
   if (_saveTimer) {
     clearTimeout(_saveTimer);
     try {
-      if (window._currentUser && state._cloudSyncEnabled !== false) {
+      var cu = window._currentUser;
+      var cloudUser = cu && cu.isMaster !== true && cu.isGuest !== true;
+      if (cloudUser && state._cloudSyncEnabled !== false) {
         state._lastCloudSync = new Date().toISOString();
         window._FIRESTORE.collection("users").doc(window._currentUser.uid).set({
           appState: JSON.parse(JSON.stringify(state)),
@@ -4419,10 +4423,9 @@ function initFirebaseAuth() {
     }
     applyAppLock();
     if (user && user.isMaster !== true && user.isGuest !== true && masteredOrVerified(user)) {
-      // [CLOUD OFF] sincronización con Firestore desactivada: reactivar quitando el comentario
-      // loadFromFirestore().then(function () {
-      //   if (state._workspaceId) startWorkspaceListener(state._workspaceId);
-      // });
+      loadFromFirestore().then(function () {
+        if (state._workspaceId) {startWorkspaceListener(state._workspaceId);}
+      });
     } else if (!user) {
       stopWorkspaceListener();
       delete state._workspaceId;
@@ -4436,10 +4439,11 @@ function initFirebaseAuth() {
 async function loadFromFirestore() {
   if (!window._currentUser) {return;}
   try {
-    var doc = await window._FIRESTORE.collection("users").doc(window._currentUser.uid).get();
+    var ref = window._FIRESTORE.collection("users").doc(window._currentUser.uid);
+    var doc = await ref.get();
     if (!doc.exists || !doc.data().appState) {
       if (state.projects && state.projects.length > 0) {
-        await window._FIRESTORE.collection("users").doc(window._currentUser.uid).set({
+        await ref.set({
           appState: JSON.parse(JSON.stringify(state)),
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
@@ -4447,8 +4451,36 @@ async function loadFromFirestore() {
       }
       return;
     }
+
+    // Last-writer-wins: si este dispositivo YA sincronizó antes y ahora tiene
+    // cambios locales MÁS recientes que la nube, no los pisamos — subimos lo
+    // local. Evita perder trabajo hecho offline en este dispositivo.
+    //
+    // El guard exige _lastCloudSync (sync previo) para no subir el proyecto
+    // demo de un dispositivo recién instalado por encima de datos reales.
+    var updatedAtRaw = doc.data().updatedAt;
+    var cloudTs = 0;
+    if (updatedAtRaw && typeof updatedAtRaw.toMillis === "function") {
+      cloudTs = updatedAtRaw.toMillis();
+    } else if (updatedAtRaw instanceof Date) {
+      cloudTs = updatedAtRaw.getTime();
+    }
+    var localTs = state._localModifiedAt || 0;
+    var syncedBefore = !!state._lastCloudSync;
+    if (syncedBefore && localTs > cloudTs && state.projects && state.projects.length > 0) {
+      await ref.set({
+        appState: JSON.parse(JSON.stringify(state)),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      state._lastCloudSync = new Date().toISOString();
+      toast("Tus cambios locales eran más recientes: se subieron a la nube ✓");
+      return;
+    }
+
     var prevSection = state.section;
     Object.assign(state, doc.data().appState);
+    state._localModifiedAt = Math.max(cloudTs, state._localModifiedAt || 0);
+    state._lastCloudSync = new Date().toISOString();
     localStorage.setItem("ppy_v5", JSON.stringify(state));
     toast("Datos sincronizados desde la nube ✓");
     if (typeof setSection === "function") {setSection(state.section || prevSection || "global_dashboard");}
@@ -4592,8 +4624,7 @@ async function recheckVerification() {
       window._currentUser = u;
       applyAppLock();
       toast("Cuenta confirmada ✓");
-      // [CLOUD OFF] sincronización con Firestore desactivada
-      // loadFromFirestore();
+      loadFromFirestore();
     } else {
       applyAppLock();
       toast("Todavía no está confirmada. Revisá tu correo.", false);

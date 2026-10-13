@@ -37,6 +37,8 @@ function bootstrap() {
   buildDB: buildDB,
   IVA_MAT: IVA_MAT,
   IVA_LAB: IVA_LAB,
+  loadFromFirestore: loadFromFirestore,
+  firestoreSync: firestoreSync,
   getDB: function () { return DB; },
   setDB: function (v) { DB = v; }
 };
