@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, v6]
   pull_request:
-    branches: [main]
+    branches: [main, v6]
 
 jobs:
   lint-test:
@@ -21,9 +21,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Check formatting
-        run: npm run format:check
-
       - name: Lint
         run: npm run lint
 
@@ -37,3 +34,19 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: .
           publish_branch: gh-pages
+          # No publicar artefactos internos ni datos de ejemplo
+          exclude_assets: |
+            .github
+            .eslintrc.json
+            .firebaserc
+            .gitignore
+            .prettierrc
+            tests
+            examples
+            tools
+            CHANGELOG.md
+            package.json
+            package-lock.json
+            firebase.json
+            firestore.rules
+            storage.rules

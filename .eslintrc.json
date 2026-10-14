@@ -100,7 +100,7 @@
       "globals": { "module": "writable" }
     },
     {
-      "files": ["tools/**/*.js", "generar_ejemplo.js"],
+      "files": ["tools/**/*.js"],
       "env": { "node": true, "browser": false },
       "parserOptions": { "ecmaVersion": 2022, "sourceType": "script" }
     },

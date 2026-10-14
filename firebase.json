@@ -7,8 +7,18 @@
     "ignore": [
       "firebase.json",
       "**/.*",
+      "**/.github/**",
       "**/node_modules/**",
-      "**/tests/**"
+      "**/tests/**",
+      "**/examples/**",
+      "**/tools/**",
+      "**/*.md",
+      "**/*.mjs",
+      "**/*.rules",
+      "**/*.zip",
+      "**/*.ppy",
+      "package.json",
+      "package-lock.json"
     ],
     "rewrites": [
       {

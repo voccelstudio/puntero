@@ -1,5 +1,6 @@
-const { buildDB } = require("./db_precios.js");
+const { buildDB } = require("../db_precios.js");
 const fs = require("fs");
+const path = require("path");
 
 const DB = buildDB();
 
@@ -152,5 +153,7 @@ const ppy = {
   version: "7.0"
 };
 
-fs.writeFileSync("ejemplo-mh.ppy", JSON.stringify(ppy, null, 2), "utf8");
-console.log("✅ ejemplo-mh.ppy generado con " + budgetItems.length + " items");
+// Ruta de salida relativa a tools/: el .ppy vive en examples/
+const OUT = path.join(__dirname, "..", "examples", "ejemplo-mh.ppy");
+fs.writeFileSync(OUT, JSON.stringify(ppy, null, 2), "utf8");
+console.log("✅ examples/ejemplo-mh.ppy generado con " + budgetItems.length + " items");

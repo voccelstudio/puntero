@@ -3,9 +3,12 @@ import http from "node:http";
 import { existsSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import puppeteer from "puppeteer-core";
 
 const PUERTO = 4599;
+// Raiz del proyecto (tests/ -> ../): el server debe servir la app, no tests/.
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 // 127.0.0.1 en vez de localhost: python -m http.server solo escucha en IPv4,
 // y localhost puede resolver a ::1 (IPv6), lo que deja al browser en una
 // pagina de error donde localStorage esta denegado.
@@ -29,7 +32,7 @@ const ok = (m) => report.push("PASS  " + m);
 const fail = (m) => report.push("FAIL  " + m);
 
 const main = async () => {
-  const server = spawn("python", ["-m", "http.server", String(PUERTO)], { shell: true, stdio: "ignore" });
+  const server = spawn("python", ["-m", "http.server", String(PUERTO)], { shell: true, stdio: "ignore", cwd: ROOT });
   try {
     await servidorListo();
     const browser = await puppeteer.launch({ executablePath: EDGE, headless: "new", userDataDir: PERFIL, args: ["--no-sandbox"] });

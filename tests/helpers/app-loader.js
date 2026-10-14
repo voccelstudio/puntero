@@ -39,6 +39,10 @@ function bootstrap() {
   IVA_LAB: IVA_LAB,
   loadFromFirestore: loadFromFirestore,
   firestoreSync: firestoreSync,
+  sectionFromUrl: sectionFromUrl,
+  isCloudUser: isCloudUser,
+  isOnline: isOnline,
+  updateConnStatus: updateConnStatus,
   getDB: function () { return DB; },
   setDB: function (v) { DB = v; }
 };

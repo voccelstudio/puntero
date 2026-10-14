@@ -1,4 +1,27 @@
 // ── HELPERS ──────────────────────────────────────────────────────────────
+
+// Fuente única de verdad de las secciones navegables. La usa setSection para
+// mostrar/ocultar vistas y marcar el botón activo, y el arranque para validar
+// los deep links ?section= de los shortcuts del manifest.
+//Declarada al inicio del archivo: setSection corre durante la carga y un const
+// declarado más abajo estaría en TDZ.
+const VALID_SECTIONS = [
+  "global_dashboard", "budget", "ot", "schedule", "contractors", "jornaleros",
+  "contratos", "prices", "dashboard", "themes", "logs", "materials", "finances",
+  "cajachica", "performance", "documents", "suppliers", "resources", "projects",
+  "clients", "aftercare", "computo", "folder", "accounts", "cloud",
+];
+
+// Extrae y valida la seccion de un query string (?section=logs).
+// Devuelve null si no viene o si no es una seccion conocida: los shortcuts del
+// manifest no deben poder inyectar valores arbitrarios en la app.
+function sectionFromUrl(search) {
+  var s = "";
+  try { s = new URLSearchParams(search || "").get("section") || ""; }
+  catch (e) { return null; }
+  return VALID_SECTIONS.indexOf(s) !== -1 ? s : null;
+}
+
 function escapeHtml(str) {
   if (typeof str !== "string") {return "";}
   var map = { "&": "&amp;", '"': "&quot;", "'": "&#39;", "<": "&lt;", ">": "&gt;" };
@@ -1669,7 +1692,7 @@ function setSection(s) {
   const vtitle = document.getElementById("view-title");
   if (vtitle) {vtitle.textContent = titles[s] || "Puntero";}
 
-  ["global_dashboard", "budget", "ot", "schedule", "contractors", "jornaleros", "contratos", "prices", "dashboard", "themes", "logs", "materials", "finances", "cajachica", "performance", "documents", "suppliers", "resources", "projects", "clients", "aftercare", "computo", "folder", "accounts", "cloud"].forEach(x => {
+  VALID_SECTIONS.forEach(x => {
     const el = document.getElementById("section-" + x);
     if (el) {el.style.display = s === x ? "" : "none";}
     const b = document.getElementById("btn-" + x);
@@ -2403,7 +2426,6 @@ function calcMaterials() {
 
 // ── CATALOG ──────────────────────────────────────────────────────────
 const debouncedRenderCatalog = debounce(renderCatalog, 150);
-
 function renderCatalog() {
   const adenda = getActiveAdenda();
   const ivaActive = adenda && adenda.ivaEnabled;
@@ -5422,7 +5444,14 @@ window.onload = () => {
   
   // Mobile-first: daily log como landing en celular
   var isMobile = window.innerWidth < 768 || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
-  if (isMobile && state.section !== "logs") {state.section = "logs";}
+
+  // Shortcuts del manifest (?section=logs, materials, contractors...).
+  // Sin esto los accesos directos del PWA abrían la app siempre en la misma
+  // sección y el parámetro se ignoraba en silencio.
+  var deepLink = sectionFromUrl(window.location.search);
+
+  if (deepLink) {state.section = deepLink;}
+  else if (isMobile && state.section !== "logs") {state.section = "logs";}
   setSection(state.section || (isMobile ? "logs" : "global_dashboard"));
 
   updateBadge();
