@@ -609,6 +609,13 @@ table.tbl{width:100%;border-collapse:collapse;font-size:.9rem}
 .mobile-fab-items.closed{display:none}
 @media(max-width:768px){.mobile-fab{display:flex}.gantt-wrap{display:none}}
 
+/* ═══════════════════════════════════ CONEXIÓN / ESTADO DE SYNC ═══ */
+.conn-banner{position:fixed;top:0;left:0;right:0;z-index:600;background:var(--warn);color:#0f172a;font-size:.78rem;font-weight:700;padding:8px 12px;display:flex;align-items:center;justify-content:center;gap:8px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,.25)}
+.sync-chip{font-size:.7rem;font-weight:700;padding:4px 9px;border-radius:999px;border:1px solid var(--bor);background:var(--sur);color:var(--tx3);white-space:nowrap;display:inline-flex;align-items:center;gap:5px;line-height:1.2}
+.sync-chip.online{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 40%,transparent)}
+.sync-chip.offline{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 40%,transparent);background:var(--sur2)}
+@media(max-width:400px){.sync-chip{display:none}}
+
 /* ═══════════════════════════════════════════ SAFE AREAS ═══ */
 @supports(padding:env(safe-area-inset-top)){
   .top-bar{padding-top:env(safe-area-inset-top);padding-left:calc(12px + env(safe-area-inset-left));padding-right:calc(12px + env(safe-area-inset-right))}

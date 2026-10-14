@@ -1390,12 +1390,11 @@ function save() {
   } catch (e) { }
   dexieSave();
   firestoreSync();
+  updateConnStatus();
 }
 
 function firestoreSync() {
-  if (!window._currentUser) {return;}
-  // Cuentas maestra/invitado son locales por diseño: no van a la nube.
-  if (window._currentUser.isMaster === true || window._currentUser.isGuest === true) {return;}
+  if (!isCloudUser()) {return;}
   if (state._cloudSyncEnabled === false) {return;}
   clearTimeout(_saveTimer);
   _saveTimer = setTimeout(function () {
@@ -1422,8 +1421,7 @@ window.addEventListener("beforeunload", function () {
   if (_saveTimer) {
     clearTimeout(_saveTimer);
     try {
-      var cu = window._currentUser;
-      var cloudUser = cu && cu.isMaster !== true && cu.isGuest !== true;
+      var cloudUser = isCloudUser();
       if (cloudUser && state._cloudSyncEnabled !== false) {
         state._lastCloudSync = new Date().toISOString();
         window._FIRESTORE.collection("users").doc(window._currentUser.uid).set({
@@ -1440,6 +1438,65 @@ window.addEventListener("beforeunload", function () {
       }
     } catch (e) {}
   }
+});
+
+// ── ESTADO DE CONEXIÓN / SINCRONIZACIÓN ───────────────────────────────
+// La app es offline-first, pero el usuario necesita SABER si sus datos
+// están a salvo: si está en la nube o solo en el dispositivo. Acá vive el
+// indicador (banner + chip del top bar) y los listeners de red.
+function isOnline() {
+  return !(navigator && navigator.onLine === false);
+}
+
+// Cache del último texto renderizado: save() corre muy seguido y no
+// queremos tocar el DOM si el estado no cambió.
+var _lastConnLabel = null;
+
+function updateConnStatus() {
+  var online = isOnline();
+  var banner = document.getElementById("conn-banner");
+  if (banner) {banner.style.display = online ? "none" : "flex";}
+
+  var chip = document.getElementById("sync-chip");
+  if (chip) {
+    var cloud = isCloudUser();
+    var syncOn = state._cloudSyncEnabled !== false;
+    var label, cls;
+    if (!online) {
+      label = "⚠️ Sin conexión · guardado local";
+      cls = "offline";
+    } else if (!cloud) {
+      label = "💾 Guardado en este dispositivo";
+      cls = "";
+    } else if (!syncOn) {
+      label = "☁️ Sync desactivada";
+      cls = "";
+    } else if (state._lastCloudSync) {
+      var hm = (String(state._lastCloudSync).split("T")[1] || "").slice(0, 5);
+      label = "☁️ Sincronizado " + hm;
+      cls = "online";
+    } else {
+      label = "☁️ Cloud activo";
+      cls = "online";
+    }
+    if (label !== _lastConnLabel) {
+      _lastConnLabel = label;
+      chip.textContent = label;
+      chip.className = "sync-chip" + (cls ? " " + cls : "");
+    }
+  }
+}
+
+window.addEventListener("online", function () {
+  toast("Conexión restaurada ✓");
+  updateConnStatus();
+  // Al volver la señal, subimos lo que quedó pendiente.
+  if (isCloudUser() && state._cloudSyncEnabled !== false) {firestoreSync();}
+});
+
+window.addEventListener("offline", function () {
+  toast("Sin conexión · seguís trabajando, se guarda en el dispositivo", false);
+  updateConnStatus();
 });
 
 // ── WORKSPACE / COLLABORATION ──────────────────────────────────────────
@@ -1642,8 +1699,7 @@ function setSection(s) {
   if (s === "resources") {renderResources();}
   // [OCULTO] if (s === "folder") renderFolder();
   if (s === "accounts") {renderAccountsSettings();}
-  // [CLOUD OFF] desactivado: reactivar quitando el comentario
-  // if (s === "cloud") renderCloudSettings();
+  if (s === "cloud") {renderCloudSettings();}
 }
 
 function renderDashboard() {
@@ -4365,6 +4421,15 @@ function masteredOrVerified(u) {
   return !!u && (u.isMaster === true || u.isGuest === true || u.emailVerified === true || isAdminAccount(u.email) || isFirebaseAccount(u));
 }
 
+// Única fuente de verdad para "¿esta sesión sincroniza con la nube?".
+// La cuenta maestra y las sesiones demo/invitado son locales por diseño.
+// Se usa en firestoreSync, loadFromFirestore, el flush de beforeunload y el
+// indicador de estado — así el estado que se muestra nunca miente.
+function isCloudUser() {
+  var u = window._currentUser;
+  return !!u && u.isMaster !== true && u.isGuest !== true;
+}
+
 function applyAppLock() {
   var lock = document.getElementById("app-lock");
   if (!lock) {return;}
@@ -4437,7 +4502,7 @@ function initFirebaseAuth() {
 }
 
 async function loadFromFirestore() {
-  if (!window._currentUser) {return;}
+  if (!isCloudUser()) {return;}
   try {
     var ref = window._FIRESTORE.collection("users").doc(window._currentUser.uid);
     var doc = await ref.get();
@@ -5170,6 +5235,7 @@ function renderCloudSettings() {
   var el = document.getElementById("section-cloud");
   if (!el) {return;}
   var user = window._currentUser;
+  var cloud = isCloudUser();
   var syncEnabled = state._cloudSyncEnabled !== false;
   var dataSize = new Blob([JSON.stringify(state)]).size;
   var dataSizeStr = dataSize > 1024 ? (dataSize / 1024).toFixed(1) + " KB" : dataSize + " B";
@@ -5182,11 +5248,13 @@ function renderCloudSettings() {
     '<div class="prices-wrap">' +
     '<div style="margin-bottom:20px"><h2 class="sec-lbl" style="margin-bottom:4px">☁️ Cloud</h2><p style="color:var(--tx3);font-size:0.9rem">Sincronización, backup y colaboración en vivo.</p></div>' +
 
-    '<div class="card"><h3 class="sec-lbl">Estado de Conexión</h3><div style="margin-top:12px">' +
-    '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bor)"><span>Cuenta</span><span style="font-weight:600">' + (user ? user.email : "No conectado") + '</span></div>' +
-    '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bor)"><span>Estado</span><span style="font-weight:600;color:' + (user ? "var(--ok)" : "var(--tx3)") + '">' + (user ? "🟢 Conectado" : "⚪ Sin sesión") + '</span></div>' +
+    '<div class="card"><h3 class="sec-lbl">Estado</h3><div style="margin-top:12px">' +
+    '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bor)"><span>Cuenta</span><span style="font-weight:600">' + (user ? user.email : "Sin sesión") + '</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bor)"><span>Sincronización</span><span style="font-weight:600;color:' + (cloud ? "var(--ok)" : "var(--tx3)") + '">' + (cloud ? "🟢 Conectado a la nube" : "⚪ Solo este dispositivo") + '</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bor)"><span>Conexión</span><span style="font-weight:600;color:' + (isOnline() ? "var(--ok)" : "var(--warn)") + '">' + (isOnline() ? "🟢 En línea" : "🟡 Sin conexión") + '</span></div>' +
     '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bor)"><span>Última sincronización</span><span style="font-weight:600">' + syncLabel + '</span></div>' +
     '<div style="display:flex;justify-content:space-between;padding:8px 0"><span>Tamaño de datos</span><span style="font-weight:600">' + dataSizeStr + '</span></div>' +
+    (cloud ? '' : '<p style="font-size:0.8rem;color:var(--tx3);margin-top:10px">La cuenta maestra y las sesiones demo trabajan solo en este dispositivo. Para sincronizar entre equipos, iniciá sesión con una cuenta registrada.</p>') +
     '</div></div>' +
 
     // ── WORKSPACE ──────────────────────────────────────────────────
@@ -5220,18 +5288,10 @@ function renderCloudSettings() {
     '<p style="color:var(--tx3);font-size:0.8rem;margin-top:6px">Cada cambio se sube automáticamente a Firestore cuando hay sesión iniciada.</p>' +
     '</div></div>' +
 
-    // ── PLAN PRO ──
-    '<div class="card" style="margin-top:16px"><h3 class="sec-lbl">⭐ Plan PRO</h3><div style="margin-top:12px">' +
-    '<label style="display:flex;align-items:center;gap:12px;cursor:pointer">' +
-    '<input type="checkbox" ' + (state.isPro ? "checked" : "") + ' onchange="state.isPro=this.checked;save();toast(this.checked?\'Plan PRO activado\':\'Plan PRO desactivado\');renderCloudSettings()">' +
-    '<span style="font-weight:600">Cuenta PRO (acceso a DB Global de Contratistas)</span></label>' +
-    '<p style="color:var(--tx3);font-size:0.8rem;margin-top:6px">Con PLAN PRO accedés a la base de datos global compartida entre todos los usuarios del programa, con calificaciones y reseñas de contratistas.</p>' +
-    '</div></div>' +
-
     '<div class="card" style="margin-top:16px"><h3 class="sec-lbl">Backup y Datos</h3><div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">' +
     '<button class="btn full" onclick="exportBackup()">📥 Descargar Backup (JSON)</button>' +
     '<button class="btn full" onclick="importBackup()">📤 Restaurar Backup</button>' +
-    (user ? '<button class="btn full danger" onclick="clearCloudData()">🗑️ Borrar datos de la nube</button>' : "") +
+    (cloud ? '<button class="btn full danger" onclick="clearCloudData()">🗑️ Borrar datos de la nube</button>' : "") +
     '</div></div>' +
 
     '<div class="card" style="margin-top:16px;background:var(--sur2)">' +
@@ -5239,6 +5299,8 @@ function renderCloudSettings() {
     '<p style="font-size:0.8rem;color:var(--tx3);margin-top:8px">Firestore: 1 GB almacenados · 50k lecturas/día · 20k escrituras/día<br>Authentication: 10k usuarios/mes<br>Hosting: 10 GB storage · 360 MB/día ancho de banda</p>' +
     '<p style="font-size:0.8rem;color:var(--tx3);margin-top:8px">Con uso normal no vas a tener costos. Cada guardado escribe ~2-5 KB en Firestore (~100-200 operaciones/día con uso intensivo).</p>' +
     '</div></div>';
+
+  updateConnStatus();
 }
 
 function exportBackup() {
@@ -5365,6 +5427,7 @@ window.onload = () => {
 
   updateBadge();
   checkBackupReminder();
+  updateConnStatus();
   
   // [CLOUD OFF] migración de fotos a Storage desactivada: reactivar quitando el comentario
   // setTimeout(migrateBase64ToStorage, 3000);

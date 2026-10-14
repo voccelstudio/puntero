@@ -2,7 +2,7 @@
 <html lang="es" data-theme="slate">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Puntero — Gestión de Obra</title>
   <meta name="description" content="Tu obra, tu mando. Presupuestos, cronogramas y gestión integral de obra hecho en Paraguay.">
 
@@ -25,6 +25,11 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
+
+<!-- Aviso de conexión: visible solo cuando se pierde la red -->
+<div id="conn-banner" class="conn-banner" style="display:none" role="status" aria-live="polite">
+  <span>📡 Sin conexión — tus cambios se guardan en este dispositivo y se suben cuando vuelva la señal.</span>
+</div>
 
 <div id="app" class="app-layout">
   <aside class="sidebar">
@@ -87,9 +92,9 @@
         -->
         <button id="btn-suppliers" class="nbtn" onclick="setSection('suppliers')">🚛 Proveedores</button>
         <button id="btn-themes" class="nbtn" onclick="setSection('themes')">🎨 Temas Visuales</button>
+        <button id="btn-cloud" class="nbtn" onclick="setSection('cloud')">☁️ Cloud</button>
         <button id="btn-accounts" class="nbtn" style="display:none" onclick="setSection('accounts')">🗝️ Cuentas (Admin)</button>
         <button class="nbtn" onclick="showModal('profile')">👤 Mi Perfil</button>
-        <!-- [CLOUD OFF] button id="btn-cloud" class="nbtn" onclick="setSection('cloud')">☁️ Cloud</button> -->
       </div>
     </div>
 
@@ -106,6 +111,7 @@
       <button class="drawer-toggle" onclick="toggleSidebar()" aria-label="Menú">☰</button>
       <div id="view-title" style="font-family:var(--font-display); font-size:1.2rem; font-weight:800; text-transform:uppercase; color:var(--tx); flex:1">Presupuesto de Obra</div>
       <div style="display:flex; align-items:center; gap:10px">
+      <div id="sync-chip" class="sync-chip" role="status" aria-live="polite" title="Estado de la sincronización">💾 Solo local</div>
       <div id="currency-area" style="display:flex; align-items:center; gap:10px">
         <!-- Renderizado vía JS en app.js -->
       </div>
@@ -145,7 +151,7 @@
     <div id="section-suppliers" class="view" style="display:none"></div>
     <div id="section-accounts" class="view" style="display:none"></div>
     <div id="section-resources" class="view" style="display:none"></div>
-    <!-- [CLOUD OFF] div id="section-cloud" class="view" style="display:none"></div> -->
+    <div id="section-cloud" class="view" style="display:none"></div>
   </main>
 </div>
 
