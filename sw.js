@@ -4,7 +4,7 @@
  * Permite uso offline en obra cuando no hay señal.
  */
 
-const CACHE_NAME = 'puntero-v8-audit';
+const CACHE_NAME = 'puntero-v9-precios';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -31,6 +31,7 @@ const ASSETS_TO_CACHE = [
   './ot.js',
   './jornaleros.js',
   './contracts.js',
+  './clients.js',
   // CDNs externos (jspdf)
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js'
@@ -69,6 +70,12 @@ self.addEventListener('fetch', event => {
       url.hostname.includes('googleapis.com') ||
       url.hostname.includes('google.com')) {
     return; // dejar que pase normal
+  }
+
+  // Manifiesto de precios: siempre a red. Si lo sirviera desde caché, un
+  // suscriptor vería una versión vieja y creería tener los precios al día.
+  if (url.pathname.endsWith('/precios/manifest.json')) {
+    return;
   }
 
   // Estrategia para HTML: network-first (para tener siempre la última versión)

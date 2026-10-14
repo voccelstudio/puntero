@@ -32,6 +32,18 @@ function mockFirestore({ exists, appState, cloudMillis }) {
   return setCalls;
 }
 
+// El uid que usan las reglas de Firestore es el de la sesión AUTHENTICADA, no el
+// de la cuenta. Sin sesión real, la escritura se rechazaría: por eso el sync se
+// apaga en lugar de fallar en silencio.
+const FB_UID = "fb-uid-1";
+
+function conSesionFirebase() {
+  window._AUTH = { currentUser: { uid: FB_UID, email: "u1@puntero.test" } };
+}
+function sinSesionFirebase() {
+  window._AUTH = null;
+}
+
 // Registro local de cuentas del admin (lo lee getAccounts() desde localStorage).
 function account(uid, type, extra) {
   return Object.assign({
@@ -40,18 +52,21 @@ function account(uid, type, extra) {
     username: uid + "@puntero.test",
     type,
     active: true,
+    firebase: true,
     proUntil: type === "pro" ? Date.now() + 30 * 86400000 : null,
   }, extra || {});
 }
-// Usuario PRO: tiene nube y sincroniza.
+// Usuario PRO: tiene plan y sesión real → sincroniza.
 function proUser(uid) {
   localStorage.setItem("pte_accounts", JSON.stringify([account(uid, "pro")]));
   window._currentUser = { uid, email: uid + "@puntero.test" };
+  conSesionFirebase();
 }
 // Usuario que compró una vez: todo local, sin nube.
 function basicUser(uid) {
   localStorage.setItem("pte_accounts", JSON.stringify([account(uid, "usuario")]));
   window._currentUser = { uid, email: uid + "@puntero.test" };
+  conSesionFirebase();
 }
 function localProject(id) {
   return {
@@ -68,12 +83,14 @@ beforeEach(() => {
   delete app.state._localModifiedAt;
   delete app.state._cloudSyncEnabled;
   window._currentUser = null;
+  sinSesionFirebase();
 });
 
 afterEach(() => {
   vi.useRealTimers();
   delete window._FIRESTORE;
   delete window._currentUser;
+  delete window._AUTH;
   localStorage.removeItem("pte_accounts");
 });
 
@@ -101,6 +118,19 @@ describe("loadFromFirestore()", () => {
     // Corre solo en su dispositivo: ni sube ni baja nada.
     expect(setCalls.length).toBe(0);
     expect(app.state.projects[0].id).toBe("local1");
+  });
+
+  it("PRO sin sesión real de Firebase → NO sincroniza (las reglas lo rechazarían)", async () => {
+    app.state.projects = [localProject("local1")];
+    // Plan PRO vigente pero sin sesión autenticada → Firestore rechazaría.
+    localStorage.setItem("pte_accounts", JSON.stringify([account("u1", "pro")]));
+    window._currentUser = { uid: "u1", email: "u1@puntero.test" };
+    sinSesionFirebase();
+    const setCalls = mockFirestore({ exists: false });
+
+    await app.loadFromFirestore();
+
+    expect(setCalls.length).toBe(0);
   });
 
   it("dispositivo nuevo (nunca sincronizó) → la nube gana aunque lo local sea más nuevo", async () => {
@@ -164,9 +194,10 @@ describe("loadFromFirestore()", () => {
 
 // ── firestoreSync ──────────────────────────────────────────────────────
 describe("firestoreSync()", () => {
-  it("cuenta maestra: SÍ sincroniza (VIP vitalicia, es su propio respaldo)", () => {
+  it("cuenta maestra CON sesión de Firebase: SÍ sincroniza (VIP vitalicia)", () => {
     vi.useFakeTimers();
     window._currentUser = { uid: "master", email: "martin@puntero.local", isMaster: true };
+    window._AUTH = { currentUser: { uid: "fb-master" } };
     app.state.projects = [localProject("obra-maestra")];
     const setCalls = mockFirestore({ exists: false });
 
@@ -175,6 +206,21 @@ describe("firestoreSync()", () => {
 
     expect(setCalls.length).toBe(1);
     expect(setCalls[0].data.appState.projects[0].id).toBe("obra-maestra");
+  });
+
+  it("cuenta maestra SIN sesión de Firebase: no sincroniza", () => {
+    // La sesión maestra es puramente local: para tener su propia nube hay que
+    // vincularla (el panel lo indica).
+    vi.useFakeTimers();
+    window._currentUser = { uid: "master", email: "martin@puntero.local", isMaster: true };
+    sinSesionFirebase();
+    app.state.projects = [localProject("obra-maestra")];
+    const setCalls = mockFirestore({ exists: false });
+
+    app.firestoreSync();
+    vi.advanceTimersByTime(300);
+
+    expect(setCalls.length).toBe(0);
   });
 
   it("no escribe para un usuario de compra única (todo local)", () => {

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { loadApp } from "./helpers/app-loader.js";
 
 // Tests de utilidades del runtime sobre el código REAL de app.js.
@@ -30,26 +30,41 @@ describe("sectionFromUrl() — deep links de los shortcuts del manifest", () => 
 });
 
 describe("isCloudUser() / tiers — quién sincroniza con la nube", () => {
+  beforeEach(() => { delete window._AUTH; });
+  afterEach(() => { delete window._AUTH; });
+  function sesionFirebase() { window._AUTH = { currentUser: { uid: "fb-1" } }; }
+
   function setLedger(list) {
     localStorage.setItem("pte_accounts", JSON.stringify(list));
   }
 
-  it("cuenta maestra: sí sincroniza (vitalicia)", () => {
+  it("cuenta maestra: tier maestra; con sesión de Firebase también nube", () => {
     window._currentUser = { uid: "master", email: "martin@puntero.local", isMaster: true };
-    expect(app.isCloudUser()).toBe(true);
+    sesionFirebase();
     expect(app.currentTier()).toBe("maestra");
+    expect(app.isCloudUser()).toBe(true);
   });
 
-  it("PRO con suscripción vigente: sí sincroniza", () => {
+  it("PRO con suscripción vigente y sesión: sí sincroniza", () => {
     setLedger([{ id: "a1", uid: "u1", username: "pro@x.com", type: "pro", active: true, proUntil: Date.now() + 10 * 86400000 }]);
     window._currentUser = { uid: "u1", email: "pro@x.com" };
-    expect(app.isCloudUser()).toBe(true);
+    sesionFirebase();
     expect(app.currentTier()).toBe("pro");
+    expect(app.isCloudUser()).toBe(true);
   });
 
-  it("PRO con suscripción VENCIDA: no sincroniza", () => {
+  it("PRO vigente pero SIN sesión de Firebase: no sincroniza", () => {
+    setLedger([{ id: "a1", uid: "u1", username: "pro@x.com", type: "pro", active: true, proUntil: Date.now() + 10 * 86400000 }]);
+    window._currentUser = { uid: "u1", email: "pro@x.com" };
+    expect(app.currentTier()).toBe("pro"); // el plan sigue siendo PRO
+    expect(app.isCloudUser()).toBe(false); // pero no puede usar la nube
+  });
+
+  it("PRO con suscripción VENCIDA: no sincroniza ni actualiza precios", () => {
     setLedger([{ id: "a1", uid: "u1", username: "pro@x.com", type: "pro", active: true, proUntil: Date.now() - 86400000 }]);
     window._currentUser = { uid: "u1", email: "pro@x.com" };
+    sesionFirebase();
+    expect(app.currentTier()).toBe("pro"); // sigue entrando, sigue trabajando
     expect(app.isCloudUser()).toBe(false);
     expect(app.canUpdatePrices()).toBe(false);
   });
@@ -57,8 +72,9 @@ describe("isCloudUser() / tiers — quién sincroniza con la nube", () => {
   it("usuario de compra única: NO sincroniza (todo local)", () => {
     setLedger([{ id: "a1", uid: "u1", username: "cli@x.com", type: "usuario", active: true }]);
     window._currentUser = { uid: "u1", email: "cli@x.com" };
-    expect(app.isCloudUser()).toBe(false);
+    sesionFirebase();
     expect(app.currentTier()).toBe("usuario");
+    expect(app.isCloudUser()).toBe(false);
   });
 
   it("cuenta desactivada por el admin: sin tier", () => {
@@ -96,6 +112,13 @@ describe("isOnline()", () => {
 });
 
 describe("updateConnStatus() — indicador de estado", () => {
+  beforeEach(() => {
+    delete window._AUTH;
+  });
+  afterEach(() => {
+    delete window._AUTH;
+  });
+
   it("no rompe si no existen los elementos del DOM", () => {
     // En jsdom los ids conn-banner / sync-chip no están: debe ser no-op.
     expect(() => app.updateConnStatus()).not.toThrow();
@@ -116,9 +139,10 @@ describe("updateConnStatus() — indicador de estado", () => {
     }
   });
 
-  it("avisa 'sin conexión' cuando navigator.onLine es false, aunque sincronice", () => {
+  it("avisa 'sin conexión' cuando navigator.onLine es false", () => {
     localStorage.setItem("pte_accounts", JSON.stringify([{ id: "a1", uid: "u1", username: "p@x.com", type: "pro", active: true, proUntil: Date.now() + 30 * 86400000 }]));
     window._currentUser = { uid: "u1", email: "p@x.com" };
+    window._AUTH = { currentUser: { uid: "fb-1" } };
     app.state._cloudSyncEnabled = true;
     var original = Object.getOwnPropertyDescriptor(navigator, "onLine");
     var banner = document.createElement("div");
@@ -138,6 +162,7 @@ describe("updateConnStatus() — indicador de estado", () => {
   it("muestra la hora de la última sincronización para usuario PRO", () => {
     localStorage.setItem("pte_accounts", JSON.stringify([{ id: "a1", uid: "u1", username: "p@x.com", type: "pro", active: true, proUntil: Date.now() + 30 * 86400000 }]));
     window._currentUser = { uid: "u1", email: "p@x.com" };
+    window._AUTH = { currentUser: { uid: "fb-1" } };
     app.state._cloudSyncEnabled = true;
     app.state._lastCloudSync = "2026-06-13T14:35:00.000Z";
     var chip = document.createElement("div");
@@ -151,6 +176,25 @@ describe("updateConnStatus() — indicador de estado", () => {
       chip.remove();
       window._currentUser = null;
       delete app.state._lastCloudSync;
+    }
+  });
+
+  it("PRO sin sesión de Firebase: no muestra estado de sincronizado", () => {
+    // La nube exige sesión real; sin ella el indicador debe decir local.
+    localStorage.setItem("pte_accounts", JSON.stringify([{ id: "a1", uid: "u1", username: "p@x.com", type: "pro", active: true, proUntil: Date.now() + 30 * 86400000 }]));
+    window._currentUser = { uid: "u1", email: "p@x.com" };
+    window._AUTH = null;
+    app.state._cloudSyncEnabled = true;
+    var chip = document.createElement("div");
+    chip.id = "sync-chip";
+    document.body.appendChild(chip);
+    try {
+      app.updateConnStatus();
+      expect(chip.textContent).toContain("dispositivo");
+      expect(chip.className).not.toContain("online");
+    } finally {
+      chip.remove();
+      window._currentUser = null;
     }
   });
 });

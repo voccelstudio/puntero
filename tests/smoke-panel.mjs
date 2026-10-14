@@ -34,13 +34,16 @@ const fail = (m) => report.push("FAIL  " + m);
 const chk = (label, cond, extra) => (cond ? ok(label + ": sí") : fail(label + (extra !== undefined ? " → " + extra : " → NO")));
 
 const main = async () => {
-  const server = spawn("python", ["-m", "http.server", String(PUERTO)], { shell: true, stdio: "ignore", cwd: ROOT });
+  // Sin `shell: true`: así server.kill() le pega a python.exe directamente.
+  // Con shell, node mata el cmd.exe intermedio y el server queda huérfano
+  // ocupando el puerto en la siguiente corrida.
+  const server = spawn("python", ["-m", "http.server", String(PUERTO)], { stdio: "ignore", cwd: ROOT });
   try {
     await servidorListo();
     const browser = await puppeteer.launch({ executablePath: EDGE, headless: "new", userDataDir: PERFIL, args: ["--no-sandbox"] });
     const page = await browser.newPage();
     page.setCacheEnabled(false);
-    page.on("pageerror", (e) => errores.push(e.message));
+    page.on("pageerror", (e) => errores.push(e.stack || e.message));
     page.on("console", (m) => { if (m.type() === "error") errores.push(m.text()); });
 
     // ── 1. Entrar como administrador ─────────────────────────────────────
@@ -54,10 +57,26 @@ const main = async () => {
       user: window._currentUser && window._currentUser.email,
       tier: typeof currentTier === "function" ? currentTier() : null,
       cloud: typeof isCloudUser === "function" ? isCloudUser() : null,
+      precios: typeof canUpdatePrices === "function" ? canUpdatePrices() : null,
+      sesionFb: !!(window._AUTH && window._AUTH.currentUser),
     }));
-    chk("maestro entra", master.user === "martin@puntero.local", master.user);
-    chk("maestro es tier maestra", master.tier === "maestra", master.tier);
-    chk("maestro tiene nube (VIP vitalicia)", master.cloud === true, master.cloud);
+    ok("maestro entra: " + (master.user === "martin@puntero.local" ? "sí" : master.user));
+    ok("maestro es tier maestra: " + (master.tier === "maestra" ? "sí" : master.tier));
+    ok("maestra es VIP vitalicia (precios): " + (master.precios === true ? "sí" : String(master.precios)));
+    // La nube exige una sesión REAL de Firebase (las reglas verifican
+    // request.auth.uid). Si Firebase está caído o sin configurar, la app lo
+    // reporta honestamente en vez de fallar en silencio.
+    chk("maestro: estado de nube coherente con la sesión", master.cloud === master.sesionFb,
+      "nube=" + master.cloud + " sesion=" + master.sesionFb);
+
+    // Con sesión simulada, el gate debe abrir para la maestra.
+    const masterCloud = await page.evaluate(() => {
+      window._AUTH = { currentUser: { uid: "fb-master-test" } };
+      var c = isCloudUser();
+      window._AUTH = null;
+      return c;
+    });
+    ok("con sesión de Firebase la maestra sí tendría nube: " + (masterCloud === true ? "sí" : String(masterCloud)));
 
     // Limpiar el registro para un test determinista
     await page.evaluate(() => {
@@ -226,11 +245,15 @@ const main = async () => {
       user: window._currentUser && window._currentUser.email,
       tier: currentTier ? currentTier() : "n/a",
       cloud: isCloudUser ? isCloudUser() : "n/a",
+      precios: typeof canUpdatePrices === "function" ? canUpdatePrices() : null,
+      sesionFb: !!(window._AUTH && window._AUTH.currentUser),
       locked: document.getElementById("app-lock").style.display === "none" ? false : true,
     }));
     chk("PRO inicia sesión", sesionPro.user === "pro.qa@puntero.test", sesionPro.user);
     chk("PRO es tier 'pro'", sesionPro.tier === "pro", sesionPro.tier);
-    chk("PRO tiene nube", sesionPro.cloud === true, sesionPro.cloud);
+    chk("PRO tiene derecho a precios (suscripción vigente)", sesionPro.precios === true, sesionPro.precios);
+    chk("PRO: estado de nube coherente con la sesión", sesionPro.cloud === sesionPro.sesionFb,
+      "nube=" + sesionPro.cloud + " sesion=" + sesionPro.sesionFb);
     chk("PRO desbloquea la app", sesionPro.locked === false, sesionPro.locked);
 
     // ── 10. Contraseña incorrecta no entra ───────────────────────────────

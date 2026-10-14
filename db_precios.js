@@ -11,8 +11,11 @@
  * Actualizado: Marzo 2026
  */
 
-const DB_VERSION = "2026-09-clientes-fases-colocacion-artefactos";
-const DB_FECHA   = "Septiembre 2026 (+ institución de colocación de artefactos con MO explícita)";
+const DB_VERSION = "2026-10-saneamiento-mo-unidades";
+// Mes de referencia de esta versión de precios ("YYYY-MM"). Es lo que compara la
+// app para decidir si hay una actualización más nueva disponible.
+const DB_MES     = "2026-10";
+const DB_FECHA   = "Octubre 2026 (saneamiento: elimina MO duplicada en rubros con MO embutida, corrige 17 unidades de mats y 1 precio)";
 
 // ── PRECIOS UNITARIOS DE MATERIALES (referencia interna) ──────────────────
 // Rango A-B documentado en comentarios para transparencia interna
@@ -107,7 +110,7 @@ const MAT_PRECIOS = {
   "Aceite de linaza":         { p: 15400,  u: "lt"  },
   "Ácido muriático":          { p: 9060,   u: "lt"  },
   // Caños y accesorios sanitarios
-  "Caño PVC 40mm":            { p: 7450,   u: "ml"  }, // tubo 6m ₲25.600 → ₲4.267/ml aprox
+  "Caño PVC 40mm":            { p: 4267,   u: "ml"  }, // saneado 2026-10: ₲25.600 por tubo 6m → ₲4.267/ml (antes 7.450 era precio de 4m)
   "Caño PVC 50mm":            { p: 11250,  u: "ml"  },
   "Caño PVC 100mm":           { p: 26000,  u: "ml"  },
   "Caño PVC roscable 1/2 pulgada": { p: 9850, u: "ml" },
@@ -419,7 +422,7 @@ const MAT_PRECIOS = {
   "Hoja persiana varilla 45cm":       { p: 145000, u: "un" },
   "Cerradura externa c/manija":       { p: 165000, u: "un" },
   "Tornillo 1x7":                     { p: 800,    u: "un" },
-  "Ficha 5 agujeros":                 { p: 35000,  u: "un" },
+  "Ficha 5 agujeros":                 { p: 35000,  u: "par" }, // saneado 2026-10: los rubros la computan por par
   "Balancín fabricado":               { p: 1850000,u: "un" }, // ventana balancín soldada
   "Portón con cerradura":             { p: 4500000,u: "un" }, // portón corredizo metálico
   "Escalera metálica":                { p: 2800000,u: "un" }, // escalera completa estándar
@@ -453,7 +456,7 @@ const MAT_PRECIOS = {
   "Moldura pecho paloma":             { p: 32000,  u: "ml" }, // moldura clásica
   // Otros
   "Parrilla enlozada con carbonera":  { p: 1850000,u: "un" }, // parrilla quincho completa
-  "Yeso para construcción":           { p: 38000,  u: "un" }, // bolsa 25kg (legacy de yesito)
+  "Yeso para construcción":           { p: 1520,   u: "kg" }, // saneado 2026-10: ₲38.000/bolsa 25kg → ₲1.520/kg (antes estaba por bolsa y los rubros computan kg)
 
   // ─── NUEVOS MATERIALES PARA TABIQUES DURLOCK ─────────────────────────
   "Perfil solera 70mm x 2.60m":    { p: 45000,  u: "un" },  // base para tabique ancho
@@ -1474,7 +1477,7 @@ const DB_RAW = {
     u:"un", m:400750,
     // Mandua Costeo pág 49: ₲400.750
     mats:[
-      {n:"Marco ybyrapyta",q:5.10,u:"ml"},
+      {n:"Marco ybyrapyta",q:1,u:"un"}, // saneado 2026-10: MAT_PRECIOS es por marco armado (no por ml de listón)
       {n:"Tirafondo galvanizado 3/8x5",q:5,u:"un"},
       {n:"Cemento tipo 1",q:1,u:"kg"},
     ]
@@ -1483,7 +1486,7 @@ const DB_RAW = {
     u:"un", m:407750,
     // Mandua Costeo pág 49: ₲407.750
     mats:[
-      {n:"Marco ybyrapyta",q:5.40,u:"ml"},
+      {n:"Marco ybyrapyta",q:1,u:"un"}, // saneado 2026-10: MAT_PRECIOS es por marco armado (no por ml de listón)
       {n:"Tirafondo galvanizado 3/8x5",q:5,u:"un"},
     ]
   },
@@ -1491,7 +1494,7 @@ const DB_RAW = {
     u:"un", m:443750,
     // Mandua Costeo pág 49: ₲443.750
     mats:[
-      {n:"Marco ybyrapyta",q:5.80,u:"ml"},
+      {n:"Marco ybyrapyta",q:1,u:"un"}, // saneado 2026-10: MAT_PRECIOS es por marco armado (no por ml de listón)
       {n:"Tirafondo galvanizado 3/8x5",q:8,u:"un"},
     ]
   },
@@ -1517,7 +1520,7 @@ const DB_RAW = {
     u:"un", m:1705000,
     // Mandua Costeo pág 50: ₲1.705.000
     mats:[
-      {n:"Hoja persiana varilla 45cm",q:3.15,u:"m2"},
+      {n:"Hoja persiana varilla 45cm",q:3,u:"un"}, // saneado 2026-10: se compra por hoja, no por m2
       {n:"Ficha 5 agujeros",q:3,u:"par"},
       {n:"Tornillo 1x7",q:60,u:"un"},
     ]
@@ -1526,7 +1529,7 @@ const DB_RAW = {
     u:"un", m:1232500,
     // Mandua Costeo pág 50: ₲1.232.500
     mats:[
-      {n:"Puerta vidriera eucalipto",q:3.15,u:"m2"},
+      {n:"Puerta vidriera eucalipto",q:1,u:"un"}, // saneado 2026-10: 1 vidriera armada (MAT_PRECIOS por un), no 3.15 m2
       {n:"Ficha 5 agujeros",q:3,u:"par"},
       {n:"Tornillo 1x7",q:60,u:"un"},
     ]
@@ -1540,7 +1543,7 @@ const DB_RAW = {
     u:"m2", m:258750,
     // Mandua Costeo pág 50: ₲258.750
     mats:[
-      {n:"Balancín fabricado",q:1,u:"m2"},
+      {n:"Balancín fabricado",q:1,u:"un"}, // saneado 2026-10: MAT_PRECIOS es por balancín armado, no por m2
       {n:"Cemento tipo 1",q:1,u:"kg"},
     ]
   },
@@ -1548,7 +1551,7 @@ const DB_RAW = {
     u:"un", m:2027450,
     // Mandua Costeo pág 51: ₲2.027.450
     mats:[
-      {n:"Portón con cerradura",q:6,u:"m2"},
+      {n:"Portón con cerradura",q:1,u:"un"}, // saneado 2026-10: MAT_PRECIOS es por portón armado (no ₲4.5M por m2)
       {n:"Cemento tipo 1",q:5,u:"kg"},
       {n:"Arena lavada",q:0.03,u:"m3"},
     ]
@@ -1557,7 +1560,7 @@ const DB_RAW = {
     u:"un", m:5166250,
     // Mandua Costeo pág 51: ₲5.166.250
     mats:[
-      {n:"Portón con cerradura",q:17.6,u:"m2"},
+      {n:"Portón con cerradura",q:1,u:"un"}, // saneado 2026-10: MAT_PRECIOS es por portón armado (no ₲4.5M por m2)
       {n:"Cemento tipo 1",q:10,u:"kg"},
     ]
   },
@@ -1581,7 +1584,7 @@ const DB_RAW = {
     u:"un", m:4346000,
     // Mandua Costeo pág 51: ₲4.346.000
     mats:[
-      {n:"Cortina metálica enrollable",q:1,u:"un"},
+      {n:"Cortina metálica enrollable",q:6.24,u:"m2"}, // saneado 2026-10: MAT_PRECIOS es por m2 (2.40x2.60m), no por un
     ]
   },
 },
@@ -1793,7 +1796,7 @@ const DB_RAW = {
     mats:[
       {n:"Granito natural",q:2.28,u:"m2"},
       {n:"Moldura pecho paloma",q:3.20,u:"ml"},
-      {n:"Zócalo de granito",q:0.50,u:"m2"},
+      {n:"Zócalo de granito",q:3.2,u:"ml"}, // saneado 2026-10: zócalo se compra por ml (largo de la mesada), no por m2
     ]
   },
   "Mesada mármol baño 0.70x0.60m": {
@@ -4345,6 +4348,200 @@ const DB_RAW = {
 
 }; // fin DB_RAW
 
+// ── RUBROS CUYO PRECIO GUÍA `m` YA INCLUYE LA MANO DE OBRA ──────────────
+// En estos rubros el costo fuente (Mandua Costeo, guía Mandua Mar-2026) costea
+// Mat + MO en un solo número, y ese total quedó cargado en `m`. Validado por:
+//   (a) el comentario de fuente "Mandua Costeo pág N: ₲X" (m ≈ total del costeo), y
+//   (b) de respaldo, Σ(q×precio de MAT_PRECIOS) ≈ m×(1−pctMO).
+// Antes buildDB() trataba `m` como "solo materiales" y le sumaba MO otra vez
+// (m×pct%), inflando el total un 30-40%. Ahora mat = m − MO y total = m.
+// NO aplica a los 19 rubros con MO explícita (campo `l`) ni a los rubros sin
+// comprobante (se conservan como estaban). Clave: "CATEGORÍA||Rubro".
+const MO_YA_INCLUIDA = new Set([
+  // ESTRUCTURAS (11)
+  "ESTRUCTURAS||Columna fck=21 MPa",
+  "ESTRUCTURAS||Encadenado 13x20 cm",
+  "ESTRUCTURAS||Encadenado 13x30 cm",
+  "ESTRUCTURAS||Encadenado 30x30 cm",
+  "ESTRUCTURAS||Losa Listalosa",
+  "ESTRUCTURAS||Losa Rap h=17cm (12+5)",
+  "ESTRUCTURAS||Losa Rap h=24cm (20+4)",
+  "ESTRUCTURAS||Losa fck=21MPa",
+  "ESTRUCTURAS||Piso H°A° fck=21MPa 10cm",
+  "ESTRUCTURAS||Viga fck=21 MPa",
+  "ESTRUCTURAS||Zapata fck=18 MPa",
+  // FUNDACIONES (5)
+  "FUNDACIONES||Cimiento H° Cascotes - Arena Lavada",
+  "FUNDACIONES||Cimiento H° Cascotes - Tierra Gorda",
+  "FUNDACIONES||Cimiento PBC con cal (1/2:1:4)",
+  "FUNDACIONES||Cimiento PBC sin cal (1:12)",
+  "FUNDACIONES||Hormigón Ciclópeo (1:3:6)",
+  // MAMPOSTERÍA (10)
+  "MAMPOSTERÍA||Elevación 0.15m ladrillo cerámico 6 tubos",
+  "MAMPOSTERÍA||Elevación 0.15m ladrillo común",
+  "MAMPOSTERÍA||Elevación 0.20m ladrillo cerámico hueco",
+  "MAMPOSTERÍA||Elevación 0.20m ladrillo común",
+  "MAMPOSTERÍA||Elevación 0.30m ladrillo común",
+  "MAMPOSTERÍA||Muro piedra bruta 30cm",
+  "MAMPOSTERÍA||Nivelación 0.30m ladrillo común",
+  "MAMPOSTERÍA||Pilar ladrillo común 30x30",
+  "MAMPOSTERÍA||Sardinel ladrillo común",
+  "MAMPOSTERÍA||Sardinel ladrillo laminado",
+  // CONTRAPISOS (3)
+  "CONTRAPISOS||Contrapiso 10cm cascotes (1/4:1:4:6)",
+  "CONTRAPISOS||Contrapiso 20cm - Losa Sanitaria",
+  "CONTRAPISOS||Contrapiso 7cm cascotes (1/4:1:4:6)",
+  // REVOQUES (5)
+  "REVOQUES||Azotada impermeable 0.5cm",
+  "REVOQUES||Revoque 1 capa 1.5cm hidrófugo (1:4:16)",
+  "REVOQUES||Revoque 1 capa sin hidrófugo",
+  "REVOQUES||Revoque cielorraso (1:4:12)",
+  "REVOQUES||Revoque salpicado (1:3)",
+  // TECHOS (8)
+  "TECHOS||Canaleta zinc Nº24 colocada",
+  "TECHOS||Chapa Nº28 s/ caños metálicos",
+  "TECHOS||Chapa Nº28 s/ varillas torsionadas",
+  "TECHOS||Entrepiso de madera",
+  "TECHOS||Techo metálico chapa trapezoidal",
+  "TECHOS||Teja española s/ tejuelita",
+  "TECHOS||Teja española s/ tejuelón c/ madera",
+  "TECHOS||Teja francesa s/ machimbre",
+  // PISOS (8)
+  "PISOS||Baldosa calcárea 20x20cm",
+  "PISOS||Cerámica Cecafi 45x45cm",
+  "PISOS||Cerámica esmaltada Cecafi 32x57cm",
+  "PISOS||Layota 28x28cm Yoayu",
+  "PISOS||Mosaico granítico blanco 30x30cm",
+  "PISOS||Paver táctil guía (accesibilidad)",
+  "PISOS||Piedra losa rompecabeza",
+  "PISOS||Porcelanato 60x60cm",
+  // AISLACIÓN (4)
+  "AISLACIÓN||Horizontal 0.15m con asfalto",
+  "AISLACIÓN||Horizontal 0.30m con asfalto",
+  "AISLACIÓN||Losa para baño",
+  "AISLACIÓN||Vertical panderete 0.15m",
+  // PINTURAS (7)
+  "PINTURAS||Barnizado machimbre",
+  "PINTURAS||Látex exterior con enduido",
+  "PINTURAS||Látex exterior sin enduido",
+  "PINTURAS||Látex interior con enduido",
+  "PINTURAS||Látex interior sin enduido",
+  "PINTURAS||Pintura a la cal",
+  "PINTURAS||Tejuela al barniz",
+  // CARPINTERÍA MADERA (7)
+  "CARPINTERÍA MADERA||Marco ybyrapyta puerta 0.70m",
+  "CARPINTERÍA MADERA||Marco ybyrapyta puerta 0.80m",
+  "CARPINTERÍA MADERA||Marco ybyrapyta ventana 1.50m",
+  "CARPINTERÍA MADERA||Persiana 1.50x2.10m 3 hojas",
+  "CARPINTERÍA MADERA||Puerta tablero eucalipto 0.80x2.10m",
+  "CARPINTERÍA MADERA||Puerta tablero punta diamante 0.80x2.10m",
+  "CARPINTERÍA MADERA||Vidriera 1.50x2.10m 3 hojas",
+  // CARPINTERÍA METÁLICA (6)
+  "CARPINTERÍA METÁLICA||Balancín hasta 1m²",
+  "CARPINTERÍA METÁLICA||Cortina metálica 2.40x2.60m",
+  "CARPINTERÍA METÁLICA||Escalera metálica recta",
+  "CARPINTERÍA METÁLICA||Portón cochera 3.00x2.00m",
+  "CARPINTERÍA METÁLICA||Portón cochera 4.40x4.00m",
+  "CARPINTERÍA METÁLICA||Reja hierro artística 1.50x1.20m",
+  // DESAGÜE CLOACAL (9)
+  "DESAGÜE CLOACAL||Boca de desagüe 20x20x20cm",
+  "DESAGÜE CLOACAL||Boca de desagüe 30x30x30cm",
+  "DESAGÜE CLOACAL||Caño PVC 100mm (desagüe)",
+  "DESAGÜE CLOACAL||Caño PVC 40mm (desagüe)",
+  "DESAGÜE CLOACAL||Caño PVC 50mm (desagüe)",
+  "DESAGÜE CLOACAL||Cámara séptica 1.00x1.60x1.20m",
+  "DESAGÜE CLOACAL||Pozo ciego Ø1.50m h=3.00m",
+  "DESAGÜE CLOACAL||Registro 30x30x30cm",
+  "DESAGÜE CLOACAL||Rejilla de piso sifonada 150x150mm",
+  // AGUA CORRIENTE (7)
+  "AGUA CORRIENTE||Caño PVC roscable 1 pulgada",
+  "AGUA CORRIENTE||Instalación agua fría - baño completo",
+  "AGUA CORRIENTE||Instalación agua fría - baño servicio",
+  "AGUA CORRIENTE||Instalación agua fría - baño social",
+  "AGUA CORRIENTE||Instalación agua fría - pileta cocina",
+  "AGUA CORRIENTE||Tanque cisterna fibra de vidrio 1000lt",
+  "AGUA CORRIENTE||Tanque cisterna fibra de vidrio 500lt",
+  // ARTEFACTOS SANITARIOS (6)
+  "ARTEFACTOS SANITARIOS||Baño completo con bañera común",
+  "ARTEFACTOS SANITARIOS||Baño completo frío y caliente (sin bañera)",
+  "ARTEFACTOS SANITARIOS||Baño social standard",
+  "ARTEFACTOS SANITARIOS||Mesada granito para cocina",
+  "ARTEFACTOS SANITARIOS||Mesada mármol baño 0.70x0.60m",
+  "ARTEFACTOS SANITARIOS||Pileta cocina acero inoxidable",
+  // INSTALACIÓN ELÉCTRICA (6)
+  "INSTALACIÓN ELÉCTRICA||Circuito calefón / AA / ducha eléctrica",
+  "INSTALACIÓN ELÉCTRICA||Lámpara con interruptor",
+  "INSTALACIÓN ELÉCTRICA||Pilar mampostería 0.45x0.45x1.70m",
+  "INSTALACIÓN ELÉCTRICA||Puesto medición monofásico 40A",
+  "INSTALACIÓN ELÉCTRICA||Tablero principal 6 llaves TM",
+  "INSTALACIÓN ELÉCTRICA||Tomacorriente",
+  // VARIOS (7)
+  "VARIOS||Balaustre sencillo h=42cm",
+  "VARIOS||Dintel hormigón prefabricado 1m x 14cm",
+  "VARIOS||Estufa boca 1.00m",
+  "VARIOS||Moldura doble",
+  "VARIOS||Moldura sencilla",
+  "VARIOS||Parrilla boca 1.00m",
+  "VARIOS||Tanque cisterna fibra de vidrio 1000lt (varios)",
+  // CIELO RASOS (4)
+  "CIELO RASOS||Cielo raso durlock RF 12.5mm (anti-fuego)",
+  "CIELO RASOS||Cielo raso durlock RH 12.5mm (baño/cocina)",
+  "CIELO RASOS||Junta dilatación cielo raso (por ml)",
+  "CIELO RASOS||Moldura yeso decorativa 8cm",
+  // TABIQUES DURLOCK (6)
+  "TABIQUES DURLOCK||Puerta trampa durlock 40x40cm con marco",
+  "TABIQUES DURLOCK||Tabique durlock RF 12.5mm (garaje/cocheras)",
+  "TABIQUES DURLOCK||Tabique durlock RH 12.5mm (baño/cocina)",
+  "TABIQUES DURLOCK||Tabique durlock curvo 6.4mm (radio ≥1m)",
+  "TABIQUES DURLOCK||Tabique exterior Superboard 6mm (fachada liviana)",
+  "TABIQUES DURLOCK||Tabique exterior Superboard 8mm (más resistencia)",
+  // VIDRIOS (6)
+  "VIDRIOS||Espejo 4mm colocado con clips/silicona",
+  "VIDRIOS||Ventana abatible aluminio + vidrio dulce 5mm",
+  "VIDRIOS||Vidrio dulce 4mm colocado en abertura",
+  "VIDRIOS||Vidrio dulce 5mm colocado en abertura",
+  "VIDRIOS||Vidrio dulce 6mm colocado en abertura",
+  "VIDRIOS||Vidrio laminado 3+3mm seguridad",
+  // PREVENCIÓN DE INCENDIOS (6)
+  "PREVENCIÓN DE INCENDIOS||Cartel salida emergencia fotolum.",
+  "PREVENCIÓN DE INCENDIOS||Cartel salida emergencia luminoso",
+  "PREVENCIÓN DE INCENDIOS||Cartel señalización extintor 20x40",
+  "PREVENCIÓN DE INCENDIOS||Cañería incendio 1.5\" galvanizada",
+  "PREVENCIÓN DE INCENDIOS||Detector de humo autónomo (residencial)",
+  "PREVENCIÓN DE INCENDIOS||Luz de emergencia LED autónoma",
+  // CLIMATIZACIÓN (1)
+  "CLIMATIZACIÓN||Ventilador de techo 132cm con luz",
+  // PAISAJISMO (1)
+  "PAISAJISMO||Sistema riego por goteo (por ml)",
+  // MOVIMIENTO DE SUELO (3)
+  "MOVIMIENTO DE SUELO||Cordón cuneta hormigón",
+  "MOVIMIENTO DE SUELO||Pavimento adoquines hormigón colocado",
+  "MOVIMIENTO DE SUELO||Relleno con suelo seleccionado compactado",
+  // SANITARIOS COMPLEMENTARIOS (10)
+  "SANITARIOS COMPLEMENTARIOS||Biodigestor 1300lt instalado",
+  "SANITARIOS COMPLEMENTARIOS||Biodigestor 600lt instalado",
+  "SANITARIOS COMPLEMENTARIOS||Bomba presurizadora 0.5HP instalada",
+  "SANITARIOS COMPLEMENTARIOS||Bomba sumergible pozo 1HP instalada",
+  "SANITARIOS COMPLEMENTARIOS||Cisterna fibra 2500lt enterrada",
+  "SANITARIOS COMPLEMENTARIOS||Pozo absorbente 4 anillos H°",
+  "SANITARIOS COMPLEMENTARIOS||Tanque polietileno 1000lt instalado",
+  "SANITARIOS COMPLEMENTARIOS||Tanque polietileno 2000lt instalado",
+  "SANITARIOS COMPLEMENTARIOS||Tanque polietileno 500lt instalado",
+  "SANITARIOS COMPLEMENTARIOS||Termotanque solar 200lt completo",
+  // VEREDAS Y ACCESOS (1)
+  "VEREDAS Y ACCESOS||Rampa vehicular H°A° 12cm (hasta 3m ancho)",
+  // HERRERÍA ORNAMENTAL (3)
+  "HERRERÍA ORNAMENTAL||Puerta peatonal metálica 0.90x2.10m",
+  "HERRERÍA ORNAMENTAL||Pérgola metálica simple (por m²)",
+  "HERRERÍA ORNAMENTAL||Reja tubular simple p/ ventana (caño 1\")",
+  // IMPERMEABILIZACIONES (2)
+  "IMPERMEABILIZACIONES||Imprimación asfáltica previa",
+  "IMPERMEABILIZACIONES||Sellado estanco baño/terraza (Sika top 107)",
+  // ESCALERAS Y BARANDAS (2)
+  "ESCALERAS Y BARANDAS||Escalón premoldeado hormigón",
+  "ESCALERAS Y BARANDAS||Pasamano hierro forjado simple",
+]);
+
 // ── FUNCIÓN CONSTRUCTORA ──────────────────────────────────────────────
 function buildDB(raw = DB_RAW, laborPct = LABOR_PCT) {
   const db = {};
@@ -4352,13 +4549,18 @@ function buildDB(raw = DB_RAW, laborPct = LABOR_PCT) {
     db[cat] = {};
     const pct = laborPct[cat] || 30;
     for (const [name, item] of Object.entries(items)) {
+      // MO embutida: si el rubro está en MO_YA_INCLUIDA, `m` es el TOTAL Mat+MO
+      // (fuente Mandua Costeo). La MO ya está dentro, así que NO se suma de nuevo:
+      // mat = m − lab y total = m. Los demás rubros conservan la lógica original.
       const lab = (item.l == null) ? Math.round(item.m * pct / 100) : item.l;
+      const moEmbebida = (typeof MO_YA_INCLUIDA !== "undefined") && MO_YA_INCLUIDA.has(cat + "||" + name);
+      const mat = moEmbebida ? Math.max(0, item.m - lab) : item.m;
       db[cat][name] = {
         unit:      item.u,
-        matCost:   item.m,
+        matCost:   mat,
         laborCost: lab,
         laborPct:  pct,
-        total:     item.m + lab,
+        total:     mat + lab,
         mats:      item.mats || [],
         y:         item.y || null,
       };
@@ -4369,5 +4571,5 @@ function buildDB(raw = DB_RAW, laborPct = LABOR_PCT) {
 
 // ── EXPORTAR ──────────────────────────────────────────────────────────
 if (typeof module !== "undefined") {
-  module.exports = { DB_RAW, LABOR_PCT, IVA_MAT, IVA_LAB, MAT_PRECIOS, DB_VERSION, DB_FECHA, buildDB };
+  module.exports = { DB_RAW, LABOR_PCT, IVA_MAT, IVA_LAB, MAT_PRECIOS, DB_VERSION, DB_MES, DB_FECHA, buildDB, MO_YA_INCLUIDA };
 }

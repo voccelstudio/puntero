@@ -7,7 +7,11 @@
     "lint": "eslint . --ext .js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "smoke": "node tests/smoke-clients.mjs"
+    "smoke": "node tests/smoke-clients.mjs && node tests/smoke-panel.mjs && node tests/smoke-precios.mjs",
+    "smoke:clientes": "node tests/smoke-clients.mjs",
+    "smoke:panel": "node tests/smoke-panel.mjs",
+    "smoke:precios": "node tests/smoke-precios.mjs",
+    "precios:build": "node tools/build_precios.js"
   },
   "devDependencies": {
     "eslint": "^8.57.0",

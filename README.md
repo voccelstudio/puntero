@@ -38,17 +38,21 @@ Módulos por dominio:
 
 tests/              Vitest + smoke test con navegador
 tools/              Scripts de desarrollo (no se despliegan)
+precios/            db.json (copia maestra de precios) + manifest.json publicado
 examples/           Archivos de ejemplo para probar importación (no se despliegan)
 ```
 
 ## Comandos
 
 ```bash
-npm install          # dependencias de desarrollo
-npm test             # suite de tests (Vitest)
-npm run lint         # ESLint
-npm run smoke        # smoke test del panel de control y licencias
-node tests/smoke-clients.mjs   # smoke test de clientes y vinculación a obras
+npm install             # dependencias de desarrollo
+npm test                # suite de tests (Vitest)
+npm run lint            # ESLint
+npm run smoke           # los 3 smoke tests en navegador real
+npm run smoke:clientes  # clientes y vinculación a obras
+npm run smoke:panel     # panel de control, planes, suscripción y login
+npm run smoke:precios   # flujo pagado de actualización de precios
+npm run precios:build   # regenera precios/manifest.json desde precios/db.json
 ```
 
 ## Cómo funcionan los tests
@@ -64,8 +68,10 @@ con las tasas de IVA invertidas pasaba sin fallar. Ahora se testea la implementa
 - `tests/helpers.test.js` — formateo, fechas, escape
 - `tests/cloud-sync.test.js` — sincronización Firestore y conflictos local vs. nube
 - `tests/runtime.test.js` — deep links del manifest, tiers de licencia, estado de sesión y conexión
+- `tests/precios.test.js` — merge de la base de precios y gate de actualización por suscripción
 - `tests/smoke-panel.mjs` — flujo real en navegador: panel de control, planes, suscripción y login
 - `tests/smoke-clients.mjs` — flujo real en navegador: clientes, alta de obra, PDF de vinculación
+- `tests/smoke-precios.mjs` — flujo real en navegador: detectar precios nuevos, aplicarlos conservando ediciones, y que el plan usuario no reciba nada
 
 ## Modelo de datos (resumen)
 
@@ -89,7 +95,44 @@ se trae el de la nube. La resolución de conflictos es *last-writer-wins*, con u
 salvaguarda: si el dispositivo ya sincronizó antes y tiene cambios locales más nuevos que
 la nube, se sube lo local en lugar de pisarlo — así no se pierde el trabajo hecho offline.
 
-La **cuenta maestra** y las **sesiones demo** son locales por diseño y nunca van a la nube.
+**La nube exige una sesión real de Firebase** (`isCloudUser()` = plan PRO **y** sesión
+autenticada). No es un capricho: las reglas de Firestore validan `request.auth.uid` contra
+el documento, así que sin sesión la escritura se rechazaría y el sync fallaría en silencio.
+Por eso `isCloudUser()` apaga en lugar de fingir. El efecto práctico:
+
+- Al crear una cuenta PRO desde el panel, se la **vincula a Firebase** (botón ☁️ si se creó
+  sin conexión). Sin eso, el cliente trabaja en local igual pero sin nube.
+- Al iniciar sesión, la app usa la contraseña tecleada para abrir también la sesión de
+  Firebase (best-effort): si Firebase está caído, **la app sigue funcionando**.
+- La **cuenta maestra** necesita su propia sesión de Firebase para tener nube propia; sin
+  ella es VIP con todo habilitado pero guardando en el dispositivo.
+
+## Actualización de precios por suscripción
+
+Es el beneficio que cobra la mensualidad PRO. La app no necesita actualizarse: los precios
+viajan en un manifiesto versionado que se publica junto con la app.
+
+```bash
+# 1. Editar precios/db.json  (copia maestra: "version", "mes" y el catálogo)
+# 2. Regenerar el manifiesto
+npm run precios:build
+# 3. Desplegar
+firebase deploy
+```
+
+Del lado del cliente: `checkPreciosUpdate()` compara la versión del manifiesto contra la
+que tiene **instalada** (`localStorage`) y, si hay más nueva, la sección 💰 Base de Precios
+ofrece actualizar. `mergePriceDBs()` manda la base oficial **pero las ediciones del usuario
+ganan**: quien corrigió el precio del cemento a mano no lo pierde, y sus rubros propios se
+conservan aunque desaparezcan del catálogo.
+
+Al aplicar, la base se marca con `ppy_db_source = "remoto"` para que el arranque no la
+reemplace por la compilada en la app (eso bajaría los precios recién recibidos y volvería
+a ofrecer la misma actualización para siempre). El botón *Restaurar* vuelve a la base
+compilada y limpia esa marca.
+
+Quien no paga la suscripción no consulta el manifiesto: ve la fecha de su base y la
+indicación de que la actualización es un beneficio PRO. Su licencia sigue funcionando igual.
 
 ## Modelo de licencias
 

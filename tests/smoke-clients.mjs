@@ -32,7 +32,10 @@ const ok = (m) => report.push("PASS  " + m);
 const fail = (m) => report.push("FAIL  " + m);
 
 const main = async () => {
-  const server = spawn("python", ["-m", "http.server", String(PUERTO)], { shell: true, stdio: "ignore", cwd: ROOT });
+  // Sin `shell: true`: así server.kill() le pega a python.exe directamente.
+  // Con shell, node mata el cmd.exe intermedio y el server queda huérfano
+  // ocupando el puerto en la siguiente corrida.
+  const server = spawn("python", ["-m", "http.server", String(PUERTO)], { stdio: "ignore", cwd: ROOT });
   try {
     await servidorListo();
     const browser = await puppeteer.launch({ executablePath: EDGE, headless: "new", userDataDir: PERFIL, args: ["--no-sandbox"] });

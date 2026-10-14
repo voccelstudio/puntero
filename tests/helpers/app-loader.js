@@ -52,7 +52,14 @@ function bootstrap() {
   proDaysLeft: proDaysLeft,
   tierLabel: tierLabel,
   getAccounts: getAccounts,
-  setAccounts: setAccounts
+  setAccounts: setAccounts,
+  mergePriceDBs: mergePriceDBs,
+  preciosFechaLabel: preciosFechaLabel,
+  preciosVersionInstalada: preciosVersionInstalada,
+  preciosInstalados: preciosInstalados,
+  aplicarPreciosRemotos: aplicarPreciosRemotos,
+  restaurarPreciosLocales: restaurarPreciosLocales,
+  checkPreciosUpdate: checkPreciosUpdate
 };
 `;
 

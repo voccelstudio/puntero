@@ -12,6 +12,138 @@ const VALID_SECTIONS = [
   "clients", "aftercare", "computo", "folder", "accounts", "cloud",
 ];
 
+// ══════════════════════════════════════════════════════════════════════
+// BASE DE PRECIOS — merge y actualización remota
+// ══════════════════════════════════════════════════════════════════════
+//
+// La DB viaja compilada dentro de app/db_precios.js, pero los suscriptores PRO
+// reciben versiones nuevas sin tener que reinstalar la app: se publica un JSON
+// versionado y se fusiona con lo que el usuario tenga.
+//
+// Regla del merge (importa, y es sutil): la DB nueva manda, PERO las ediciones
+// manuales del usuario ganan. Así alguien que corrigió el precio del cemento a
+// mano no lo pierde al actualizar — salvo que el ítem desapareció de la DB nueva,
+// en cuyo caso su versión personalizada se conserva igual.
+
+function mergePriceDBs(freshDB, userDB) {
+  var merged = JSON.parse(JSON.stringify(freshDB || {}));
+  var user = userDB || {};
+  Object.keys(user).forEach(function (cat) {
+    if (!merged[cat]) {
+      // Categoría propia del usuario (o eliminada de la DB nueva): se conserva
+      merged[cat] = JSON.parse(JSON.stringify(user[cat]));
+      return;
+    }
+    Object.keys(user[cat]).forEach(function (name) {
+      if (merged[cat][name]) {
+        // El ítem existe en la DB nueva: respetar la edición del usuario
+        merged[cat][name] = Object.assign({}, merged[cat][name], user[cat][name]);
+      } else {
+        // Ítem propio del usuario que ya no está en la DB nueva: conservarlo
+        merged[cat][name] = JSON.parse(JSON.stringify(user[cat][name]));
+      }
+    });
+  });
+  return merged;
+}
+
+// Manifiesto de precios remoto. Se genera con tools/build_precios.js y se
+// publica junto con la app (público: no contiene datos de clientes).
+var PRECIOS_URL = "precios/manifest.json";
+
+// Versión de la DB instalada en ESTE dispositivo. No usamos la constante
+// compilada: la suscripción tiene sentido precisamente porque la app no se
+// actualiza. Lo que manda es lo que el usuario tiene instalado, y si el
+// manifiesto remoto trae algo más nuevo, se ofrece actualizar.
+function preciosVersionInstalada() {
+  var v = null;
+  try { v = localStorage.getItem("ppy_db_version"); } catch (e) { v = null; }
+  if (v) {return String(v);}
+  return String(DB_VERSION);
+}
+
+// Mes de referencia de la DB instalada (lo que ve el usuario).
+function preciosMesInstalado() {
+  try {
+    var m = localStorage.getItem("ppy_db_mes");
+    if (m) {return m;}
+  } catch (e) {}
+  return DB_MES || null;
+}
+
+// Versión de la DB instalada (la que trae db_precios.js).
+function preciosInstalados() {
+  return { version: preciosVersionInstalada(), fecha: preciosMesInstalado() };
+}
+
+// Fecha legible de la DB instalada ("marzo 2026"), para mostrar al usuario.
+function preciosFechaLabel(fecha) {
+  if (!fecha) {return "sin fecha";}
+  var m = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
+    "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+  var p = String(fecha).split("-"); // "2026-03" o "2026-03-01"
+  var anio = p[0];
+  var mes = parseInt(p[1], 10);
+  if (!anio || !mes) {return String(fecha);}
+  return m[mes - 1] + " " + anio;
+}
+
+// ¿Hay precios más nuevos disponibles? Solo tiene sentido para suscriptores.
+function checkPreciosUpdate() {
+  if (!canUpdatePrices()) {return Promise.resolve(null);}
+  if (typeof fetch !== "function") {return Promise.resolve(null);}
+  return fetch(PRECIOS_URL, { cache: "no-store" })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (man) {
+      if (!man || !man.db || !man.version) {return null;}
+      if (String(man.version) === preciosVersionInstalada()) {return null;}
+      return {
+        version: man.version,
+        fecha: man.mes || null,
+        // La app fusiona con lo del usuario al aplicar, conservando sus ediciones.
+        db: man.db
+      };
+    })
+    .catch(function () { return null; }); // offline: no molestar
+}
+
+// Aplica una versión nueva de precios preservando las ediciones del usuario.
+function aplicarPreciosRemotos(nuevaDB, version, mes) {
+  if (!nuevaDB) {return false;}
+  // La DB nueva manda, pero las ediciones del usuario ganan (ver mergePriceDBs).
+  DB = mergePriceDBs(nuevaDB, DB);
+  localStorage.setItem("ppy_db5", JSON.stringify(DB));
+  localStorage.setItem("ppy_db_version", String(version || ""));
+  if (mes) {localStorage.setItem("ppy_db_mes", mes);}
+  // Marca el origen: sin esto, el arranque migraría la base a la compilada y
+  // el suscriptor "perdería" los precios que acaba de recibir.
+  localStorage.setItem("ppy_db_source", "remoto");
+  save();
+  return true;
+}
+
+// Vuelve a la base que trae compilada la app (el botón "Restaurar").
+function restaurarPreciosLocales() {
+  DB = buildDB();
+  try {
+    localStorage.removeItem("ppy_db_source");
+    localStorage.removeItem("ppy_db_mes");
+    localStorage.setItem("ppy_db_version", DB_VERSION);
+  } catch (e) {}
+  save();
+}
+
+// Recorre la base en segundo plano y avisa si hay algo más nuevo.
+function preciosUpdateSilencioso() {
+  if (!canUpdatePrices()) {return;}
+  checkPreciosUpdate().then(function (nuevo) {
+    if (!nuevo) {return;}
+    var fechaTxt = preciosFechaLabel(nuevo.fecha);
+    toast("Hay precios actualizados (" + fechaTxt + "). Abrilo desde 💰 Base de Precios.", true);
+    state._preciosPendientes = { version: nuevo.version, fecha: nuevo.fecha };
+  }).catch(function () {});
+}
+
 // Extrae y valida la seccion de un query string (?section=logs).
 // Devuelve null si no viene o si no es una seccion conocida: los shortcuts del
 // manifest no deben poder inyectar valores arbitrarios en la app.
@@ -215,8 +347,13 @@ function buildDB() {
     db[cat] = {};
     const pct = LABOR_PCT[cat] || 30;
     for (const [name, item] of Object.entries(items)) {
-      const lab = Math.round(item.m * pct / 100);
-      db[cat][name] = { unit: item.u, matCost: item.m, laborCost: lab, laborPct: pct, total: item.m + lab, mats: item.mats || [], y: item.y || null };
+      // MO embutida: si el rubro está en MO_YA_INCLUIDA (db_precios.js), `m` ya es
+      // el TOTAL Mat+MO (fuente Mandua Costeo), así que la MO NO se suma de nuevo:
+      // mat = m − lab y total = m. Rubros con MO explícita (campo `l`) la preservan.
+      const lab = (item.l == null) ? Math.round(item.m * pct / 100) : item.l;
+      const moEmbebida = (typeof MO_YA_INCLUIDA !== "undefined") && MO_YA_INCLUIDA.has(cat + "||" + name);
+      const mat = moEmbebida ? Math.max(0, item.m - lab) : item.m;
+      db[cat][name] = { unit: item.u, matCost: mat, laborCost: lab, laborPct: pct, total: mat + lab, mats: item.mats || [], y: item.y || null };
     }
   }
   return db;
@@ -292,44 +429,53 @@ try {
 
 // Init Dexie and try to load authoritative data from IndexedDB
 initDexie();
+
+// Este callback puede correr DURANTE la carga del propio app.js: si Dexie aún no
+// está disponible, dexieLoad lo invoca en forma síncrona (ver dexieLoad). En ese
+// momento los módulos que se cargan después (clients.js, ot.js, materials.js…)
+// todavía no existen, y pintar una sección que los usa estalla con un
+// ReferenceError y deja la pantalla en blanco. Se espera a que el documento
+// termine de parsearse, que es cuando ya están todos.
+function cuandoListosLosScripts(fn) {
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", fn, { once: true });
+  } else {
+    fn();
+  }
+}
+
 dexieLoad(function () {
   // Dexie loaded, re-render if needed
-  if (typeof ensureClients === "function") {ensureClients();}
-  if (typeof setSection === "function" && state.section) {
-    setSection(state.section);
-  }
+  cuandoListosLosScripts(function () {
+    if (typeof ensureClients === "function") {ensureClients();}
+    if (typeof setSection === "function" && state.section) {
+      setSection(state.section);
+    }
+  });
 });
 
 try {
   const d = localStorage.getItem("ppy_db5");
   const cachedVersion = localStorage.getItem("ppy_db_version");
+  // Origen de la base instalada. "remoto" = llegó por la suscripción (canal de
+  // precios), por lo que es MÁS NUEVA que la que trae compilada esta versión de
+  // la app. En ese caso no se migra ni se pisa la versión: reemplazarla por la
+  // compilada sería bajar los precios que el suscriptor acaba de recibir, y
+  // volvería a ofrecer la misma actualización en cada arranque.
+  let dbOrigen = null;
+  try { dbOrigen = localStorage.getItem("ppy_db_source"); } catch (e) { dbOrigen = null; }
   if (d) {
     const cachedDB = JSON.parse(d);
-    // Si la versión cacheada coincide con la actual, usarla tal cual
-    if (cachedVersion === DB_VERSION) {
+    if (dbOrigen === "remoto") {
+      // Base de la suscripción: se usa tal cual, con las ediciones ya aplicadas
+      DB = cachedDB;
+    } else if (cachedVersion === DB_VERSION) {
+      // Si la versión cacheada coincide con la actual, usarla tal cual
       DB = cachedDB;
     } else {
       // Si no, hacer merge: arrancar de la DB fresca (con categorías nuevas)
       // y sobrescribir con las ediciones manuales del usuario que existan
-      const freshDB = buildDB();
-      const mergedDB = JSON.parse(JSON.stringify(freshDB));
-      // Aplicar ediciones del usuario sobre items que sigan existiendo
-      for (const [cat, items] of Object.entries(cachedDB)) {
-        if (mergedDB[cat]) {
-          for (const [name, data] of Object.entries(items)) {
-            if (mergedDB[cat][name]) {
-              // Mantener precios editados por el usuario
-              mergedDB[cat][name] = { ...mergedDB[cat][name], ...data };
-            } else {
-              // Item personalizado del usuario que no está en la nueva DB → conservarlo
-              mergedDB[cat][name] = data;
-            }
-          }
-        } else {
-          // Categoría que el usuario tenía pero ya no está en la DB → conservarla
-          mergedDB[cat] = items;
-        }
-      }
+      const mergedDB = mergePriceDBs(buildDB(), cachedDB);
       DB = mergedDB;
       localStorage.setItem("ppy_db5", JSON.stringify(DB));
       localStorage.setItem("ppy_db_version", DB_VERSION);
@@ -1422,8 +1568,10 @@ function firestoreSync() {
   clearTimeout(_saveTimer);
   _saveTimer = setTimeout(function () {
     try {
+      var cloudUid = cloudIdentity();
+      if (!cloudUid) {return;}
       state._lastCloudSync = new Date().toISOString();
-      window._FIRESTORE.collection("users").doc(window._currentUser.uid).set({
+      window._FIRESTORE.collection("users").doc(cloudUid).set({
         appState: JSON.parse(JSON.stringify(state)),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
@@ -1432,7 +1580,7 @@ function firestoreSync() {
         window._workspaceRef.update({
           data: extractWorkspaceData(),
           updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-          updatedBy: window._currentUser.uid
+          updatedBy: cloudUid
         }).catch(function (e) { console.warn("Workspace write error:", e); });
       }
     } catch (e) { console.warn("Firestore sync error:", e); }
@@ -1445,9 +1593,10 @@ window.addEventListener("beforeunload", function () {
     clearTimeout(_saveTimer);
     try {
       var cloudUser = isCloudUser();
-      if (cloudUser && state._cloudSyncEnabled !== false) {
+      var cloudUidFlush = cloudIdentity();
+      if (cloudUser && cloudUidFlush && state._cloudSyncEnabled !== false) {
         state._lastCloudSync = new Date().toISOString();
-        window._FIRESTORE.collection("users").doc(window._currentUser.uid).set({
+        window._FIRESTORE.collection("users").doc(cloudUidFlush).set({
           appState: JSON.parse(JSON.stringify(state)),
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
@@ -1455,7 +1604,7 @@ window.addEventListener("beforeunload", function () {
           window._workspaceRef.update({
             data: extractWorkspaceData(),
             updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-            updatedBy: window._currentUser.uid
+            updatedBy: cloudUidFlush
           }).catch(function () {});
         }
       }
@@ -2776,6 +2925,61 @@ function setBudgetClient(id) {
 }
 
 // ── PRICES SECTION ────────────────────────────────────────────────────
+// ── Actualización manual de precios (botón en la Base de Precios) ─────────
+function preciosEstadoHtml() {
+  var inst = preciosInstalados();
+  var suscriptor = canUpdatePrices();
+  return '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:.8rem;color:var(--tx3);margin:0 0 12px">' +
+    '<span>📦 Precios instalados: <strong style="color:var(--tx2)">' + preciosFechaLabel(inst.fecha) + '</strong> (v' + inst.version + ')</span>' +
+    (suscriptor
+      ? '<span style="color:var(--ok)">✓ Suscripción activa: recibís actualizaciones</span>'
+      : '<span style="color:var(--warn)">Sin suscripción PRO: los precios no se actualizan. ' +
+        'Tu licencia sigue funcionando igual.</span>') +
+    '</div>';
+}
+
+function chequearPrecios() {
+  var av = document.getElementById("precios-aviso");
+  if (!canUpdatePrices()) {
+    if (av) {
+      av.innerHTML = '<div class="info-box" style="border-color:var(--warn)"><p>⚠️ La actualización de precios es un beneficio del plan PRO mensual. Tu app funciona completa en local, solo que estos precios se quedan en la fecha que ves arriba.</p></div>';
+    }
+    toast("La actualización de precios es parte del plan PRO", false);
+    return;
+  }
+  if (av) {av.innerHTML = '<div class="info-box"><p>Buscando precios actualizados…</p></div>';}
+  checkPreciosUpdate().then(function (nuevo) {
+    if (!nuevo) {
+      if (av) {av.innerHTML = '<div class="info-box"><p>✓ Tus precios ya están al día.</p></div>';}
+      toast("Tus precios ya están al día ✓");
+      return;
+    }
+    var fechaTxt = preciosFechaLabel(nuevo.fecha);
+    if (av) {
+      av.innerHTML = '<div class="info-box" style="border-color:var(--ok)">' +
+        '<p><strong>Hay precios nuevos (' + fechaTxt + ').</strong></p>' +
+        '<p style="font-size:.85rem;color:var(--tx3);margin-top:4px">Se reemplaza la base oficial pero <strong>se conservan tus ediciones</strong> y tus ítems personalizados.</p>' +
+        '<button class="btn sm primary" style="margin-top:8px" onclick="aplicarPreciosDesdeAviso()">Actualizar ahora</button></div>';
+    }
+    state._preciosPendientes = { version: nuevo.version, fecha: nuevo.fecha, db: nuevo.db };
+    toast("Hay precios actualizados de " + fechaTxt, true);
+  }).catch(function () {
+    if (av) {av.innerHTML = '<div class="info-box"><p>No se pudo conectar. Revisá tu internet y volvé a intentar.</p></div>';}
+  });
+}
+
+function aplicarPreciosDesdeAviso() {
+  var p = state._preciosPendientes;
+  if (!p || !p.db) {return chequearPrecios();}
+  if (aplicarPreciosRemotos(p.db, p.version, p.fecha)) {
+    delete state._preciosPendientes;
+    toast("Precios actualizados ✓ · tus ediciones se conservaron");
+    renderPrices();
+  } else {
+    toast("No se pudo actualizar", false);
+  }
+}
+
 function renderPrices() {
   const el = document.getElementById("section-prices");
   if (!el) {return;}
@@ -2790,10 +2994,13 @@ function renderPrices() {
         <span style="font-size:.95rem;color:var(--tx3)">Modo:</span>
         <button class="btn sm${state.priceEditMode === "total" ? " primary" : ""}" onclick="state.priceEditMode='total';renderPrices()">Total</button>
         <button class="btn sm${state.priceEditMode === "breakdown" ? " primary" : ""}" onclick="state.priceEditMode='breakdown';renderPrices()">Mat / MO</button>
-        <button class="btn sm danger" onclick="if(confirm('Restaurar todos los precios a la DB original?')){DB=buildDB();save();renderPrices();toast('Precios restaurados');}">Restaurar</button>
+        <button class="btn sm danger" onclick="if(confirm('Restaurar todos los precios a la DB original?')){restaurarPreciosLocales();renderPrices();toast('Precios restaurados');}">Restaurar</button>
+        <button class="btn sm" id="btn-precios-update" onclick="chequearPrecios()" title="Buscar precios actualizados">☁️ Actualizar precios</button>
       </div>
     </div>
     <div class="info-box"><p>Los precios reflejan el mercado de la construcción en Paraguay. Podés editar cualquier precio haciendo clic sobre él. Usá el ajuste global para aplicar un porcentaje de actualización a toda la base de una sola vez.</p></div>
+    ${preciosEstadoHtml()}
+    <div id="precios-aviso"></div>
     <div class="pgrid">`;
   for (const [cat, items] of Object.entries(DB)) {
     h += `<div class="pcard"><span class="pcat-tag">${cat}</span>`;
@@ -4532,8 +4739,22 @@ function canUpdatePrices() { return isProActive(); }
 // ¿Puede usar nube y backup remoto?
 // FUENTE ÚNICA de verdad: la usan firestoreSync, loadFromFirestore, el flush de
 // beforeunload y el indicador de estado, para que lo que se muestra no mienta.
+//
+// Exige DOS cosas:
+//   1) plan PRO con suscripción vigente, y
+//   2) una sesión REAL de Firebase.
+// Lo segundo no es opcional: las reglas de Firestore validan request.auth.uid
+// contra el documento, así que sin sesión autenticada la escritura se rechaza
+// y el sync fallaría en silencio. Mejor no intentarlo y avisar.
 function isCloudUser() {
-  return isProActive();
+  if (!isProActive()) {return false;}
+  return !!cloudIdentity();
+}
+
+// uid de la sesión Firebase autenticada (la que usan las reglas). null si no hay.
+function cloudIdentity() {
+  var f = window._AUTH && window._AUTH.currentUser;
+  return f && f.uid ? f.uid : null;
 }
 
 // Descripción legible del tier, para mostrar en la interfaz.
@@ -4595,6 +4816,13 @@ function initFirebaseAuth() {
     if (!user && localStorage.getItem("pte_master_session") === "1") {
       user = { uid: "master", email: "martin@puntero.local", isMaster: true };
     } else if (!user) {
+      // Cuenta de pago emitida por el admin: se restaura si Firebase no trae una
+      // sesión propia. Si la trae (mismo correo), gana la de Firebase porque es
+      // la que tiene la sesión real que las reglas de Firestore verifican.
+      var p = restorePaidSession();
+      if (p && (!user || (user.email && user.email === p.email))) {user = p;}
+    }
+    if (!user) {
       // Cuenta invitado/demo local: no usa Firebase
       user = guestUser();
     }
@@ -4621,7 +4849,8 @@ function initFirebaseAuth() {
 async function loadFromFirestore() {
   if (!isCloudUser()) {return;}
   try {
-    var ref = window._FIRESTORE.collection("users").doc(window._currentUser.uid);
+    var cloudUid = cloudIdentity();
+    var ref = window._FIRESTORE.collection("users").doc(cloudUid);
     var doc = await ref.get();
     if (!doc.exists || !doc.data().appState) {
       if (state.projects && state.projects.length > 0) {
@@ -4768,7 +4997,7 @@ async function login() {
       if (errBox) { errBox.textContent = "Usuario o contraseña incorrectos"; errBox.style.display = ""; }
       return;
     }
-    startPaidSession(paidAcc);
+    startPaidSession(paidAcc, pass);
     return;
   }
   if (!window._AUTH) {return toast("Sin conexión. Usá el modo invitado.", false);}
@@ -4948,7 +5177,7 @@ function deleteGuestSession() {
 // Inicia sesión de una cuenta de pago emitida por el admin.
 // El uid se toma del registro (acc.id): es estable entre dispositivos porque
 // el registro se réplica, y es la clave con la que se guarda en la nube.
-function startPaidSession(acc) {
+function startPaidSession(acc, pass) {
   // Cerrar cualquier sesión de invitado para que no la pise después
   deleteGuestSession();
   try {
@@ -4969,6 +5198,15 @@ function startPaidSession(acc) {
   applyAppLock();
   closeModal();
 
+  // Sesión real en Firebase si la cuenta está vinculada allí. Es lo que habilita
+  // la nube (las reglas verifican request.auth.uid). Si Firebase está caído o la
+  // cuenta nunca se vinculó, la app sigue funcionando en local sin problemas.
+  if (pass && window._AUTH && acc.firebase) {
+    window._AUTH.signInWithEmailAndPassword(acc.username, pass).catch(function (e) {
+      console.warn("Sin sesión de nube (funciona en local):", e.code || e.message);
+    });
+  }
+
   // La nube y el backup solo son para PRO con suscripción vigente.
   if (isProActive()) {
     loadFromFirestore().then(function () {
@@ -4979,7 +5217,9 @@ function startPaidSession(acc) {
   var tier = tierOfUser(window._currentUser);
   if (tier === TIERS.PRO) {
     var d = proDaysLeft();
-    toast("Bienvenido ⭐ PRO" + (d === null ? "" : " · " + d + " día" + (d === 1 ? "" : "s") + " de suscripción") + " ✓");
+    var sinNube = !isCloudUser();
+    toast("Bienvenido ⭐ PRO" + (d === null ? "" : " · " + d + " día" + (d === 1 ? "" : "s") + " de suscripción") +
+      (sinNube ? " · sin conexión a la nube" : "") + " ✓");
   } else {
     toast("Bienvenido 👤 · tus datos se guardan en este dispositivo ✓");
   }
@@ -5188,6 +5428,9 @@ function renderAccountsSettings() {
     if (t !== TIERS.DEMO) {
       acts.push('<button class="btn sm" onclick="adminResetPassword(\'' + a.id + '\')" title="Nueva contraseña">🔑</button>');
       acts.push('<button class="btn sm" onclick="adminToggleActive(\'' + a.id + '\')" title="' + (a.active === false ? "Activar" : "Desactivar") + '">' + (a.active === false ? "▶️" : "⏸") + '</button>');
+      if (!a.firebase) {
+        acts.push('<button class="btn sm" onclick="adminLinkFirebase(\'' + a.id + '\')" title="Crear la cuenta en Firebase para habilitar la nube">☁️</button>');
+      }
     }
     acts.push('<button class="btn sm" onclick="adminCopyAccount(\'' + a.id + '\')" title="Copiar credenciales">📋</button>');
     acts.push('<button class="btn sm danger" onclick="adminDeleteAccount(\'' + a.id + '\')" title="Eliminar">🗑️</button>');
@@ -5196,7 +5439,8 @@ function renderAccountsSettings() {
       '<div style="flex:1;min-width:180px">' +
       '<div style="font-weight:700">' + escapeHtml(a.username) + '</div>' +
       '<div style="font-size:0.8rem;color:var(--tx3)">' + badge + ' · <span style="color:' + est.color + '">' + est.txt + '</span>' +
-      (a.note ? ' · 📝 ' + escapeHtml(a.note) : '') + '</div>' +
+      (a.note ? ' · 📝 ' + escapeHtml(a.note) : '') +
+      (t === TIERS.DEMO ? '' : (a.firebase ? ' · ☁️' : ' · 💻 solo local')) + '</div>' +
       '</div>' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap">' + acts.join("") + '</div>' +
       '</div>';
@@ -5467,6 +5711,58 @@ async function adminSaveAccountEdit(id) {
   renderAccountsSettings();
   var label = newType === TIERS.PRO ? "⭐ PRO" : newType === TIERS.USUARIO ? "👤 Usuario" : "🎭 Demo";
   toast("Cuenta actualizada ✓ · " + label + (oldType !== newType ? " (antes: " + oldType + ")" : ""));
+}
+
+// ── VINCULAR CUENTA A FIREBASE ─────────────────────────────────────────
+// Una cuenta creada sin conexión queda operativa en local pero sin identidad en
+// la nube. Con conexión, esto la crea en Firebase Auth para que el plan PRO
+// pueda sincronizar de verdad.
+async function adminLinkFirebase(id) {
+  if (!isMasterAcc()) {return;}
+  var enc = getAccounts().find(function (x) { return x.id === id; });
+  if (!enc) {return;}
+  if (!window._AUTH) {return toast("Sin conexión con Firebase. Probá cuando tengas internet.", false);}
+  if (enc.firebase) {return toast("Esta cuenta ya está vinculada a la nube", false);}
+
+  var pass = prompt("Contraseña que va a usar el cliente para " + enc.username + "\n(mínimo 6 caracteres):", "");
+  if (pass === null) {return;}
+  pass = pass.trim();
+  if (pass.length < 6) {return toast("Mínimo 6 caracteres", false);}
+
+  toast("Creando la cuenta en la nube...", true);
+  try {
+    var cred = await window._AUTH.createUserWithEmailAndPassword(enc.username, pass);
+    var list = getAccounts();
+    var a = list.find(function (x) { return x.id === id; });
+    a.firebase = true;
+    a.uid = cred.user.uid;
+    setAccounts(list);
+    // Crear una cuenta inicia sesión como ella: restaurar la maestra.
+    try { await window._AUTH.signOut(); } catch (e) {}
+    if (localStorage.getItem("pte_master_session") === "1") {
+      window._currentUser = { uid: "master", email: "martin@puntero.local", isMaster: true };
+    }
+    applyAppLock();
+    ensureAdminSync().then(function () { pushAccountsSync(); }).catch(function () {});
+    renderAccountsSettings();
+    toast("☁️ Cuenta vinculada · ya puede sincronizar ✓");
+  } catch (e) {
+    var code = (e && e.code) || "";
+    if (/email-already-in-use/i.test(code)) {
+      // Ya existía en Firebase: la adoptamos (la contraseña es la que ella tenga).
+      var list2 = getAccounts();
+      var a2 = list2.find(function (x) { return x.id === id; });
+      a2.firebase = true;
+      setAccounts(list2);
+      ensureAdminSync().then(function () { pushAccountsSync(); }).catch(function () {});
+      renderAccountsSettings();
+      toast("El correo ya existía en la nube: cuenta vinculada ✓", false);
+    } else if (/operation-not-allowed|admin-restricted-operation/i.test(code)) {
+      toast("Habilitá Email/Password en Firebase → Authentication → Acceso", false);
+    } else {
+      toast((e && e.message) || "No se pudo vincular", false);
+    }
+  }
 }
 
 function adminToggleActive(id) {
@@ -5865,6 +6161,7 @@ window.onload = () => {
   updateBadge();
   checkBackupReminder();
   updateConnStatus();
+  preciosUpdateSilencioso();
   
   // [CLOUD OFF] migración de fotos a Storage desactivada: reactivar quitando el comentario
   // setTimeout(migrateBase64ToStorage, 3000);
