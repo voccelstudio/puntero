@@ -44,7 +44,15 @@ function bootstrap() {
   isOnline: isOnline,
   updateConnStatus: updateConnStatus,
   getDB: function () { return DB; },
-  setDB: function (v) { DB = v; }
+  setDB: function (v) { DB = v; },
+  currentTier: currentTier,
+  tierOfUser: tierOfUser,
+  isProActive: isProActive,
+  canUpdatePrices: canUpdatePrices,
+  proDaysLeft: proDaysLeft,
+  tierLabel: tierLabel,
+  getAccounts: getAccounts,
+  setAccounts: setAccounts
 };
 `;
 

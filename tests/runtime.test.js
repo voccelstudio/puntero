@@ -29,25 +29,55 @@ describe("sectionFromUrl() — deep links de los shortcuts del manifest", () => 
   });
 });
 
-describe("isCloudUser() — qué sesiones sincronizan con la nube", () => {
-  it("usuario de Firebase normal: sí sincroniza", () => {
-    window._currentUser = { uid: "u1", email: "a@b.com" };
-    expect(app.isCloudUser()).toBe(true);
-  });
+describe("isCloudUser() / tiers — quién sincroniza con la nube", () => {
+  function setLedger(list) {
+    localStorage.setItem("pte_accounts", JSON.stringify(list));
+  }
 
-  it("cuenta maestra: NO sincroniza (es local por diseño)", () => {
+  it("cuenta maestra: sí sincroniza (vitalicia)", () => {
     window._currentUser = { uid: "master", email: "martin@puntero.local", isMaster: true };
+    expect(app.isCloudUser()).toBe(true);
+    expect(app.currentTier()).toBe("maestra");
+  });
+
+  it("PRO con suscripción vigente: sí sincroniza", () => {
+    setLedger([{ id: "a1", uid: "u1", username: "pro@x.com", type: "pro", active: true, proUntil: Date.now() + 10 * 86400000 }]);
+    window._currentUser = { uid: "u1", email: "pro@x.com" };
+    expect(app.isCloudUser()).toBe(true);
+    expect(app.currentTier()).toBe("pro");
+  });
+
+  it("PRO con suscripción VENCIDA: no sincroniza", () => {
+    setLedger([{ id: "a1", uid: "u1", username: "pro@x.com", type: "pro", active: true, proUntil: Date.now() - 86400000 }]);
+    window._currentUser = { uid: "u1", email: "pro@x.com" };
+    expect(app.isCloudUser()).toBe(false);
+    expect(app.canUpdatePrices()).toBe(false);
+  });
+
+  it("usuario de compra única: NO sincroniza (todo local)", () => {
+    setLedger([{ id: "a1", uid: "u1", username: "cli@x.com", type: "usuario", active: true }]);
+    window._currentUser = { uid: "u1", email: "cli@x.com" };
+    expect(app.isCloudUser()).toBe(false);
+    expect(app.currentTier()).toBe("usuario");
+  });
+
+  it("cuenta desactivada por el admin: sin tier", () => {
+    setLedger([{ id: "a1", uid: "u1", username: "cli@x.com", type: "usuario", active: false }]);
+    window._currentUser = { uid: "u1", email: "cli@x.com" };
+    expect(app.currentTier()).toBeNull();
+  });
+
+  it("cuenta de Firebase fuera del registro: cae a usuario local", () => {
+    setLedger([]);
+    window._currentUser = { uid: "x9", email: "fuera@x.com" };
+    expect(app.currentTier()).toBe("usuario");
     expect(app.isCloudUser()).toBe(false);
   });
 
-  it("sesión demo/invitado: NO sincroniza", () => {
-    window._currentUser = { uid: "guest-x", email: "x@puntero.local", isGuest: true };
-    expect(app.isCloudUser()).toBe(false);
-  });
-
-  it("sin sesión: NO sincroniza", () => {
+  it("sin sesión: nada habilitado", () => {
     window._currentUser = null;
     expect(app.isCloudUser()).toBe(false);
+    expect(app.currentTier()).toBeNull();
   });
 });
 
@@ -72,7 +102,8 @@ describe("updateConnStatus() — indicador de estado", () => {
   });
 
   it("muestra 'guardado local' cuando el usuario no sincroniza", () => {
-    window._currentUser = null;
+    localStorage.setItem("pte_accounts", JSON.stringify([{ id: "a1", uid: "u1", username: "c@x.com", type: "usuario", active: true }]));
+    window._currentUser = { uid: "u1", email: "c@x.com" };
     app.state._cloudSyncEnabled = true;
     var chip = document.createElement("div");
     chip.id = "sync-chip";
@@ -86,7 +117,8 @@ describe("updateConnStatus() — indicador de estado", () => {
   });
 
   it("avisa 'sin conexión' cuando navigator.onLine es false, aunque sincronice", () => {
-    window._currentUser = { uid: "u1", email: "a@b.com" };
+    localStorage.setItem("pte_accounts", JSON.stringify([{ id: "a1", uid: "u1", username: "p@x.com", type: "pro", active: true, proUntil: Date.now() + 30 * 86400000 }]));
+    window._currentUser = { uid: "u1", email: "p@x.com" };
     app.state._cloudSyncEnabled = true;
     var original = Object.getOwnPropertyDescriptor(navigator, "onLine");
     var banner = document.createElement("div");
@@ -103,8 +135,9 @@ describe("updateConnStatus() — indicador de estado", () => {
     }
   });
 
-  it("muestra la hora de la última sincronización para usuario cloud", () => {
-    window._currentUser = { uid: "u1", email: "a@b.com" };
+  it("muestra la hora de la última sincronización para usuario PRO", () => {
+    localStorage.setItem("pte_accounts", JSON.stringify([{ id: "a1", uid: "u1", username: "p@x.com", type: "pro", active: true, proUntil: Date.now() + 30 * 86400000 }]));
+    window._currentUser = { uid: "u1", email: "p@x.com" };
     app.state._cloudSyncEnabled = true;
     app.state._lastCloudSync = "2026-06-13T14:35:00.000Z";
     var chip = document.createElement("div");

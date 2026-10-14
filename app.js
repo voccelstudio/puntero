@@ -4426,10 +4426,17 @@ window._currentUser = null;
 // público está bloqueado, así que la verificación por email ya no es requisito:
 // cualquier usuario de Firebase que inicie sesión fue creado por el admin (o es la
 // identidad técnica de sincronización) y entra sin confirmar.
+// Detecta una cuenta de pago emitida por el admin (PRO / Usuario / Demo).
+// Estas cuentas viven en el registro local y no requieren Firebase Auth,
+// así que se marcan al iniciar sesión para que la app se desbloquee.
 function isAdminAccount(email) {
   if (!email) {return false;}
   var n = String(email).trim().toLowerCase();
-  return getAccounts().some(function (a) { return a.firebase === true && String(a.username).trim().toLowerCase() === n; });
+  return getAccounts().some(function (a) {
+    var t = a.type === "permanente" ? TIERS.USUARIO : a.type === "vip" ? TIERS.PRO : a.type;
+    return (t === TIERS.PRO || t === TIERS.USUARIO || t === TIERS.DEMO) &&
+      String(a.username || "").trim().toLowerCase() === n;
+  });
 }
 
 // Detecta una cuenta de Firebase real (no maestra, no demo) iniciada en este dispositivo.
@@ -4440,17 +4447,104 @@ function isFirebaseAccount(u) {
 }
 
 function masteredOrVerified(u) {
-  return !!u && (u.isMaster === true || u.isGuest === true || u.emailVerified === true || isAdminAccount(u.email) || isFirebaseAccount(u));
+  return !!u && (u.isMaster === true || u.isGuest === true || u.isPaidAccount === true || u.emailVerified === true || isAdminAccount(u.email) || isFirebaseAccount(u));
 }
 
-// Única fuente de verdad para "¿esta sesión sincroniza con la nube?".
-// La cuenta maestra y las sesiones demo/invitado son locales por diseño.
-// Se usa en firestoreSync, loadFromFirestore, el flush de beforeunload y el
-// indicador de estado — así el estado que se muestra nunca miente.
-function isCloudUser() {
-  var u = window._currentUser;
-  return !!u && u.isMaster !== true && u.isGuest !== true;
+// ══════════════════════════════════════════════════════════════════════
+// MODELO DE LICENCIAS / TIERS
+// ══════════════════════════════════════════════════════════════════════
+//
+//  maestra  → dueño. Vitalicia, gratuita, todo desbloqueado.
+//  pro      → suscripción mensual: nube + backup + actualización de precios.
+//  usuario  → compró el programa una vez. Todo funciona, pero SOLO local:
+//             sin nube, sin backup remoto, sin actualización de precios.
+//  demo     → 72h funcionalidad completa. Al vencer se bloquea y se borra.
+//             Un correo solo puede tener una demo.
+//
+// Todo el resto de la app pregunta por estas funciones, no por isMaster/flag
+// sueltos — así el estado que se muestra y lo que se permite nunca discrepan.
+var TIERS = {
+  MAESTRA: "maestra",
+  PRO: "pro",
+  USUARIO: "usuario",
+  DEMO: "demo"
+};
+
+// Busca en el registro del admin la cuenta que corresponde a esta sesión.
+function findAccountByUser(u) {
+  if (!u) {return null;}
+  var list = getAccounts();
+  if (u.uid) {
+    var byUid = list.find(function (a) { return a.uid && a.uid === u.uid; });
+    if (byUid) {return byUid;}
+  }
+  if (u.email) {
+    var mail = String(u.email).trim().toLowerCase();
+    var byMail = list.find(function (a) { return String(a.username || "").trim().toLowerCase() === mail; });
+    if (byMail) {return byMail;}
+  }
+  return null;
 }
+
+function tierOfUser(u) {
+  if (!u) {return null;}
+  if (u.isMaster === true) {return TIERS.MAESTRA;}
+  if (u.isGuest === true) {return TIERS.DEMO;}
+  var acc = findAccountByUser(u);
+  if (acc && acc.active === false) {return null;} // cuenta desactivada por el admin
+  if (acc && acc.type) {
+    // Compatibilidad: los tipos viejos mapean a los nuevos
+    if (acc.type === "permanente" || acc.type === "vip") {return acc.type === "vip" ? TIERS.PRO : TIERS.USUARIO;}
+    return acc.type;
+  }
+  // Cuenta de Firebase que no está en el registro: trato más conservador,
+  // solo local. El admin la "asciende" a pro cuando corresponde.
+  return TIERS.USUARIO;
+}
+
+function currentTier() {
+  return tierOfUser(window._currentUser);
+}
+
+// ¿La suscripción PRO está vigente? La maestra lo está siempre.
+function isProActive() {
+  var u = window._currentUser;
+  if (!u) {return false;}
+  if (u.isMaster === true) {return true;}
+  var acc = findAccountByUser(u);
+  if (!acc || acc.type !== "pro") {return false;}
+  if (acc.active === false) {return false;}
+  return (acc.proUntil || 0) > Date.now();
+}
+
+// Días restantes de suscripción PRO (maestra: null = "no vence").
+function proDaysLeft() {
+  var u = window._currentUser;
+  if (u && u.isMaster === true) {return null;}
+  var acc = findAccountByUser(u);
+  if (!acc || !acc.proUntil) {return null;}
+  return Math.ceil((acc.proUntil - Date.now()) / 86400000);
+}
+
+// ¿Puede recibir actualizaciones de la base de precios?
+function canUpdatePrices() { return isProActive(); }
+
+// ¿Puede usar nube y backup remoto?
+// FUENTE ÚNICA de verdad: la usan firestoreSync, loadFromFirestore, el flush de
+// beforeunload y el indicador de estado, para que lo que se muestra no mienta.
+function isCloudUser() {
+  return isProActive();
+}
+
+// Descripción legible del tier, para mostrar en la interfaz.
+function tierLabel(tier) {
+  return tier === TIERS.MAESTRA ? "👑 Maestra"
+    : tier === TIERS.PRO ? "⭐ PRO"
+    : tier === TIERS.USUARIO ? "👤 Usuario"
+    : tier === TIERS.DEMO ? "🎭 Demo"
+    : "—";
+}
+
 
 function applyAppLock() {
   var lock = document.getElementById("app-lock");
@@ -4476,10 +4570,11 @@ function applyAppLock() {
 
 function initFirebaseAuth() {
   if (!window._AUTH) {
-    // Sin conexión / Firebase no cargó: solo sesión local (maestro o invitado)
+    // Sin conexión / Firebase no cargó: solo sesión local (maestro, cuenta de
+    // pago emitida por el admin, o invitado).
     window._currentUser = localStorage.getItem("pte_master_session") === "1"
       ? { uid: "master", email: "martin@puntero.local", isMaster: true }
-      : guestUser();
+      : restorePaidSession() || guestUser();
     applyAppLock();
     scheduleGuestExpiry();
     return;
@@ -4642,15 +4737,38 @@ async function login() {
       if (errD) { errD.textContent = "La cuenta demo venció (72h). Pedile una nueva al administrador."; errD.style.display = ""; }
       return;
     }
-    var okDemo = demoAcc.passwordHash
-      ? ((await hashAccountPassword(pass.trim())) === demoAcc.passwordHash)
-      : (pass.trim() === demoAcc.password);
+    var okDemo = await verifyAccountPassword(demoAcc, pass);
     if (!okDemo) {
       var errD2 = document.getElementById("auth-error");
       if (errD2) { errD2.textContent = "Usuario o contraseña incorrectos"; errD2.style.display = ""; }
       return;
     }
     startDemoSession(demoAcc);
+    return;
+  }
+  // ── Cuentas de pago emitidas por el admin (PRO / Usuario) ──────────────
+  // Se validan contra el registro local, igual que las demos. Esto es lo que
+  // hace que el panel funcione de verdad: crear una cuenta NO depende de que
+  // Firebase responda ni de que el cliente confirme un correo. El mismo
+  // registro se réplica a la nube para que la cuenta sirva en otros equipos.
+  var mailLower = String(email).trim().toLowerCase();
+  var paidAcc = getAccounts().find(function (a) {
+    var t = a.type === "permanente" ? TIERS.USUARIO : a.type === "vip" ? TIERS.PRO : a.type;
+    return (t === TIERS.PRO || t === TIERS.USUARIO) &&
+      String(a.username || "").trim().toLowerCase() === mailLower;
+  });
+  if (paidAcc) {
+    var errBox = document.getElementById("auth-error");
+    if (paidAcc.active === false) {
+      if (errBox) { errBox.textContent = "Esta cuenta está desactivada. Contactá al administrador."; errBox.style.display = ""; }
+      return;
+    }
+    var okPaid = await verifyAccountPassword(paidAcc, pass);
+    if (!okPaid) {
+      if (errBox) { errBox.textContent = "Usuario o contraseña incorrectos"; errBox.style.display = ""; }
+      return;
+    }
+    startPaidSession(paidAcc);
     return;
   }
   if (!window._AUTH) {return toast("Sin conexión. Usá el modo invitado.", false);}
@@ -4758,6 +4876,15 @@ async function logout() {
     toast("Sesión de invitado cerrada ✓");
     return;
   }
+  // Cuenta de pago emitida por el admin: se borra la sesión guardada.
+  if (window._currentUser && window._currentUser.isPaidAccount) {
+    clearPaidSession();
+    window._currentUser = null;
+    applyAppLock();
+    closeModal();
+    toast("Sesión cerrada ✓");
+    return;
+  }
   try {
     await window._AUTH.signOut();
     closeModal();
@@ -4816,6 +4943,67 @@ function startDemoSession(acc) {
 function deleteGuestSession() {
   localStorage.removeItem("pte_guest_session");
   window._guestWarned = false;
+}
+
+// Inicia sesión de una cuenta de pago emitida por el admin.
+// El uid se toma del registro (acc.id): es estable entre dispositivos porque
+// el registro se réplica, y es la clave con la que se guarda en la nube.
+function startPaidSession(acc) {
+  // Cerrar cualquier sesión de invitado para que no la pise después
+  deleteGuestSession();
+  try {
+    if (window._AUTH && window._AUTH.currentUser) {window._AUTH.signOut();}
+  } catch (e) {}
+
+  // Se guarda la sesión para que sobreviva la recarga: la cuenta de pago no
+  // depende de Firebase Auth, así que no hay evento onAuthStateChanged que la
+  // restaure.
+  localStorage.setItem("pte_paid_session", JSON.stringify({ accountId: acc.id }));
+
+  window._currentUser = {
+    uid: acc.uid || ("acc-" + acc.id),
+    email: acc.username,
+    accountId: acc.id,
+    isPaidAccount: true
+  };
+  applyAppLock();
+  closeModal();
+
+  // La nube y el backup solo son para PRO con suscripción vigente.
+  if (isProActive()) {
+    loadFromFirestore().then(function () {
+      if (state._workspaceId) {startWorkspaceListener(state._workspaceId);}
+    });
+  }
+
+  var tier = tierOfUser(window._currentUser);
+  if (tier === TIERS.PRO) {
+    var d = proDaysLeft();
+    toast("Bienvenido ⭐ PRO" + (d === null ? "" : " · " + d + " día" + (d === 1 ? "" : "s") + " de suscripción") + " ✓");
+  } else {
+    toast("Bienvenido 👤 · tus datos se guardan en este dispositivo ✓");
+  }
+}
+
+// Restaura la sesión de una cuenta de pago tras recargar la página.
+// Devuelve null si no hay sesión guardada o si la cuenta ya no existe.
+function restorePaidSession() {
+  var raw = null;
+  try { raw = JSON.parse(localStorage.getItem("pte_paid_session") || "null"); } catch (e) { raw = null; }
+  if (!raw || !raw.accountId) {return null;}
+  var acc = getAccounts().find(function (a) { return a.id === raw.accountId; });
+  if (!acc) {localStorage.removeItem("pte_paid_session"); return null;}
+  if (acc.active === false) {return null;} // desactivada: que vuelva a iniciar sesión
+  return {
+    uid: acc.uid || ("acc-" + acc.id),
+    email: acc.username,
+    accountId: acc.id,
+    isPaidAccount: true
+  };
+}
+
+function clearPaidSession() {
+  localStorage.removeItem("pte_paid_session");
 }
 
 function scheduleGuestExpiry() {
@@ -4915,6 +5103,50 @@ function seedDemoAccounts() {
   if (changed) {setAccounts(list);}
 }
 
+// ══════════════════════════════════════════════════════════════════════
+// PANEL DE CONTROL DEL ADMINISTRADOR
+// ══════════════════════════════════════════════════════════════════════
+// Panel de gestión completo: crear, editar tiers, manejar suscripciones PRO,
+// resetear contraseñas, activar/desactivar y borrar. Diseñado para funcionar
+// SIEMPRE, incluso sin conexión: el registro local manda y la nube es solo
+// réplica. Si Firebase no responde, el panel sigue operando y lo dice.
+
+function _accTypeNorm(a) {
+  if (!a) {return null;}
+  if (a.type === "permanente") {return TIERS.USUARIO;}
+  if (a.type === "vip") {return TIERS.PRO;}
+  return a.type;
+}
+
+function accIsActive(a) {
+  return a && a.active !== false && (!a.proUntil || a.proUntil > Date.now());
+}
+
+function accEstado(a) {
+  var t = _accTypeNorm(a);
+  if (a.active === false) {return { txt: "⛔ Desactivada", color: "var(--err)" };}
+  if (t === TIERS.DEMO) {
+    var h = Math.max(0, Math.ceil((a.expiresAt - Date.now()) / 3600000));
+    return { txt: "⏳ expira en " + h + "h", color: h <= 12 ? "var(--warn)" : "var(--tx3)" };
+  }
+  if (t === TIERS.PRO) {
+    if (!a.proUntil) {return { txt: "⭐ PRO sin fecha", color: "var(--warn)" };}
+    var d = Math.ceil((a.proUntil - Date.now()) / 86400000);
+    if (d <= 0) {return { txt: "⚠️ VENCIDA hace " + Math.abs(d) + "d", color: "var(--err)" };}
+    return { txt: "⭐ " + d + "d restantes", color: d <= 7 ? "var(--warn)" : "var(--ok)" };
+  }
+  return { txt: "✅ Compra única · local", color: "var(--tx3)" };
+}
+
+// Un correo solo puede tener UNA demo.
+function demoEmailTaken(email, exceptId) {
+  var m = String(email || "").trim().toLowerCase();
+  if (!m) {return false;}
+  return getAccounts().some(function (a) {
+    return a.type === "demo" && a.id !== exceptId && String(a.username || "").trim().toLowerCase() === m;
+  });
+}
+
 function renderAccountsSettings() {
   var el = document.getElementById("section-accounts");
   if (!el) {return;}
@@ -4923,65 +5155,92 @@ function renderAccountsSettings() {
     return;
   }
   pullAccounts();
-  // Reasegurar las demos base y podar las vencidas (las base se renuevan solas)
   seedDemoAccounts();
-  // Podar demos vencidas
-  setAccounts(getAccounts().filter(function (a) { return a.type !== "demo" || a.expiresAt > Date.now(); }));
-  var list = getAccounts();
-  var nPer = list.filter(function (a) { return a.type === "permanente"; }).length;
-  var nVip = list.filter(function (a) { return a.type === "vip"; }).length;
-  var nDemo = list.filter(function (a) { return a.type === "demo"; }).length;
+  // Podar demos vencidas (se borran solas)
+  setAccounts(getAccounts().filter(function (a) { return _accTypeNorm(a) !== TIERS.DEMO || (a.expiresAt || 0) > Date.now(); }));
 
-  var rows = list.map(function (a) {
-    var badge = a.type === "permanente" ? "🏆 Permanente"
-      : a.type === "vip" ? "💎 VIP"
-      : "🎭 Demo";
-    var estado = a.type === "demo"
-      ? (a.expiresAt > Date.now() ? "⏳ expira en " + Math.max(1, Math.ceil((a.expiresAt - Date.now()) / 3600000)) + "h" : "Vencida")
-      : "✅ Activa";
-    var copiar = '<button class="btn sm" onclick="adminCopyAccount(\'' + a.id + '\')">📋 Copiar</button>';
-    var resend = (a.type !== "demo")
-      ? '<button class="btn sm" onclick="adminResendVerify(\'' + a.id + '\')">📧 Verificar</button>'
-      : "";
-    var del = '<button class="btn sm danger" onclick="adminDeleteAccount(\'' + a.id + '\')">🗑️</button>';
-    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bor)">' +
-      '<div style="flex:1">' +
-      '<div style="font-weight:700">' + a.username + '</div>' +
-      '<div style="font-size:0.8rem;color:var(--tx3)">' + badge + ' · ' + estado + '</div>' +
+  var list = getAccounts();
+  var filtro = window._accFilter || "todos";
+  var q = (window._accSearch || "").trim().toLowerCase();
+  var shown = list.filter(function (a) {
+    if (filtro !== "todos" && _accTypeNorm(a) !== filtro) {return false;}
+    if (q && String(a.username || "").toLowerCase().indexOf(q) === -1) {return false;}
+    return true;
+  }).sort(function (x, y) { return (y.updatedAt || y.created || 0) - (x.updatedAt || x.created || 0); });
+
+  var nPro = list.filter(function (a) { return _accTypeNorm(a) === TIERS.PRO; }).length;
+  var nUsu = list.filter(function (a) { return _accTypeNorm(a) === TIERS.USUARIO; }).length;
+  var nDemo = list.filter(function (a) { return _accTypeNorm(a) === TIERS.DEMO; }).length;
+  var nVencidas = list.filter(function (a) { return a.active !== false && a.proUntil && a.proUntil <= Date.now(); }).length;
+
+  var rows = shown.map(function (a) {
+    var t = _accTypeNorm(a);
+    var badge = t === TIERS.PRO ? "⭐ PRO" : t === TIERS.USUARIO ? "👤 Usuario" : "🎭 Demo";
+    var est = accEstado(a);
+    var acts = [];
+
+    if (t !== TIERS.DEMO) {
+      acts.push('<button class="btn sm" onclick="adminExtendPro(\'' + a.id + '\',1)" title="Sumar 1 mes de suscripción">+1 mes</button>');
+    } else {
+      acts.push('<button class="btn sm" onclick="adminExtendPro(\'' + a.id + '\',0)" title="Extender 72h más">+72h</button>');
+    }
+    acts.push('<button class="btn sm" onclick="adminEditAccount(\'' + a.id + '\')" title="Editar">✏️</button>');
+    if (t !== TIERS.DEMO) {
+      acts.push('<button class="btn sm" onclick="adminResetPassword(\'' + a.id + '\')" title="Nueva contraseña">🔑</button>');
+      acts.push('<button class="btn sm" onclick="adminToggleActive(\'' + a.id + '\')" title="' + (a.active === false ? "Activar" : "Desactivar") + '">' + (a.active === false ? "▶️" : "⏸") + '</button>');
+    }
+    acts.push('<button class="btn sm" onclick="adminCopyAccount(\'' + a.id + '\')" title="Copiar credenciales">📋</button>');
+    acts.push('<button class="btn sm danger" onclick="adminDeleteAccount(\'' + a.id + '\')" title="Eliminar">🗑️</button>');
+
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bor);flex-wrap:wrap">' +
+      '<div style="flex:1;min-width:180px">' +
+      '<div style="font-weight:700">' + escapeHtml(a.username) + '</div>' +
+      '<div style="font-size:0.8rem;color:var(--tx3)">' + badge + ' · <span style="color:' + est.color + '">' + est.txt + '</span>' +
+      (a.note ? ' · 📝 ' + escapeHtml(a.note) : '') + '</div>' +
       '</div>' +
-      '<div style="font-size:0.8rem;color:var(--tx3);min-width:110px;text-align:right">' + (a.password || (a.type === "demo" ? "🔒" : "")) + '</div>' +
-      '<div style="display:flex;gap:6px">' + copiar + resend + del + '</div>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap">' + acts.join("") + '</div>' +
       '</div>';
   }).join("");
 
+  var fbtn = function (v, l) {
+    return '<button class="btn sm ' + (filtro === v ? "primary" : "") + '" onclick="setAccFilter(\'' + v + '\')">' + l + '</button>';
+  };
+
   el.innerHTML =
-    '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:16px">' +
-    '<div><h2 style="font-family:var(--font-display);font-weight:800;margin:0 0 4px">GESTIÓN DE CUENTAS</h2>' +
-    '<p style="color:var(--tx3);font-size:0.9rem">Creá cuentas para vender. Solo visibles para el administrador (martin).</p></div>' +
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:16px">' +
+    '<div><h2 style="font-family:var(--font-display);font-weight:800;margin:0 0 4px">🗝️ PANEL DE CONTROL</h2>' +
+    '<p style="color:var(--tx3);font-size:0.9rem">Cuentas, suscripciones y demos. Solo visible para vos.</p></div>' +
     '<div style="display:flex;gap:8px;flex-wrap:wrap;font-size:0.85rem">' +
-    '<span class="btn sm">🏆 Permanentes: ' + nPer + '</span>' +
-    '<span class="btn sm">💎 VIP: ' + nVip + '</span>' +
+    '<span class="btn sm">⭐ PRO: ' + nPro + '</span>' +
+    '<span class="btn sm">👤 Usuarios: ' + nUsu + '</span>' +
     '<span class="btn sm">🎭 Demos: ' + nDemo + '</span>' +
+    (nVencidas ? '<span class="btn sm danger">⚠️ Vencidas: ' + nVencidas + '</span>' : '') +
     '</div></div>' +
 
     '<div class="card" style="margin-bottom:18px;padding:16px">' +
-    '<h3 class="sec-lbl">➕ Crear Cuenta Nueva</h3>' +
+    '<h3 class="sec-lbl">➕ Crear cuenta</h3>' +
     '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px">' +
     '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
-    '<button type="button" class="btn sm acc-type-btn" id="acc-type-permanente" onclick="setAccType(\'permanente\')" style="background:var(--ok);color:#fff">🏆 Permanente</button>' +
-    '<button type="button" class="btn sm acc-type-btn" id="acc-type-vip" onclick="setAccType(\'vip\')">💎 VIP</button>' +
+    '<button type="button" class="btn sm acc-type-btn" id="acc-type-pro" onclick="setAccType(\'pro\')" style="background:var(--ok);color:#fff">⭐ PRO (mensual)</button>' +
+    '<button type="button" class="btn sm acc-type-btn" id="acc-type-usuario" onclick="setAccType(\'usuario\')">👤 Usuario (compra única)</button>' +
     '<button type="button" class="btn sm acc-type-btn" id="acc-type-demo" onclick="setAccType(\'demo\')">🎭 Demo (72h)</button>' +
     '</div>' +
-    '<input id="acc-user" style="flex:1;min-width:180px" placeholder="Correo (Permanente/VIP) o usuario (Demo)">' +
-    '<div style="display:flex;gap:6px"><input id="acc-pass" style="width:160px" placeholder="Contraseña"><button class="btn sm" onclick="genAccPass()">🎲</button></div>' +
-    '<button class="btn primary" onclick="adminCreateTab()">Crear Cuenta</button>' +
+    '<input id="acc-user" style="flex:1;min-width:180px" placeholder="Correo del cliente">' +
+    '<div style="display:flex;gap:6px"><input id="acc-pass" style="width:150px" placeholder="Contraseña"><button class="btn sm" onclick="genAccPass()" title="Generar">🎲</button></div>' +
+    '<div id="acc-months-wrap" style="display:flex;gap:6px;align-items:center"><input id="acc-months" type="number" min="1" max="36" value="1" style="width:64px" title="Meses de suscripción"><span style="font-size:0.8rem;color:var(--tx3)">mes/es</span></div>' +
+    '<button class="btn primary" onclick="adminCreateAccount()">Crear</button>' +
     '</div>' +
-    '<div style="font-size:0.8rem;color:var(--tx3);margin-top:8px">🏆 Permanente y 💎 VIP funcionan igual (difieren en precio). 🎭 Demo: local, 72h, se desloguea y borra sola al vencer. La lista se sincroniza entre tus dispositivos (admin).</div>' +
+    '<div style="font-size:0.8rem;color:var(--tx3);margin-top:8px">⭐ PRO: nube, backup y actualización de precios mientras pague. 👤 Usuario: compró una vez, todo funciona pero SOLO en su dispositivo. 🎭 Demo: 72h completas y después se bloquea y se borra; un correo solo puede tener una.</div>' +
     '</div>' +
 
     '<div class="card" style="padding:16px">' +
-    '<h3 class="sec-lbl">Cuentas creadas (' + list.length + ')</h3>' +
-    (rows || "<div class='empty'>Todavía no creaste cuentas.</div>") +
+    '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px">' +
+    '<h3 class="sec-lbl" style="margin:0">Cuentas (' + shown.length + ' de ' + list.length + ')</h3>' +
+    '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">' +
+    fbtn("todos", "Todos") + fbtn("pro", "⭐ PRO") + fbtn("usuario", "👤 Usuario") + fbtn("demo", "🎭 Demo") +
+    '<input id="acc-search" placeholder="🔍 Buscar correo" style="width:150px" value="' + escapeHtml(window._accSearch || "") + '" oninput="setAccSearch(this.value)">' +
+    '</div></div>' +
+    (rows || "<div class='empty'>No hay cuentas con ese filtro.</div>") +
     '</div>';
 }
 
@@ -4993,86 +5252,252 @@ function setAccType(type) {
   });
   var active = document.getElementById("acc-type-" + type);
   if (active) { active.style.background = "var(--ok)"; active.style.color = "#fff"; }
+  // El campo de meses solo aplica a PRO
+  var w = document.getElementById("acc-months-wrap");
+  if (w) { w.style.display = type === "pro" ? "" : "none"; }
 }
 
-async function adminCreateTab() {
+function setAccFilter(f) {
+  window._accFilter = f;
+  renderAccountsSettings();
+}
+
+function setAccSearch(v) {
+  window._accSearch = v;
+  renderAccountsSettings();
+  var inp = document.getElementById("acc-search");
+  if (inp) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
+}
+
+// ── CREAR CUENTA ─────────────────────────────────────────────────────────
+// Funciona SIEMPRE: el registro local manda y la nube es réplica. No depende
+// de Firebase para que la cuenta quede operativa en el dispositivo del admin.
+async function adminCreateAccount() {
   if (!isMasterAcc()) {return toast("Solo el administrador crea cuentas 🔒", false);}
-  var type = window._accTypeSel || "permanente";
+  var type = window._accTypeSel || TIERS.PRO;
   var user = document.getElementById("acc-user").value.trim();
   var pass = document.getElementById("acc-pass").value;
-  if (!user || !pass) {return toast("Completá usuario y contraseña", false);}
+  if (!user || !pass) {return toast("Completá correo y contraseña", false);}
   if (pass.length < 6) {return toast("Contraseña mínima de 6 caracteres", false);}
-  if (type === "demo") {
-    if (findDemoAccountByUsername(user)) {return toast("Ya existe una cuenta demo con ese usuario", false);}
-    var list = getAccounts();
-    list.push({ id: "acc-" + Date.now().toString(36), username: user, password: pass, passwordHash: await hashAccountPassword(pass), type: "demo", created: Date.now(), updatedAt: Date.now(), expiresAt: Date.now() + GUEST_TTL_MS, firebase: false });
-    setAccounts(list);
-    toast("Cuenta demo creada · 72h ✓");
-    await ensureAdminSync();
-    await pushAccountsSync();
-    renderAccountsSettings();
-    return;
+  if (type !== "demo" && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(user)) {
+    return toast("Ingresá un correo válido", false);
   }
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(user)) {return toast("Para permanente/VIP ingresá un correo válido", false);}
-  if (!window._AUTH) {return toast("Sin conexión. Necesitás internet para crear cuentas de pago.", false);}
-  try {
-    var cred = await window._AUTH.createUserWithEmailAndPassword(user, pass);
-    var list2 = getAccounts();
-    list2.push({ id: "acc-" + Date.now().toString(36), username: user, password: pass, type: type, created: Date.now(), updatedAt: Date.now(), expiresAt: null, firebase: true, uid: cred.user.uid });
-    setAccounts(list2);
-    try { await window._AUTH.signOut(); } catch (e) {}
-    if (localStorage.getItem("pte_master_session") === "1") {window._currentUser = { uid: "master", email: "martin@puntero.local", isMaster: true };}
-    applyAppLock();
-    // reactivar la identidad técnica para que el ledger llegue a Firestore
-    await ensureAdminSync();
-    await pushAccountsSync();
-    toast("Cuenta " + type + " creada ✓ · entra sin confirmar correo");
-    renderAccountsSettings();
-  } catch (e) { toast((e && e.message) || "No se pudo crear la cuenta", false); }
+
+  var lower = user.toLowerCase();
+  var dupMail = getAccounts().some(function (a) { return String(a.username || "").trim().toLowerCase() === lower; });
+  if (dupMail) {return toast("Ya existe una cuenta con ese correo", false);}
+  if (type === "demo" && demoEmailTaken(user)) {
+    return toast("Ese correo ya tuvo su demo. Un correo = una demo.", false);
+  }
+
+  var salt = accSalt();
+  var hash = await hashAccountPassword(pass, salt);
+  var now = Date.now();
+  var acc = {
+    id: "acc-" + now.toString(36),
+    username: user,
+    type: type,
+    salt: salt,
+    passwordHash: hash,
+    created: now,
+    updatedAt: now,
+    active: true,
+    note: ""
+  };
+  if (type === TIERS.DEMO) {
+    acc.expiresAt = now + GUEST_TTL_MS;
+  } else if (type === TIERS.PRO) {
+    var months = Math.max(1, Math.min(36, parseInt(document.getElementById("acc-months").value, 10) || 1));
+    acc.proUntil = now + months * 30 * 86400000;
+  }
+
+  var list = getAccounts();
+  list.push(acc);
+  setAccounts(list);
+
+  // Réplica a la nube (best-effort; si falla, el panel igual funcionó)
+  ensureAdminSync().then(function () { pushAccountsSync(); }).catch(function () {});
+
+  document.getElementById("acc-user").value = "";
+  document.getElementById("acc-pass").value = "";
+  toast((type === TIERS.PRO ? "⭐ PRO creado" : type === TIERS.DEMO ? "🎭 Demo creada · 72h" : "👤 Usuario creado") + " ✓");
+  renderAccountsSettings();
 }
 
 function adminCopyAccount(id) {
   var a = getAccounts().find(function (x) { return x.id === id; });
   if (!a) {return;}
-  var txt = "Usuario: " + a.username + "\nContraseña: " + a.password + "\nTipo: " + a.type;
+  var t = _accTypeNorm(a);
+  var txt = "Puntero — Gestión de Obra\nUsuario: " + a.username +
+    "\nContraseña: " + (a.password || "(pedí una nueva con el botón 🔑)") +
+    "\nPlan: " + (t === TIERS.PRO ? "PRO (mensual)" : t === TIERS.USUARIO ? "Compra única" : "Demo 72h");
   if (navigator.clipboard) {navigator.clipboard.writeText(txt).then(function () { toast("Credenciales copiadas ✓"); });}
   else {toast(txt, false);}
 }
 
-async function adminResendVerify(id) {
-  if (!isMasterAcc()) {return toast("Solo el administrador", false);}
-  if (!window._AUTH) {return toast("Sin conexión", false);}
+// ── EXTENDER SUSCRIPCIÓN ────────────────────────────────────────────────
+// PRO: suma meses desde HOY (no desde el vencimiento), así no se acumula deuda.
+// Demo: suma 72h.
+async function adminExtendPro(id, months) {
+  if (!isMasterAcc()) {return;}
+  var list = getAccounts();
+  var a = list.find(function (x) { return x.id === id; });
+  if (!a) {return;}
+  var t = _accTypeNorm(a);
+  var now = Date.now();
+  if (t === TIERS.DEMO) {
+    a.expiresAt = Math.max(now, a.expiresAt || now) + GUEST_TTL_MS;
+    toast("Demo extendida 72h ✓");
+  } else {
+    var base = Math.max(now, a.proUntil || now);
+    a.proUntil = base + (months || 1) * 30 * 86400000;
+    if (a.type === "vip" || a.type === "permanente") {a.type = TIERS.PRO;} // asciende tipos viejos
+    a.active = true;
+    toast("Suscripción PRO extendida ✓ · vence " + formatDatePY(a.proUntil));
+  }
+  a.updatedAt = now;
+  setAccounts(list);
+  ensureAdminSync().then(function () { pushAccountsSync(); }).catch(function () {});
+  renderAccountsSettings();
+}
+
+// ── RESET DE CONTRASEÑA ─────────────────────────────────────────────────
+async function adminResetPassword(id) {
+  if (!isMasterAcc()) {return;}
   var a = getAccounts().find(function (x) { return x.id === id; });
-  if (!a || a.type === "demo") {return;}
-  try {
-    await window._AUTH.signInWithEmailAndPassword(a.username, a.password);
-    if (window._AUTH.currentUser && window._AUTH.currentUser.sendEmailVerification) {
-      await window._AUTH.currentUser.sendEmailVerification();
+  if (!a) {return;}
+  var nueva = prompt("Nueva contraseña para " + a.username + " (mínimo 6 caracteres):", "");
+  if (nueva === null) {return;}
+  nueva = nueva.trim();
+  if (nueva.length < 6) {return toast("Mínimo 6 caracteres", false);}
+  a.salt = accSalt();
+  a.passwordHash = await hashAccountPassword(nueva, a.salt);
+  a.updatedAt = Date.now();
+  setAccounts(getAccounts());
+  ensureAdminSync().then(function () { pushAccountsSync(); }).catch(function () {});
+  toast("Contraseña actualizada ✓ · " + nueva);
+  renderAccountsSettings();
+}
+
+// ── EDITAR CUENTA ───────────────────────────────────────────────────────
+function adminEditAccount(id) {
+  if (!isMasterAcc()) {return;}
+  var a = getAccounts().find(function (x) { return x.id === id; });
+  if (!a) {return;}
+  var t = _accTypeNorm(a);
+
+  var tierOpts = [
+    { v: TIERS.PRO, l: "⭐ PRO — nube + precios + backup" },
+    { v: TIERS.USUARIO, l: "👤 Usuario — compra única, solo local" },
+    { v: TIERS.DEMO, l: "🎭 Demo — 72h y se borra" },
+  ].map(function (o) {
+    return '<option value="' + o.v + '"' + (t === o.v ? " selected" : "") + ">" + o.l + "</option>";
+  }).join("");
+
+  var mes = a.proUntil ? new Date(a.proUntil).toISOString().slice(0, 7) : "";
+
+  document.getElementById("modal-area").innerHTML =
+    '<div class="overlay" style="z-index:610" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:420px">' +
+    '<div class="modal-title">✏️ Editar cuenta<button class="delbtn" onclick="closeModal()">✕</button></div>' +
+    '<div style="display:flex;flex-direction:column;gap:12px">' +
+    '<div><label class="stat-lbl">Correo / usuario</label><input id="ed-acc-user" style="width:100%" value="' + escapeHtml(a.username) + '"></div>' +
+    '<div><label class="stat-lbl">Plan</label><select id="ed-acc-type" style="width:100%">' + tierOpts + '</select></div>' +
+    '<div id="ed-acc-pro-wrap"><label class="stat-lbl">Suscripción PRO vigente hasta (mes)</label><input id="ed-acc-pro" type="month" style="width:100%" value="' + mes + '"></div>' +
+    '<div><label class="stat-lbl">Nota interna (ej. "pagó por transferencia 12/10")</label><input id="ed-acc-note" style="width:100%" value="' + escapeHtml(a.note || "") + '"></div>' +
+    '<label style="display:flex;align-items:center;gap:10px;cursor:pointer">' +
+    '<input type="checkbox" id="ed-acc-active" ' + (a.active !== false ? "checked" : "") + '><span>Cuenta activa</span></label>' +
+    '</div>' +
+    '<div class="modal-acts">' +
+    '<button class="btn" onclick="closeModal()">Cancelar</button>' +
+    '<button class="btn primary" onclick="adminSaveAccountEdit(\'' + a.id + '\')">Guardar</button>' +
+    '</div></div></div>';
+
+  var syncPro = function () {
+    var w = document.getElementById("ed-acc-pro-wrap");
+    if (w) { w.style.display = document.getElementById("ed-acc-type").value === TIERS.PRO ? "" : "none"; }
+  };
+  document.getElementById("ed-acc-type").onchange = syncPro;
+  syncPro();
+}
+
+async function adminSaveAccountEdit(id) {
+  if (!isMasterAcc()) {return;}
+  var list = getAccounts();
+  var a = list.find(function (x) { return x.id === id; });
+  if (!a) {return;}
+
+  var user = document.getElementById("ed-acc-user").value.trim();
+  if (!user) {return toast("El correo no puede quedar vacío", false);}
+  var lower = user.toLowerCase();
+  var dup = getAccounts().some(function (x) {
+    return x.id !== id && String(x.username || "").trim().toLowerCase() === lower;
+  });
+  if (dup) {return toast("Ya existe otra cuenta con ese correo", false);}
+
+  var newType = document.getElementById("ed-acc-type").value;
+  var oldType = _accTypeNorm(a);
+
+  a.username = user;
+  a.note = document.getElementById("ed-acc-note").value.trim();
+  a.active = document.getElementById("ed-acc-active").checked;
+  a.updatedAt = Date.now();
+
+  if (newType === TIERS.DEMO) {
+    a.type = TIERS.DEMO;
+    if (!a.expiresAt) {a.expiresAt = Date.now() + GUEST_TTL_MS;}
+  } else {
+    a.type = newType;
+    if (newType === TIERS.PRO) {
+      var m = document.getElementById("ed-acc-pro").value; // "YYYY-MM"
+      if (m) {
+        var p = m.split("-");
+        // fin de ese mes, 23:59 local
+        a.proUntil = new Date(Number(p[0]), Number(p[1]), 0, 23, 59, 59).getTime();
+      } else {
+        a.proUntil = Math.max(Date.now(), a.proUntil || 0) + 30 * 86400000;
+      }
+    } else {
+      a.proUntil = null; // usuario de compra única: no vence
     }
-    try { await window._AUTH.signOut(); } catch (e) {}
-    if (localStorage.getItem("pte_master_session") === "1") {window._currentUser = { uid: "master", email: "martin@puntero.local", isMaster: true };}
-    applyAppLock();
-    toast("Link de verificación reenviado a " + a.username + " ✓");
-  } catch (e) { toast((e && e.message) || "No se pudo reenviar", false); }
+  }
+
+  setAccounts(list);
+  ensureAdminSync().then(function () { pushAccountsSync(); }).catch(function () {});
+  closeModal();
+  renderAccountsSettings();
+  var label = newType === TIERS.PRO ? "⭐ PRO" : newType === TIERS.USUARIO ? "👤 Usuario" : "🎭 Demo";
+  toast("Cuenta actualizada ✓ · " + label + (oldType !== newType ? " (antes: " + oldType + ")" : ""));
+}
+
+function adminToggleActive(id) {
+  if (!isMasterAcc()) {return;}
+  var list = getAccounts();
+  var a = list.find(function (x) { return x.id === id; });
+  if (!a) {return;}
+  a.active = a.active === false;
+  a.updatedAt = Date.now();
+  setAccounts(list);
+  ensureAdminSync().then(function () { pushAccountsSync(); }).catch(function () {});
+  toast(a.active ? "Cuenta activada ✓" : "Cuenta desactivada ⛔");
+  renderAccountsSettings();
 }
 
 function adminDeleteAccount(id) {
   var a = getAccounts().find(function (x) { return x.id === id; });
   if (!a) {return;}
-  var note = a.firebase ? "\n\n(La cuenta en Firebase sigue en Auth; para borrarla de verdad usá la consola de Firebase.)" : "";
-  if (!confirm("¿Eliminar la cuenta " + a.username + " de la lista?" + note)) {return;}
+  if (!confirm("¿Eliminar la cuenta " + a.username + "?\n\nEl cliente pierde el acceso en todos los dispositivos.")) {return;}
   removeAccountLocal(id);
-  ensureAdminSync().then(function () { pushAccountsSync(); });
+  ensureAdminSync().then(function () { pushAccountsSync(); }).catch(function () {});
   renderAccountsSettings();
-  toast("Cuenta quitada de la lista ✓");
+  toast("Cuenta eliminada ✓");
 }
 
 // ── SINCRONIZACIÓN DEL REGISTRO DE CUENTAS (ADMIN) ─────────────────────────
 // El ledger vive en Firestore (accounts/ledger) para que las cuentas creadas
-// por el admin funcionen en CUALQUIER dispositivo: el amigo/cliente puede usar
-// una demo (lee el ledger) o una permanente/VIP (Firebase Auth).
-// Las contraseñas NUNCA viajan en claro por Firestore: las demos guardan un
-// SHA-256 (passwordHash) y las permanentes/VIP validan contra Firebase Auth.
+// por el admin funcionen en CUALQUIER dispositivo: el cliente lee el ledger y
+// valida su contraseña contra el hash. No hace falta una cuenta de Auth por
+// cliente, así que crear cuentas no depende de que Firebase responda.
+// Las contraseñas NUNCA viajan en claro: cada cuenta guarda salt + SHA-256.
 var ADMIN_SYNC_EMAIL = "admin.sync@puntero.local";
 var ADMIN_SYNC_PASS = "K7xPq9wZ2mVb4rN6"; // solo transporte de sincronización
 window._isAdminSyncUser = false;
@@ -5082,17 +5507,38 @@ function _accountsMaxUpdatedAt(list) {
   return (list || []).reduce(function (m, a) { return Math.max(m, a.updatedAt || 0); }, 0);
 }
 
-// SHA-256 hex de una contraseña (para el ledger compartido)
-function hashAccountPassword(pass) {
+// SHA-256 hex de una contraseña, con salt por cuenta.
+// Sin salt el hash es vulnerable a tablas rainbow; con salt, cada cuenta
+// necesita su propio ataque. Sigue siendo verificación local, no un sistema
+// criptográfico de servidor — y está bien para este caso.
+function hashAccountPassword(pass, salt) {
   if (!pass) {return Promise.resolve("");}
   if (!(window.crypto && crypto.subtle && crypto.subtle.digest)) {return Promise.resolve("");}
-  var data = new TextEncoder().encode(String(pass));
+  var data = new TextEncoder().encode(String(salt || "") + String(pass));
   return crypto.subtle.digest("SHA-256", data).then(function (buf) {
     var bytes = new Uint8Array(buf);
     var hex = "";
     for (var i = 0; i < bytes.length; i++) {hex += ("0" + bytes[i].toString(16)).slice(-2);}
     return hex;
   });
+}
+
+function accSalt() {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+// Verifica una contraseña contra una cuenta. Soporta el formato viejo
+// (hash sin salt) para no romper las cuentas ya creadas.
+function verifyAccountPassword(acc, pass) {
+  if (!acc) {return Promise.resolve(false);}
+  var p = String(pass || "").trim();
+  if (acc.passwordHash) {
+    if (acc.salt) {
+      return hashAccountPassword(p, acc.salt).then(function (h) { return h === acc.passwordHash; });
+    }
+    return hashAccountPassword(p).then(function (h) { return h === acc.passwordHash; });
+  }
+  return Promise.resolve(p !== "" && p === acc.password);
 }
 
 // Quita una cuenta de la lista local (sin dialogo)
@@ -5107,7 +5553,8 @@ async function _sanitizeAccountForLedger(a) {
   var copy = {};
   Object.keys(a).forEach(function (k) { if (k !== "password") {copy[k] = a[k];} });
   if (a.type === "demo" && !copy.passwordHash) {
-    copy.passwordHash = await hashAccountPassword(a.password || "");
+    copy.salt = a.salt || accSalt();
+    copy.passwordHash = await hashAccountPassword(a.password || "", copy.salt);
   }
   return copy;
 }
@@ -5200,22 +5647,7 @@ async function pushAccountsSync() {
   } catch (e) { console.warn("push cuentas:", e.code || e.message); }
 }
 
-// ── CREACIÓN DE CUENTAS (SOLO ADMIN) ───────────────────────────────────────
-// El registro público está bloqueado: solo la cuenta maestra (admin) puede
-// crear cuentas nuevas para vender.
-function showCreateAccountModal() {
-  var el = document.getElementById("modal-area");
-  el.innerHTML = '<div class="overlay" style="z-index:600" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:400px">' +
-    '<div class="modal-title">➕ Crear Cuenta Nueva<button class="delbtn" onclick="closeModal()">✕</button></div>' +
-    '<div id="create-acc-msg" style="font-size:0.85rem;margin-bottom:10px;color:var(--tx3)">Completá los datos. La cuenta entrará sin necesidad de confirmar el correo.</div>' +
-    '<div style="display:flex;flex-direction:column;gap:12px">' +
-    '<input id="new-acc-email" type="email" placeholder="Correo del cliente" style="width:100%">' +
-    '<div style="display:flex;gap:8px"><input id="new-acc-pass" type="text" style="width:100%"><button class="btn" onclick="genAccPass()">🎲</button></div>' +
-    '</div>' +
-    '<div class="modal-acts"><button class="btn primary full" onclick="adminCreateAccount()">Crear y Enviar Verificación</button></div></div></div>';
-  genAccPass();
-}
-
+// Generador de contraseñas para el panel del admin.
 function randomPass() {
   var c = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
   var s = "";
@@ -5224,32 +5656,8 @@ function randomPass() {
 }
 
 function genAccPass() {
-  var inp = document.getElementById("new-acc-pass");
+  var inp = document.getElementById("acc-pass");
   if (inp) {inp.value = randomPass();}
-}
-
-async function adminCreateAccount() {
-  if (!window._currentUser || window._currentUser.isMaster !== true) {return toast("Solo el administrador puede crear cuentas 🔒", false);}
-  if (!window._AUTH) {return toast("Sin conexión. Necesitás internet para crear cuentas.", false);}
-  var email = document.getElementById("new-acc-email").value.trim();
-  var pass = document.getElementById("new-acc-pass").value;
-  var msg = document.getElementById("create-acc-msg");
-  if (!email || !pass) {return toast("Completá correo y contraseña", false);}
-  if (pass.length < 6) {return toast("Contraseña mínima de 6 caracteres", false);}
-  try {
-    await window._AUTH.createUserWithEmailAndPassword(email, pass);
-    // Restaurar sesión maestra (al crear, Firebase inicia sesión como el nuevo usuario)
-    try { await window._AUTH.signOut(); } catch (e) {}
-    if (localStorage.getItem("pte_master_session") === "1") {
-      window._currentUser = { uid: "master", email: "martin@puntero.local", isMaster: true };
-    }
-    applyAppLock();
-    msg.style.color = "var(--ok)";
-    msg.innerHTML = 'Cuenta creada ✓<br><b>' + email + '</b><br><b>' + pass + '</b><br><small>El cliente entra con estas credenciales, sin confirmar el correo.</small>';
-  } catch (e) {
-    msg.style.color = "var(--err)";
-    msg.textContent = (e && e.message) || "No se pudo crear la cuenta";
-  }
 }
 
 // ── CLOUD SETTINGS ─────────────────────────────────────────────────────────
