@@ -78,6 +78,25 @@ const main = async () => {
     chk("la sesión maestra sigue siendo maestra",
       sesionDueno.tier === "maestra" && sesionDueno.esMaster, "tier=" + sesionDueno.tier + " master=" + sesionDueno.esMaster);
 
+    // ── La sesión RESTAURADA (tras recargar) también escribe ──────────────
+    // Regresión real: al cargar la página la sesión del dueño se marcaba como
+    // maestra con un uid sintético ("master"), así que el panel se veía pero
+    // Firestore rechazaba todo lo que escribía: borrados, extensiones, etc.
+    // Se recarga para que onAuthStateChanged restaure la sesión, y se verifica
+    // que _currentUser conserve el uid REAL (el que Firestore compara).
+    await page.reload({ waitUntil: "networkidle2" });
+    await esperar(1800);
+    const restaurada = await page.evaluate(() => ({
+      uid: (window._currentUser && window._currentUser.uid) || null,
+      esMaster: !!(window._currentUser && window._currentUser.isMaster),
+      tier: currentTier(),
+      uidReal: (window._AUTH && window._AUTH.currentUser && window._AUTH.currentUser.uid) || null,
+    }));
+    chk("la sesión restaurada tras recargar conserva el uid real del dueño",
+      restaurada.esMaster === true && restaurada.tier === "maestra" &&
+      !!restaurada.uidReal && restaurada.uid === restaurada.uidReal,
+      JSON.stringify(restaurada));
+
     const creada = await page.evaluate(async ({ correo, pass }) => {
       setSection("accounts");
       await new Promise((r) => setTimeout(r, 400));

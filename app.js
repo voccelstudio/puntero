@@ -4855,7 +4855,11 @@ function initFirebaseAuth() {
     if (user && String(user.uid) === MASTER_UID) {
       pullAccounts();
       if (localStorage.getItem("pte_master_session") === "1") {
-        user = { uid: "master", email: "martin@puntero.local", isMaster: true };
+        // Se marca como maestra PERO conservando el uid real de Firebase: es
+        // el que Firestore verifica al escribir el registro (borrar/editar
+        // cuentas). Antes se pisaba con un "master" sintético y, tras un
+        // reload, el panel se veía pero todo lo que escribía fallaba.
+        user.isMaster = true;
       }
     } else if (!user && localStorage.getItem("pte_master_session") === "1") {
       // La bandera quedó de una sesión anterior (p. ej. sin Firebase cargado):
@@ -5008,7 +5012,12 @@ async function login() {
     }
     localStorage.setItem("pte_master_session", "1");
     deleteGuestSession();
-    window._currentUser = { uid: "master", email: "martin@puntero.local", isMaster: true };
+    // Se conserva el uid REAL de Firebase (no un "master" sintético): es el
+    // que verifican las reglas de Firestore para escribir el registro de
+    // cuentas. Sin él, tras cualquier recarga el panel se veía pero no se
+    // podía escribir ni borrar cuentas en la nube.
+    var duenoReal = window._AUTH.currentUser;
+    window._currentUser = { uid: (duenoReal && duenoReal.uid) || "master", email: "martin@puntero.local", isMaster: true };
     applyAppLock();
     closeModal();
     toast("Sesión maestra iniciada ✓");
