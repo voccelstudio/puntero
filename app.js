@@ -5495,7 +5495,8 @@ function renderAccountsSettings() {
   var el = document.getElementById("section-accounts");
   if (!el) {return;}
   if (!isMasterAcc()) {
-    el.innerHTML = "<div class='empty'>🔒 Solo el administrador gestiona las cuentas.</div>";
+    el.innerHTML = "<div class='empty'>🔒 El registro de cuentas lo gestiona el administrador.<br>" +
+      "Si necesitás una cuenta nueva, pedile una al que administra Puntero: él la crea y te pasa usuario y contraseña.</div>";
     return;
   }
   pullAccounts();
@@ -5621,7 +5622,7 @@ function setAccSearch(v) {
 // Funciona SIEMPRE: el registro local manda y la nube es réplica. No depende
 // de Firebase para que la cuenta quede operativa en el dispositivo del admin.
 async function adminCreateAccount() {
-  if (!isMasterAcc()) {return toast("Solo el administrador crea cuentas 🔒", false);}
+  if (!isMasterAcc()) {return toast("El registro de cuentas lo administra el dueño 🔒", false);}
   var type = window._accTypeSel || TIERS.PRO;
   var user = document.getElementById("acc-user").value.trim();
   var pass = document.getElementById("acc-pass").value;
