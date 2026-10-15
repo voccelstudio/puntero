@@ -4975,8 +4975,24 @@ async function login() {
   var email = document.getElementById("auth-email").value.trim();
   var pass = document.getElementById("auth-pass").value;
   if (!email || !pass) {return toast("Completá todos los campos", false);}
-  // Cuenta maestra (dueño): martin no necesita correo registrado ni confirmación
-  if (email.toLowerCase() === "martin" && pass === "6J89dfrh") {
+  // ── Cuenta maestra (dueño) ─────────────────────────────────────────────
+  // La contraseña NO está escrita en este archivo: se verifica contra
+  // Firebase Auth, que contesta con el hash que guarda Google. Leer el código
+  // (Ctrl+U) o el historial de git no sirve para entrar: sin la contraseña
+  // real, Firebase devuelve credenciales inválidas y no hay sesión.
+  // "martin" queda como alias del correo del dueño (misma costumbre de siempre).
+  if (email.toLowerCase() === MASTER_ALIAS || email.toLowerCase() === MASTER_EMAIL) {
+    if (!window._AUTH || !window._AUTH.signInWithEmailAndPassword) {
+      return toast("Sin conexión con Firebase no puedo verificar la contraseña. Reintentá con internet.", false);
+    }
+    try {
+      await window._AUTH.signInWithEmailAndPassword(MASTER_EMAIL, pass);
+    } catch (e) {
+      console.warn("Login maestra rechazado:", (e && e.code) || (e && e.message) || e);
+      var errM = document.getElementById("auth-error");
+      if (errM) { errM.textContent = "Usuario o contraseña incorrectos"; errM.style.display = ""; }
+      return toast("Usuario o contraseña incorrectos", false);
+    }
     localStorage.setItem("pte_master_session", "1");
     deleteGuestSession();
     window._currentUser = { uid: "master", email: "martin@puntero.local", isMaster: true };
@@ -5844,6 +5860,14 @@ async function adminDeleteAccount(id) {
 // valida su contraseña contra el hash. No hace falta una cuenta de Auth por
 // cliente, así que crear cuentas no depende de que Firebase responda.
 // Las contraseñas NUNCA viajan en claro: cada cuenta guarda salt + SHA-256.
+// Identidad del DUEÑO de la app. Su contraseña se guarda (con hash) solo en
+// Firebase Auth: acá no aparece nunca, por eso leer este archivo no habilita
+// el panel maestro. El uid es el que autoriza la escritura del registro en las
+// reglas de Firestore — es estable aunque cambie el correo.
+var MASTER_EMAIL = "martinhuberf@gmail.com";
+var MASTER_UID = "6tF1PCIYwCZEhhf7lsDP7p5Ny6j1";
+var MASTER_ALIAS = "martin"; // como el dueño siempre tecleó, sin repetir el correo
+
 var ADMIN_SYNC_EMAIL = "admin.sync@puntero.local";
 var ADMIN_SYNC_PASS = "9L8mB&t7E$*RrajfZV5qirYZQ"; // solo transporte de sincronización
 window._isAdminSyncUser = false;
