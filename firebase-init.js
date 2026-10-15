@@ -15,6 +15,10 @@
   };
 
   firebase.initializeApp(config);
+  // La config NO es secreta (va en todo cliente web y las reglas de seguridad
+  // son las que protegen): se expone para que el admin pueda crear una segunda
+  // instancia de Auth (ver _authSecundaria en app.js) sin pisar su sesión.
+  window._FB_CONFIG = config;
   window._FIRESTORE = firebase.firestore();
   window._AUTH = firebase.auth();
   window._STORAGE = firebase.storage();

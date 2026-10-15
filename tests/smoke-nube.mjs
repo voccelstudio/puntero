@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import puppeteer from "puppeteer-core";
+import { credencialesDueno, FALTA_CREDENCIAL } from "./helpers/dueno.mjs";
 
 // Verificación end-to-end de la nube REAL:
 //   A) el panel crea una cuenta PRO, la vincula a Firebase y la replica al ledger
@@ -32,6 +33,10 @@ const fail = (m) => report.push("FAIL  " + m);
 const chk = (label, cond, extra) => (cond ? ok(label + ": sí") : fail(label + (extra !== undefined ? " → " + extra : " → NO")));
 
 const main = async () => {
+  // El registro se ESCRIBE solo con sesión del dueño: sin estas credenciales
+  // ningún push llegaría a la nube y el smoke lo detectaría (mejor avisarlo ya).
+  const creds = credencialesDueno();
+  if (!creds) { console.log("FAIL  " + FALTA_CREDENCIAL); process.exit(1); }
   const server = spawn("python", ["-m", "http.server", String(PUERTO)], { stdio: "ignore", cwd: ROOT });
   let browser;
   try {
@@ -51,14 +56,27 @@ const main = async () => {
     await page.reload({ waitUntil: "networkidle2" });
     await esperar(1500);
 
-    const syncAdmin = await page.evaluate(async () => {
+    // ── Sesión REAL del dueño ─────────────────────────────────────────────
+    // Antes el panel "se identificaba" con una identidad de transporte cuya
+    // clave estaba escrita en el cliente (es decir, no era secreta). Ahora la
+    // única identidad que escribe el registro es la del dueño, verificada por
+    // Firebase Auth: sin contraseña real no hay sesión y sin sesión no hay push.
+    const sesionDueno = await page.evaluate(async ({ email, pass }) => {
+      await window._AUTH.signInWithEmailAndPassword(email, pass);
+      await new Promise((r) => setTimeout(r, 1200));
       await ensureAdminSync();
-      await esperarInterno(2000);
-      return { esSync: !!window._isAdminSyncUser, tier: currentTier() };
-      function esperarInterno(ms) { return new Promise((r) => setTimeout(r, ms)); }
-    });
-    chk("el panel se identifica ante Firebase (admin.sync)", syncAdmin.esSync === true, syncAdmin.esSync);
-    chk("la sesión maestra sigue siendo maestra", syncAdmin.tier === "maestra", syncAdmin.tier);
+      await new Promise((r) => setTimeout(r, 1500));
+      return {
+        uid: (window._AUTH && window._AUTH.currentUser && window._AUTH.currentUser.uid) || null,
+        email: (window._AUTH && window._AUTH.currentUser && window._AUTH.currentUser.email) || null,
+        tier: currentTier(),
+        esMaster: !!(window._currentUser && window._currentUser.isMaster),
+      };
+    }, { email: creds.email, pass: creds.pass });
+    chk("el panel trabaja con la sesión real del dueño (nada embebido en el cliente)",
+      !!sesionDueno.uid && sesionDueno.email === creds.email, sesionDueno.email || "sin sesión");
+    chk("la sesión maestra sigue siendo maestra",
+      sesionDueno.tier === "maestra" && sesionDueno.esMaster, "tier=" + sesionDueno.tier + " master=" + sesionDueno.esMaster);
 
     const creada = await page.evaluate(async ({ correo, pass }) => {
       setSection("accounts");
@@ -135,6 +153,31 @@ const main = async () => {
     chk("y sin publicar el hash de una cuenta que valida en la nube",
       !!ledger.cuenta && !ledger.cuenta.tieneHash, JSON.stringify(ledger.cuenta));
 
+    // ── B2. Las reglas de Firestore: quién puede escribir el registro ──────
+    // Este es el corazón de la protección de licencias: si cualquiera pudiera
+    // escribir el registro, cualquiera podría darse una cuenta PRO leyendo el
+    // código fuente (que es público). Se prueba en un documento distinto al
+    // ledger para que, en el peor caso, un fallo no borre cuentas reales.
+    const rechazoSinSesion = await fresh.evaluate(async () => {
+      try {
+        await window._FIRESTORE.collection("accounts").doc("_reglas_qa").set({ prueba: true });
+        return { escrito: true };
+      } catch (e) { return { escrito: false, code: e.code || String(e.message).slice(0, 90) }; }
+    });
+    chk("la nube rechaza escribir el registro SIN sesión del dueño",
+      rechazoSinSesion.escrito === false, JSON.stringify(rechazoSinSesion));
+
+    const siPuedeElDueno = await page.evaluate(async () => {
+      try {
+        const ref = window._FIRESTORE.collection("accounts").doc("_reglas_qa");
+        await ref.set({ prueba: Date.now() });
+        await ref.delete();
+        return true;
+      } catch (e) { console.warn("reglas qa:", e.code || e.message); return false; }
+    });
+    chk("y con la sesión del dueño sí escribe (no nos quedamos afuera)",
+      siPuedeElDueno === true, siPuedeElDueno);
+
     // ── C. El cliente PRO inicia sesión en el dispositivo nuevo ───────────
     const cliente = await fresh.evaluate(async ({ correo, pass }) => {
       showAuthModal();
@@ -177,7 +220,7 @@ const main = async () => {
     chk("su obra quedó en la nube", subida.enNube === true && subida.obra === true, JSON.stringify(subida));
 
     // ── Limpieza: no dejar la cuenta de QA en el registro real ────────────
-    await fresh.evaluate(() => { try { logout(); } catch (e) {} });
+    await fresh.evaluate(async () => { try { await logout(); } catch (e) {} });
     await page.evaluate(async ({ id }) => {
       if (!id) { return; }
       adminDeleteAccount(id);

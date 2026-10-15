@@ -4,3 +4,6 @@ node_modules/
 *.log
 .DS_Store
 Thumbs.db
+
+# Credenciales del dueño para los smokes (nunca al repo: es público)
+tests/.secret.json

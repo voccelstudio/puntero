@@ -108,10 +108,12 @@ describe("login() — la maestra se valida en Firebase Auth, no con un texto del
 describe("el fuente que se publica no contiene secretos de la maestra", () => {
   const src = fs.readFileSync(path.join(ROOT, "app.js"), "utf8");
 
-  it("no hay contraseña de la maestra escrita en app.js", () => {
-    // La contraseña vieja quedó en el historial de git; no puede volver al código.
-    expect(src).not.toMatch(/6J89dfrh/);
-    // Tampoco ninguna comparación de la forma pass === "..." en la rama maestra.
+  it("no hay contraseña escrita en app.js", () => {
+    // Ni la maestra ni ninguna otra: ninguna contraseña puede compararse contra
+    // un texto del código (el repo y el sitio publican este archivo).
+    expect(src).not.toMatch(/pass\s*===\s*["']/);
+    expect(src).not.toMatch(/pass\s*!==\s*["']/);
+    // Tampoco en la rama maestra del login, que es la que abre el panel.
     const ramaMaestra = src.slice(src.indexOf("async function login()"), src.indexOf("function logout"));
     expect(ramaMaestra).not.toMatch(/pass\s*===\s*["']/);
   });
@@ -120,5 +122,36 @@ describe("el fuente que se publica no contiene secretos de la maestra", () => {
     expect(src).toMatch(/signInWithEmailAndPassword\(MASTER_EMAIL, pass\)/);
     // El alias no puede entrar sin verificar: solo habilita elegir la rama.
     expect(src).not.toMatch(/MASTER_ALIAS\s*&&\s*pass\s*===/);
+  });
+});
+
+describe("el registro de cuentas: sin secretos en el cliente ni en las reglas", () => {
+  const src = fs.readFileSync(path.join(ROOT, "app.js"), "utf8");
+
+  it("ya no existe la identidad de transporte con clave embebida (admin.sync)", () => {
+    // Su contraseña vivía en este archivo — y el repo es público —, así que
+    // cualquiera podía firmar como esa identidad y escribir cuentas PRO.
+    expect(src).not.toMatch(/ADMIN_SYNC_PASS/);
+    expect(src).not.toMatch(/signInWithEmailAndPassword\(\s*["']/);
+    // Firmar ahora depende de una variable (MASTER_EMAIL): sin contraseña real,
+    // Firebase rechaza.
+    expect(src).toMatch(/signInWithEmailAndPassword\(MASTER_EMAIL, pass\)/);
+  });
+
+  it("las reglas solo permiten escribir el registro con el uid del dueño", () => {
+    const reglas = fs.readFileSync(path.join(ROOT, "firestore.rules"), "utf8");
+    const desdeAccounts = reglas.slice(reglas.indexOf("match /accounts/"));
+    expect(desdeAccounts).toContain(app.MASTER_UID);
+    expect(desdeAccounts).not.toMatch(/admin\.sync@puntero\.local/);
+    // Y la lectura sigue siendo pública (cualquier dispositivo valida su
+    // contraseña contra el ledger sin iniciar sesión).
+    expect(desdeAccounts).toMatch(/allow read: if true;/);
+  });
+
+  it("escribir el registro exige la sesión del dueño en el código", () => {
+    expect(src).toMatch(/function _esSesionDuenio/);
+    expect(src).toMatch(/if \(!_esSesionDuenio\(\) \|\| !window\._FIRESTORE\)/);
+    // Vincular cuentas también: crea usuarios reales en Auth.
+    expect(src).toMatch(/if \(!_esSesionDuenio\(\)\) \{\s*return toast\("Para vincular/);
   });
 });

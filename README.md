@@ -56,6 +56,11 @@ npm run smoke:nube      # nube real: cuenta PRO creada, vinculada y sincronizada
 npm run smoke:backup    # pérdida de datos del navegador y recuperación
 npm run precios:build   # regenera precios/manifest.json desde precios/db.json
 node tools/ver_ledger.mjs   # qué cuentas hay en la nube (sin iniciar sesión)
+# Los smokes que ESCRIBEN en el registro (panel y nube) necesitan las
+# credenciales del dueño: creá tests/.secret.json con {"email":"...","pass":"..."}
+# (está en .gitignore y firebase.json no publica tests/), o exportá
+# PUNTERO_MASTER_EMAIL / PUNTERO_MASTER_PASS. Si faltan, avisan y salen con error
+# en lugar de fingir que sincronizaron.
 ```
 
 ## Cómo funcionan los tests
@@ -73,6 +78,9 @@ con las tasas de IVA invertidas pasaba sin fallar. Ahora se testea la implementa
 - `tests/runtime.test.js` — deep links del manifest, tiers de licencia, estado de sesión y conexión
 - `tests/precios.test.js` — merge de la base de precios y gate de actualización por suscripción
 - `tests/backup.test.js` — validación y resumen de backups, reglas de recuperación del espejo
+- `tests/master-login.test.js` — el ingreso maestro se verifica contra Firebase Auth; falla
+  si alguna contraseña vuelve a aparecer en el fuente publicado o si las reglas dejan de
+  exigir el uid del dueño para escribir el registro
 - `tests/smoke-panel.mjs` — flujo real en navegador: panel de control, planes, suscripción y login
 - `tests/smoke-clients.mjs` — flujo real en navegador: clientes, alta de obra, PDF de vinculación
 - `tests/smoke-precios.mjs` — flujo real en navegador: detectar precios nuevos, aplicarlos conservando ediciones, y que el plan usuario no reciba nada
@@ -112,8 +120,11 @@ Por eso `isCloudUser()` apaga en lugar de fingir. El efecto práctico:
   y quedaría sin nube sin entender por qué, así que se rechaza.
 - Al iniciar sesión, la app usa la contraseña tecleada para abrir también la sesión de
   Firebase (best-effort): si Firebase está caído, **la app sigue funcionando**.
-- La **cuenta maestra** necesita su propia sesión de Firebase para tener nube propia; sin
-  ella es VIP con todo habilitado pero guardando en el dispositivo.
+- La **cuenta maestra** entra con su contraseña **verificada por Firebase Auth** (se
+  teclea `martin` o su correo): la contraseña no está escrita en el cliente ni en git,
+  así que leer el código fuente (Ctrl+U) no abre el panel. Esa sesión es además la única
+  con permiso para **escribir el registro de cuentas** (más abajo). Necesita internet la
+  primera vez; después la sesión queda guardada y la app trabaja normal sin red.
 
 **El registro de cuentas es de lectura pública** (así cualquier dispositivo descubre la
 licencia), así que va sanitizado: nunca contraseñas en claro, y tampoco el hash de las
@@ -123,6 +134,20 @@ no tienen identidad en la nube) y las demos, que son efímeras.
 
 Las eliminaciones dejan un *tombstone* de 10 minutos para que un pull concurrente no
 resucite la cuenta recién borrada.
+
+**Quién puede escribir el registro:** únicamente la sesión Firebase del **dueño**, por su
+uid (`firestore.rules`); la lectura sigue siendo pública. Esto no es menor: antes existía
+una "identidad de transporte" (`admin.sync@puntero.local`) con la contraseña escrita en
+`app.js`, y el repositorio es **público** — es decir, no era un secreto: cualquiera podía
+firmar como esa identidad y escribirse una cuenta PRO en el registro. Se retiró por
+completo (la cuenta se borró de Firebase Auth y salió de las reglas) y ahora `login()`
+verifica la contraseña del dueño contra Auth en lugar de compararla con un texto del
+código. Dos pruebas automáticas lo cuidan:
+
+- `tests/master-login.test.js` — falla si vuelve a aparecer una clave embebida en el
+  fuente o si las reglas dejan de exigir el uid del dueño.
+- `npm run smoke:nube` (19 checks) — intenta escribir el registro **sin sesión** y espera
+  el rechazo de las reglas, y luego escribe **con la sesión del dueño** y espera que pase.
 
 ## Actualización de precios por suscripción
 

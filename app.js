@@ -4834,19 +4834,32 @@ function initFirebaseAuth() {
     return;
   }
   window._AUTH.onAuthStateChanged(function (user) {
-    // Identidad técnica de sincronización del admin: no afecta la sesión de la app
-    if (user && user.email === ADMIN_SYNC_EMAIL) {
-      window._isAdminSyncUser = true;
+    // Sesión ANTIGUA de sincronización (admin.sync): su contraseña estaba en el
+    // código fuente público, así que ya no sirve y las reglas la rechazan. Se
+    // cierra sola y se pide volver a entrar con la contraseña del dueño.
+    if (user && String(user.email || "").toLowerCase() === "admin.sync@puntero.local") {
+      try { window._AUTH.signOut(); } catch (e) {}
+      if (localStorage.getItem("pte_master_session") === "1") {
+        user = { uid: "master", email: "martin@puntero.local", isMaster: true };
+        setTimeout(function () {
+          toast("Sincronización actualizada: volvé a entrar con tu contraseña para volver a publicar el registro.", false);
+        }, 900);
+      } else {
+        user = null;
+      }
+    }
+    // Sesión real del DUEÑO en Firebase: es la que abre el panel maestro y la
+    // única con permiso para escribir el registro. La bandera local dice "esta
+    // máquina es del admin"; la sesión dice que quien la abrió sabe la
+    // contraseña — hacen falta las dos cosas.
+    if (user && String(user.uid) === MASTER_UID) {
       pullAccounts();
       if (localStorage.getItem("pte_master_session") === "1") {
-        window._currentUser = { uid: "master", email: "martin@puntero.local", isMaster: true };
-        applyAppLock();
+        user = { uid: "master", email: "martin@puntero.local", isMaster: true };
       }
-      return;
-    }
-    window._isAdminSyncUser = false;
-    // Cuenta maestra (dueño): sesión local persistente sin correo registrado
-    if (!user && localStorage.getItem("pte_master_session") === "1") {
+    } else if (!user && localStorage.getItem("pte_master_session") === "1") {
+      // La bandera quedó de una sesión anterior (p. ej. sin Firebase cargado):
+      // la UI maestra se restaura, pero sin sesión no se escribe el registro.
       user = { uid: "master", email: "martin@puntero.local", isMaster: true };
     } else if (!user) {
       // Cuenta de pago emitida por el admin: se restaura si Firebase no trae una
@@ -5010,7 +5023,9 @@ async function login() {
   if (demoAcc) {
     if (demoAcc.expiresAt <= Date.now()) {
       removeAccountLocal(demoAcc.id);
-      if (window._isAdminSyncUser) {pushAccountsSync();}
+      // Empuja si hay sesión del dueño (pushAccountsSync decide; si no la hay,
+      // la baja queda local y viaja en la próxima sincronización).
+      pushAccountsSync();
       var errD = document.getElementById("auth-error");
       if (errD) { errD.textContent = "La cuenta demo venció (72h). Pedile una nueva al administrador."; errD.style.display = ""; }
       return;
@@ -5083,7 +5098,8 @@ async function register() {
   if (pass.length < 6) {return toast("La contraseña debe tener al menos 6 caracteres", false);}
   if (!window._AUTH) {return toast("Sin conexión. Usá el modo invitado.", false);}
   try {
-    var cred = await window._AUTH.createUserWithEmailAndPassword(email, pass);
+    // Instancia secundaria para no pisar la sesión del dueño (ver _authSecundaria)
+    var cred = await (_authSecundaria() || window._AUTH).createUserWithEmailAndPassword(email, pass);
     deleteGuestSession();
     if (cred.user && cred.user.sendEmailVerification) {
       await cred.user.sendEmailVerification();
@@ -5145,9 +5161,9 @@ async function logout() {
   if (window._currentUser && window._currentUser.isMaster) {
     localStorage.removeItem("pte_master_session");
     window._currentUser = null;
-    window._isAdminSyncUser = false;
     window._lastAccountSync = 0;
-    // Cerrar también la identidad técnica de sincronización si estaba activa
+    // Cerrar también la sesión Firebase del dueño: sin ella no se escribe el
+    // registro de cuentas (es la credencial real, no una bandera local).
     try { if (window._AUTH && window._AUTH.currentUser) {await window._AUTH.signOut();} } catch (e) {}
     applyAppLock();
     closeModal();
@@ -5774,11 +5790,32 @@ async function adminSaveAccountEdit(id) {
 // Una cuenta creada sin conexión queda operativa en local pero sin identidad en
 // la nube. Con conexión, esto la crea en Firebase Auth para que el plan PRO
 // pueda sincronizar de verdad.
+// Instancia SECUNDARIA de Firebase Auth para el admin. Mismo proyecto, otro
+// "app": así crear o vincular cuentas de clientes no interrumpe la sesión del
+// dueño en la instancia principal (que es la que autoriza escribir el registro).
+function _authSecundaria() {
+  if (window._AUTH2) {return window._AUTH2;}
+  if (!window._FB_CONFIG || typeof firebase === "undefined") {return null;}
+  try {
+    window._AUTH2 = firebase.initializeApp(window._FB_CONFIG, "puntero-admin-sec").auth();
+  } catch (e) {
+    try {
+      window._AUTH2 = firebase.app("puntero-admin-sec").auth();
+    } catch (e2) { console.warn("Auth secundaria:", e2); return null; }
+  }
+  return window._AUTH2;
+}
+
 async function adminLinkFirebase(id) {
   if (!isMasterAcc()) {return;}
   var enc = getAccounts().find(function (x) { return x.id === id; });
   if (!enc) {return;}
   if (!window._AUTH) {return toast("Sin conexión con Firebase. Probá cuando tengas internet.", false);}
+  // Vincular crea una cuenta real en Auth: lo pide la sesión del dueño, que es
+  // la única credencial que este cliente no tiene escrita.
+  if (!_esSesionDuenio()) {
+    return toast("Para vincular necesitás tu sesión de dueño: salí y volvé a entrar.", false);
+  }
   if (enc.firebase) {return toast("Esta cuenta ya está vinculada a la nube", false);}
 
   var pass = prompt("Contraseña de la cuenta " + enc.username + "\n(la misma con la que va a entrar el cliente):", "");
@@ -5794,18 +5831,23 @@ async function adminLinkFirebase(id) {
   }
 
   toast("Creando la cuenta en la nube...", true);
+  // Se crea en una INSTANCIA SECUNDARIA de Auth: createUserWithEmailAndPassword
+  // deja iniciada la cuenta recién creada, y en la instancia principal eso
+  // habría robado la sesión del dueño (habría que volver a teclear la
+  // contraseña para poder sincronizar el registro después).
+  var auth2 = _authSecundaria();
+  if (!auth2) {
+    return toast("No se pudo preparar la creación de cuentas (instancia secundaria de Firebase).", false);
+  }
   try {
-    var cred = await window._AUTH.createUserWithEmailAndPassword(enc.username, pass);
+    var cred = await auth2.createUserWithEmailAndPassword(enc.username, pass);
     var list = getAccounts();
     var a = list.find(function (x) { return x.id === id; });
     a.firebase = true;
     a.uid = cred.user.uid;
     setAccounts(list);
-    // Crear una cuenta inicia sesión como ella: restaurar la maestra.
-    try { await window._AUTH.signOut(); } catch (e) {}
-    if (localStorage.getItem("pte_master_session") === "1") {
-      window._currentUser = { uid: "master", email: "martin@puntero.local", isMaster: true };
-    }
+    // La sesión del dueño sigue viva en la instancia principal: con ella se
+    // publica el registro en el acto.
     applyAppLock();
     ensureAdminSync().then(function () { pushAccountsSync(); }).catch(function () {});
     renderAccountsSettings();
@@ -5864,13 +5906,16 @@ async function adminDeleteAccount(id) {
 // Firebase Auth: acá no aparece nunca, por eso leer este archivo no habilita
 // el panel maestro. El uid es el que autoriza la escritura del registro en las
 // reglas de Firestore — es estable aunque cambie el correo.
+//
+// Antes existía una "identidad de transporte" (admin.sync) con su contraseña
+// escrita acá: cualquiera que leyera el código — el repo es público — podía
+// firmar como esa identidad y escribir cuentas PRO en el registro. Se retiró:
+// ahora ESCRIBE en el registro solo quien tiene sesión Firebase del dueño, y
+// esa contraseña no está ni acá ni en git.
 var MASTER_EMAIL = "martinhuberf@gmail.com";
 var MASTER_UID = "6tF1PCIYwCZEhhf7lsDP7p5Ny6j1";
 var MASTER_ALIAS = "martin"; // como el dueño siempre tecleó, sin repetir el correo
 
-var ADMIN_SYNC_EMAIL = "admin.sync@puntero.local";
-var ADMIN_SYNC_PASS = "9L8mB&t7E$*RrajfZV5qirYZQ"; // solo transporte de sincronización
-window._isAdminSyncUser = false;
 window._lastAccountSync = 0;
 
 function _accountsMaxUpdatedAt(list) {
@@ -5977,24 +6022,15 @@ function _mergeRemoteAccounts(remote, local, remoteTs) {
   return merged;
 }
 
+// Refresca el registro de cuentas. La LECTURA del ledger es pública en
+// Firestore, así que esto no necesita sesión: sirve en cualquier dispositivo.
+// (Antes firmaba acá con una identidad de transporte cuya contraseña estaba
+// escrita en el cliente — es decir, no era secreta. Se retiró; escribir el
+// registro exige sesión del dueño, ver pushAccountsSync.)
 async function ensureAdminSync() {
-  if (!window._AUTH || !window._FIRESTORE) {return;}
+  if (!window._FIRESTORE) {return;}
   if (navigator && navigator.onLine === false) {return;}
-  if (window._isAdminSyncUser) {return pullAccounts();}
-  try {
-    try {
-      await window._AUTH.signInWithEmailAndPassword(ADMIN_SYNC_EMAIL, ADMIN_SYNC_PASS);
-    } catch (e) {
-      if (e && /user-not-found/i.test((e.code || "") + " " + (e.message || ""))) {
-        await window._AUTH.createUserWithEmailAndPassword(ADMIN_SYNC_EMAIL, ADMIN_SYNC_PASS);
-      } else if (e && /invalid-(password|credential|login-credentials)/i.test((e.code || "") + " " + (e.message || ""))) {
-        console.warn("Sync cuentas: contraseña de sincronización incorrecta", e.code || e.message);
-        return;
-      } else { throw e; }
-    }
-    window._isAdminSyncUser = true;
-    pullAccounts();
-  } catch (e) { console.warn("Sync cuentas:", e.code || e.message); }
+  return pullAccounts();
 }
 
 // Trae el ledger a CUALQUIER dispositivo (lectura pública). Con merge inteligente.
@@ -6013,8 +6049,8 @@ async function pullAccounts() {
     if (remote && remote.length && remoteTs >= _accountsMaxUpdatedAt(local)) {
       setAccounts(_pruneExpiredDemos(_mergeRemoteAccounts(remote, getAccounts(), remoteTs)));
       // El admin auto-repara el ledger (borra demos vencidas)
-      if (window._isAdminSyncUser) {pushAccountsSync();}
-    } else if ((!remote || !remote.length) && local.length && window._isAdminSyncUser) {
+      if (_esSesionDuenio()) {pushAccountsSync();}
+    } else if ((!remote || !remote.length) && local.length && _esSesionDuenio()) {
       await pushAccountsSync();
     }
     // Reasegurar las demos base por si el remoto no las traía
@@ -6024,17 +6060,28 @@ async function pullAccounts() {
   } catch (e) { console.warn("pull cuentas:", e.code || e.message); }
 }
 
-// ¿Estamos identificados como la cuenta técnica de sync del admin?
-// Se consulta en vivo y no se usa el flag cacheado: un signOut (o cualquier
-// cambio de estado de auth) lo pone en false y el panel dejaría de sincronizar
-// en silencio.
-function _esCuentaSyncAdmin() {
+// ¿Hay sesión Firebase del DUEÑO? Es la única identidad con permiso para
+// escribir el registro: la regla de Firestore compara el uid, y la contraseña
+// que produce esa sesión no está en el cliente ni en git. Se consulta en vivo
+// (no un flag cacheado) para que un signOut se refleje al toque.
+function _esSesionDuenio() {
   var u = window._AUTH && window._AUTH.currentUser;
-  return !!(u && String(u.email || "").toLowerCase() === ADMIN_SYNC_EMAIL);
+  return !!(u && String(u.uid) === MASTER_UID);
 }
 
+// El registro se LEE en abierto (cualquier dispositivo valida su contraseña
+// contra él) pero se ESCRIBE solo con sesión del dueño. Sin esa sesión no se
+// escribe nada: por eso leer el código fuente no alcanza para darse una cuenta
+// PRO — hace falta la contraseña real del dueño, que solo vive en Firebase.
 async function pushAccountsSync() {
-  if (!_esCuentaSyncAdmin() || !window._FIRESTORE) {return;}
+  if (!_esSesionDuenio() || !window._FIRESTORE) {
+    if (window._FIRESTORE && !_esSesionDuenio()) {
+      console.warn("Ledger: sin sesión del dueño, no se escribe el registro");
+      window._ledgerPushSinSesion = true;
+    }
+    return;
+  }
+  window._ledgerPushSinSesion = false;
   try {
     var now = Date.now();
     var local = getAccounts().map(function (a) { return Object.assign({}, a, { updatedAt: a.updatedAt || now }); });

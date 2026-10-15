@@ -66,6 +66,7 @@ function bootstrap() {
   login: login,
   MASTER_EMAIL: MASTER_EMAIL,
   MASTER_ALIAS: MASTER_ALIAS,
+  MASTER_UID: MASTER_UID,
   resumenDatos: resumenDatos,
   resumenTexto: resumenTexto,
   serializarBackup: serializarBackup,

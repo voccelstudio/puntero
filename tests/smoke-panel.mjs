@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import puppeteer from "puppeteer-core";
+import { credencialesDueno, FALTA_CREDENCIAL } from "./helpers/dueno.mjs";
 
 // Smoke test del Panel de Control del administrador.
 // Verifica el circuito completo: crear cuentas (PRO / Usuario / Demo), la regla
@@ -34,6 +35,10 @@ const fail = (m) => report.push("FAIL  " + m);
 const chk = (label, cond, extra) => (cond ? ok(label + ": sí") : fail(label + (extra !== undefined ? " → " + extra : " → NO")));
 
 const main = async () => {
+  // El registro de cuentas se ESCRIBE solo con sesión del dueño (las reglas de
+  // Firestore comparan su uid), así que este smoke necesita esas credenciales.
+  const creds = credencialesDueno();
+  if (!creds) { console.log("FAIL  " + FALTA_CREDENCIAL); process.exit(1); }
   // Sin `shell: true`: así server.kill() le pega a python.exe directamente.
   // Con shell, node mata el cmd.exe intermedio y el server queda huérfano
   // ocupando el puerto en la siguiente corrida.
@@ -53,6 +58,20 @@ const main = async () => {
     await page.reload({ waitUntil: "networkidle2" });
     await esperar(1200);
 
+    // Sesión REAL del dueño: es la única con permiso para escribir el registro
+    // de cuentas (la regla de Firestore compara el uid). Sin esto, los pushes
+    // del panel no llegarían a la nube y el smoke lo detectaría al final.
+    const sesionDueno = await page.evaluate(async ({ email, pass }) => {
+      await window._AUTH.signInWithEmailAndPassword(email, pass);
+      await new Promise((r) => setTimeout(r, 1200));
+      return {
+        uid: (window._AUTH && window._AUTH.currentUser && window._AUTH.currentUser.uid) || null,
+        email: (window._AUTH && window._AUTH.currentUser && window._AUTH.currentUser.email) || null,
+      };
+    }, { email: creds.email, pass: creds.pass });
+    chk("sesión real del dueño activa (la única que escribe el registro)",
+      !!sesionDueno.uid && sesionDueno.email === creds.email, sesionDueno.email || "sin sesión");
+
     const master = await page.evaluate(() => ({
       user: window._currentUser && window._currentUser.email,
       tier: typeof currentTier === "function" ? currentTier() : null,
@@ -69,11 +88,14 @@ const main = async () => {
     chk("maestro: estado de nube coherente con la sesión", master.cloud === master.sesionFb,
       "nube=" + master.cloud + " sesion=" + master.sesionFb);
 
-    // Con sesión simulada, el gate debe abrir para la maestra.
+    // Con sesión simulada, el gate debe abrir para la maestra. Se guarda y
+    // restaura la instancia real: pisarla (antes quedaba en null) dejaba al
+    // resto del smoke sin Firebase y los pushes no hubieran llegado a la nube.
     const masterCloud = await page.evaluate(() => {
+      const authReal = window._AUTH;
       window._AUTH = { currentUser: { uid: "fb-master-test" } };
       var c = isCloudUser();
-      window._AUTH = null;
+      window._AUTH = authReal;
       return c;
     });
     ok("con sesión de Firebase la maestra sí tendría nube: " + (masterCloud === true ? "sí" : String(masterCloud)));
@@ -204,8 +226,10 @@ const main = async () => {
     await esperar(300);
 
     // ── 8. Iniciar sesión como el USUARIO (compra única) ─────────────────
-    await page.evaluate(() => {
-      logout();
+    // logout() es asincrónico (cierra la sesión de Firebase y recién después
+    // cierra el modal): hay que esperarlo, si no showAuthModal() se lo cierra.
+    await page.evaluate(async () => {
+      await logout();
       showAuthModal();
     });
     await esperar(700);
@@ -230,8 +254,10 @@ const main = async () => {
     chk("usuario desbloquea la app", sesionUsuario.locked === false, sesionUsuario.locked);
 
     // ── 9. Cerrar y entrar como PRO ──────────────────────────────────────
-    await page.evaluate(() => {
-      logout();
+    // logout() es asincrónico (cierra la sesión de Firebase y recién después
+    // cierra el modal): hay que esperarlo, si no showAuthModal() se lo cierra.
+    await page.evaluate(async () => {
+      await logout();
       showAuthModal();
     });
     await esperar(700);
@@ -257,8 +283,10 @@ const main = async () => {
     chk("PRO desbloquea la app", sesionPro.locked === false, sesionPro.locked);
 
     // ── 10. Contraseña incorrecta no entra ───────────────────────────────
-    await page.evaluate(() => {
-      logout();
+    // logout() es asincrónico (cierra la sesión de Firebase y recién después
+    // cierra el modal): hay que esperarlo, si no showAuthModal() se lo cierra.
+    await page.evaluate(async () => {
+      await logout();
       showAuthModal();
     });
     await esperar(700);
@@ -277,23 +305,26 @@ const main = async () => {
     chk("muestra mensaje de error", !!rechazo.err, rechazo.err);
 
     // ── Limpieza: no dejar cuentas de QA en el registro real del admin ────
-    await page.evaluate(() => {
-      try { logout(); } catch (e) {}
+    await page.evaluate(async () => {
+      try { await logout(); } catch (e) {}
       localStorage.setItem("pte_master_session", "1");
       window._currentUser = { uid: "master", email: "martin@puntero.local", isMaster: true };
       applyAppLock();
     });
     await esperar(600);
-    const limpias = await page.evaluate(async () => {
+    const limpias = await page.evaluate(async ({ email, pass }) => {
       const creadas = getAccounts()
         .filter((a) => /@puntero\.test$/.test(String(a.username || "")))
         .map((a) => a.id);
       for (const id of creadas) { removeAccountLocal(id); }
+      // Este bloque corre después de un logout: el registro solo se escribe
+      // con sesión del dueño, así que hay que volver a entrar (tan estricto es).
+      try { await window._AUTH.signInWithEmailAndPassword(email, pass); } catch (e) {}
       await ensureAdminSync();
       await pushAccountsSync();
       await new Promise((r) => setTimeout(r, 3000));
       return creadas.length;
-    });
+    }, { email: creds.email, pass: creds.pass });
     // Se verifica en la NUBE, no solo local: borrar en el panel sin que el
     // borrado llegue deja la cuenta viva en otros dispositivos.
     const ledgerLimpio = await page.evaluate(async () => {

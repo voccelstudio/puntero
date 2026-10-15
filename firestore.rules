@@ -41,12 +41,15 @@ service cloud.firestore {
     }
 
     // Registro de cuentas del admin: lectura pública de datos SANITIZADOS
-    // (sin contraseñas en claro; las demos guardan solo el hash). La escritura
-    // queda reservada a la identidad técnica de sincronización del admin.
+    // (sin contraseñas en claro; las demos guardan solo el hash).
+    // La ESCRITURA exige la sesión del DUEÑO (por uid): es la única credencial
+    // que no vive dentro del cliente. La identidad de transporte anterior
+    // (admin.sync@puntero.local) quedó fuera a propósito — su contraseña estaba
+    // escrita en el código fuente, que es público, y por lo tanto no era secreta.
     match /accounts/{docId} {
       allow read: if true;
       allow create, update, delete: if request.auth != null
-                                    && request.auth.token.email == 'admin.sync@puntero.local';
+                                    && request.auth.uid == '6tF1PCIYwCZEhhf7lsDP7p5Ny6j1';
     }
 
     // Denegar todo lo demas
