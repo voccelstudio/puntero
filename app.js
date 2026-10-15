@@ -3554,7 +3554,11 @@ function generarPDF() {
   } else {
     drawPunteroLogo(doc, M + 10, 19, 9);
   }
-  const tX = M + 24;
+  // Separación entre el logo y los datos de la empresa: con logo personalizado
+  // el dibujo ocupa 24mm desde el margen, así que el texto se corrió 8mm para
+  // que no quede pegado. Sin logo (puntero dibujado, ~19mm) alcanza el offset
+  // original de 24.
+  const tX = M + 24 + (state.logoDataUrl ? 8 : 0);
   doc.setTextColor(...C.hdrTx);
   doc.setFontSize(14); doc.setFont("helvetica", "bold");
   doc.text(pdfTxt(p.company || p.professional || "Puntero"), tX, 14);
