@@ -85,7 +85,11 @@ function bootstrap() {
   adminDeleteAccount: adminDeleteAccount,
   _marcarDemoBorrada: _marcarDemoBorrada,
   _demoBorrada: _demoBorrada,
-  _esBorradaReciente: _esBorradaReciente
+  _esBorradaReciente: _esBorradaReciente,
+  adminCreateAccount: adminCreateAccount,
+  _publicarRegistro: _publicarRegistro,
+  adminToggleActive: adminToggleActive,
+  adminExtendPro: adminExtendPro
 };
 `;
 

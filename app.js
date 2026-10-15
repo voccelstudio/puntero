@@ -5621,6 +5621,42 @@ function setAccSearch(v) {
 // ── CREAR CUENTA ─────────────────────────────────────────────────────────
 // Funciona SIEMPRE: el registro local manda y la nube es réplica. No depende
 // de Firebase para que la cuenta quede operativa en el dispositivo del admin.
+// Publica el registro de cuentas en la nube SIN pull previo. El pull antes de
+// escribir es un error de diseño: trae la nube todavía sin el cambio y el merge
+// puede pisar lo recién creado/edited en local (pasó: una cuenta creada desde
+// el panel nunca llegó al ledger y el cliente no pudo entrar).
+// Devuelve true si quedó escrito; false si no (sin sesión del dueño o error).
+async function _publicarRegistro() {
+  if (!window._FIRESTORE) {return false;}
+  if (!_esSesionDuenio()) {
+    console.warn("Ledger: sin sesión del dueño, no se escribe el registro");
+    window._ledgerPushSinSesion = true;
+    return false;
+  }
+  window._ledgerPushSinSesion = false;
+  try {
+    var now = Date.now();
+    var local = getAccounts().map(function (a) { return Object.assign({}, a, { updatedAt: a.updatedAt || now }); });
+    setAccounts(local);
+    var sanitized = [];
+    for (var i = 0; i < local.length; i++) {
+      sanitized.push(await _sanitizeAccountForLedger(local[i]));
+    }
+    sanitized = _pruneExpiredDemos(sanitized);
+    await window._FIRESTORE.collection("accounts").doc("ledger").set({ list: sanitized, updatedAt: now });
+    return true;
+  } catch (e) {
+    console.warn("push cuentas:", e.code || e.message);
+    return false;
+  }
+}
+
+// Comentario del panel: una cuenta que no llegó a la nube no sirve en otros
+// equipos, así que hace falta decirlo (antes el push era a ciegas).
+function _avisoRegistroLocal() {
+  toast("⚠️ La cuenta quedó guardada en ESTE equipo pero no se pudo publicar en la nube: no va a funcionar en otros dispositivos. Reintentá estando en línea.", false);
+}
+
 async function adminCreateAccount() {
   if (!isMasterAcc()) {return toast("El registro de cuentas lo administra el dueño 🔒", false);}
   var type = window._accTypeSel || TIERS.PRO;
@@ -5664,8 +5700,11 @@ async function adminCreateAccount() {
   list.push(acc);
   setAccounts(list);
 
-  // Réplica a la nube (best-effort; si falla, el panel igual funcionó)
-  ensureAdminSync().then(function () { pushAccountsSync(); }).catch(function () {});
+  // Se publica YA y se espera el resultado. Si la nube no la recibe, la cuenta
+  // solo existe en este equipo y el cliente no va a poder entrar: hace falta
+  // avisar, no dejar el push corriendo a ciegas.
+  var publicada = await _publicarRegistro();
+  if (!publicada) {_avisoRegistroLocal();}
 
   document.getElementById("acc-user").value = "";
   document.getElementById("acc-pass").value = "";
@@ -5706,7 +5745,7 @@ async function adminExtendPro(id, months) {
   }
   a.updatedAt = now;
   setAccounts(list);
-  ensureAdminSync().then(function () { pushAccountsSync(); }).catch(function () {});
+  var _pub = await _publicarRegistro(); if (!_pub) {_avisoRegistroLocal();}
   renderAccountsSettings();
 }
 
@@ -5723,7 +5762,7 @@ async function adminResetPassword(id) {
   a.passwordHash = await hashAccountPassword(nueva, a.salt);
   a.updatedAt = Date.now();
   setAccounts(getAccounts());
-  ensureAdminSync().then(function () { pushAccountsSync(); }).catch(function () {});
+  var _pub = await _publicarRegistro(); if (!_pub) {_avisoRegistroLocal();}
   toast("Contraseña actualizada ✓ · " + nueva);
   renderAccountsSettings();
 }
@@ -5811,7 +5850,7 @@ async function adminSaveAccountEdit(id) {
   }
 
   setAccounts(list);
-  ensureAdminSync().then(function () { pushAccountsSync(); }).catch(function () {});
+  var _pub = await _publicarRegistro(); if (!_pub) {_avisoRegistroLocal();}
   closeModal();
   renderAccountsSettings();
   var label = newType === TIERS.PRO ? "⭐ PRO" : newType === TIERS.USUARIO ? "👤 Usuario" : "🎭 Demo";
@@ -5881,7 +5920,7 @@ async function adminLinkFirebase(id) {
     // La sesión del dueño sigue viva en la instancia principal: con ella se
     // publica el registro en el acto.
     applyAppLock();
-    ensureAdminSync().then(function () { pushAccountsSync(); }).catch(function () {});
+    var _pub = await _publicarRegistro(); if (!_pub) {_avisoRegistroLocal();}
     renderAccountsSettings();
     toast("☁️ Cuenta vinculada · ya puede sincronizar ✓");
   } catch (e) {
@@ -5892,7 +5931,7 @@ async function adminLinkFirebase(id) {
       var a2 = list2.find(function (x) { return x.id === id; });
       a2.firebase = true;
       setAccounts(list2);
-      ensureAdminSync().then(function () { pushAccountsSync(); }).catch(function () {});
+      var _pub = await _publicarRegistro(); if (!_pub) {_avisoRegistroLocal();}
       renderAccountsSettings();
       toast("El correo ya existía en la nube: cuenta vinculada ✓", false);
     } else if (/operation-not-allowed|admin-restricted-operation/i.test(code)) {
@@ -5903,7 +5942,7 @@ async function adminLinkFirebase(id) {
   }
 }
 
-function adminToggleActive(id) {
+async function adminToggleActive(id) {
   if (!isMasterAcc()) {return;}
   var list = getAccounts();
   var a = list.find(function (x) { return x.id === id; });
@@ -5911,7 +5950,7 @@ function adminToggleActive(id) {
   a.active = a.active === false;
   a.updatedAt = Date.now();
   setAccounts(list);
-  ensureAdminSync().then(function () { pushAccountsSync(); }).catch(function () {});
+  var _pub = await _publicarRegistro(); if (!_pub) {_avisoRegistroLocal();}
   toast(a.active ? "Cuenta activada ✓" : "Cuenta desactivada ⛔");
   renderAccountsSettings();
 }
