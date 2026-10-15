@@ -48,11 +48,12 @@ examples/           Archivos de ejemplo para probar importación (no se desplieg
 npm install             # dependencias de desarrollo
 npm test                # suite de tests (Vitest)
 npm run lint            # ESLint
-npm run smoke           # los 3 smoke tests en navegador real
+npm run smoke           # los 5 smoke tests en navegador real
 npm run smoke:clientes  # clientes y vinculación a obras
 npm run smoke:panel     # panel de control, planes, suscripción y login
 npm run smoke:precios   # flujo pagado de actualización de precios
 npm run smoke:nube      # nube real: cuenta PRO creada, vinculada y sincronizada
+npm run smoke:backup    # pérdida de datos del navegador y recuperación
 npm run precios:build   # regenera precios/manifest.json desde precios/db.json
 node tools/ver_ledger.mjs   # qué cuentas hay en la nube (sin iniciar sesión)
 ```
@@ -71,10 +72,12 @@ con las tasas de IVA invertidas pasaba sin fallar. Ahora se testea la implementa
 - `tests/cloud-sync.test.js` — sincronización Firestore y conflictos local vs. nube
 - `tests/runtime.test.js` — deep links del manifest, tiers de licencia, estado de sesión y conexión
 - `tests/precios.test.js` — merge de la base de precios y gate de actualización por suscripción
+- `tests/backup.test.js` — validación y resumen de backups, reglas de recuperación del espejo
 - `tests/smoke-panel.mjs` — flujo real en navegador: panel de control, planes, suscripción y login
 - `tests/smoke-clients.mjs` — flujo real en navegador: clientes, alta de obra, PDF de vinculación
 - `tests/smoke-precios.mjs` — flujo real en navegador: detectar precios nuevos, aplicarlos conservando ediciones, y que el plan usuario no reciba nada
 - `tests/smoke-nube.mjs` — contra Firebase real: el panel crea una cuenta PRO, la vincula a Firebase, un dispositivo limpio la descubre sin sesión y su obra llega a la nube
+- `tests/smoke-backup.mjs` — pérdida de datos del navegador: se recuperan solos de IndexedDB, y si se borra todo vuelven desde el archivo de backup (con deshacer)
 
 ## Modelo de datos (resumen)
 
@@ -147,6 +150,44 @@ compilada y limpia esa marca.
 
 Quien no paga la suscripción no consulta el manifiesto: ve la fecha de su base y la
 indicación de que la actualización es un beneficio PRO. Su licencia sigue funcionando igual.
+
+## Backup y recuperación
+
+Es lo primero que hay que poder prometer antes de cobrar: que el trabajo de una obra no se
+pierde. Hay tres capas, de menos a más resistente:
+
+| Capa | Qué es | Cubre |
+|---|---|---|
+| `localStorage` | la copia de trabajo | — (se pierde con "borrar datos del sitio", disco lleno, etc.) |
+| **IndexedDB** (Dexie) | espejo en cada guardado + historial de las últimas 5 copias | pérdida del navegador y datos corruptos/sobrescritos |
+| **Carpeta en disco** | `puntero_backup_AAAA-MM-DD.json`, una vez por día | todo lo anterior: formateo, otro equipo, navegador nuevo |
+
+Todo corre solo. `backupAutomatico()` se ejecuta al arranque (recién **después** de cargar
+los datos, si no guardaría un estado vacío) y cada hora mientras la app está abierta. La
+carpeta se elige una vez desde ☁️ Cloud → Backup y Datos; el *handle* vive en IndexedDB
+porque no es serializable a JSON. Si el navegador no permite escribir en carpetas (Safari/
+Firefox) o el permiso expiró, no insiste: se reintentará en el próximo arranque.
+
+**La restauración es lo que hace que esto sea un backup**: valida el archivo antes de tocar
+nada (un JSON ajeno o una imagen renombrada no pueden reemplazar una obra entera), muestra
+qué va a reemplazar y qué hay ahora, y deja una copia de seguridad de lo actual para poder
+**deshacer** un restore equivocado. También se puede restaurar una copia vieja del historial
+local desde el mismo panel.
+
+`validarBackup()` acepta los backups v1 (los `{ state, db }` que generaba la versión
+anterior, sin marca de esquema) y rechaza todo lo que no sea un backup de Puntero.
+
+> ⚠️ **Bug que esto destapó**: `initDexie()` se llamaba en la línea 431 mientras que
+> `var _DEXIE = null;` estaba declarado en la 1511. Por el hoisting del `var`, la
+> asignación `= null` se ejecuta *después* y borraba la instancia recién creada. El
+> resultado: **IndexedDB estuvo mudo desde siempre**, sin un solo error visible — el espejo
+> que el manual prometía no existía y un "borrar datos del sitio" era pérdida total. Si
+> volvés a tocar el orden de arranque, ojo con eso.
+
+Probado con `npm run smoke:backup` (24 checks): borra los datos del navegador y verifica
+que vuelven solos, borra también IndexedDB y verifica que **no** quedan, restaura desde
+archivo y verifica que regresan obra por obra, y comprueba que un archivo inválido no toca
+nada y que un restore equivocado se deshace.
 
 ## Modelo de licencias
 

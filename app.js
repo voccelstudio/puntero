@@ -428,6 +428,12 @@ try {
 } catch (e) { }
 
 // Init Dexie and try to load authoritative data from IndexedDB
+//
+// OJO con el hoisting: la declaración de `_DEXIE` tiene que estar ANTES de esta
+// llamada. Si quedara más abajo (donde vive initDexie), `var` eleva la variable
+// pero el `= null` se ejecuta DESPUÉS y borra la instancia recién creada: todo
+// el guardado en IndexedDB quedaba mudo sin ningún error visible.
+var _DEXIE = null;
 initDexie();
 
 // Este callback puede correr DURANTE la carga del propio app.js: si Dexie aún no
@@ -451,6 +457,11 @@ dexieLoad(function () {
     if (typeof setSection === "function" && state.section) {
       setSection(state.section);
     }
+    // Recién acá, con los datos ya cargados: si no, guardaría un estado vacío.
+    backupAutomatico();
+    checkBackupReminder();
+    // Sesiones largas (una obra abierta todo el día): se respalda igual.
+    setInterval(backupAutomatico, 60 * 60 * 1000);
   });
 });
 
@@ -1486,7 +1497,10 @@ function shareProjectWhatsApp(id) {
 }
 
 // Recordatorio no intrusivo de Backup (cada 3 días). Nunca descarga archivos solo.
-function checkBackupReminder() {
+async function checkBackupReminder() {
+  // Con backup automático a carpeta configurado, no hay nada que recordar.
+  var carpeta = await carpetaBackup();
+  if (carpeta) {return;}
   const last = localStorage.getItem("ppy_last_backup") || 0;
   const now = Date.now();
   if (now - last > 3 * 24 * 60 * 60 * 1000) {
@@ -1494,18 +1508,21 @@ function checkBackupReminder() {
       var u = window._currentUser;
       if (!u || u.isGuest === true) { return; }
       if (state._requireAccount !== false && !masteredOrVerified(u)) { return; }
-      toast("💾 Hacé tu backup en ☁️ Cloud > Backup y Datos. Nunca se descarga solo.", false);
+      toast("💾 No tenés backup automático. Configuralo en ☁️ Cloud > Backup y Datos.", false);
     }, 3000);
   }
 }
 
 // ── DEXIE (IndexedDB) ────────────────────────────────────────────────
-var _DEXIE = null;
+// `_DEXIE` se declara antes de la llamada a initDexie() (ver más arriba).
 function initDexie() {
   if (typeof Dexie === "undefined") {return;}
   try {
     _DEXIE = new Dexie("PunteroDB");
+    // v2: agrega `copias` (historial automático de backup local) y permite
+    // guardar el handle de la carpeta de backup (no es serializable a JSON).
     _DEXIE.version(1).stores({ state: "id", db: "id" });
+    _DEXIE.version(2).stores({ state: "id", db: "id", copias: "ts, tipo" });
   } catch (e) { console.warn("Dexie init failed:", e); }
 }
 
@@ -1514,21 +1531,37 @@ function dexieSave() {
   _DEXIE.state.put({ id: "main", data: JSON.parse(JSON.stringify(state)) }).catch(function (e) {
     console.warn("Dexie save error:", e);
   });
-  _DEXIE.db.put({ id: "main", data: JSON.parse(JSON.stringify(DB)) }).catch(function (e) {
+  // Se guarda junto la metadata de precios: si un día hace falta reconstruir la
+  // base desde acá, tiene que volver con su versión/mes/origen, no con los del
+  // binario compilado.
+  _DEXIE.db.put({ id: "main", data: JSON.parse(JSON.stringify(DB)), meta: metaPrecios() }).catch(function (e) {
     console.warn("Dexie db save error:", e);
   });
 }
 
 function dexieLoad(callback) {
   if (!_DEXIE) {return callback && callback();}
+  // El espejo solo interviene cuando lo de afuera PERDIÓ datos o quedó viejo.
+  // Pisarlo siempre haría dos cosas mal: revivir trabajo ya editado más tarde y
+  // deshacer una migración de precios recién aplicada en este arranque.
+  var estadoLocal = null;
+  try { estadoLocal = JSON.parse(localStorage.getItem("ppy_v5") || "null"); } catch (e) { estadoLocal = null; }
+  var dbLocal = null;
+  try { dbLocal = localStorage.getItem("ppy_db5"); } catch (e) { dbLocal = null; }
+
   _DEXIE.state.get("main").then(function (doc) {
-    if (doc && doc.data) {
+    var espejoMásNuevo = doc && doc.data &&
+      (doc.data._localModifiedAt || 0) >= ((estadoLocal && estadoLocal._localModifiedAt) || 0);
+    if (espejoMásNuevo) {
       Object.assign(state, doc.data);
     }
     return _DEXIE.db.get("main");
   }).then(function (doc) {
-    if (doc && doc.data) {
+    // La base de precios solo se reconstruye si localStorage la perdió: si está
+    // presente, ya pasó por la lógica de migración de este arranque.
+    if (doc && doc.data && !dbLocal) {
       DB = doc.data;
+      if (doc.meta) {aplicarMetaPrecios(doc.meta);}
     }
     localStorage.setItem("ppy_v5", JSON.stringify(state));
     localStorage.setItem("ppy_db5", JSON.stringify(DB));
@@ -6062,11 +6095,18 @@ function renderCloudSettings() {
     '<p style="color:var(--tx3);font-size:0.8rem;margin-top:6px">Cada cambio se sube automáticamente a Firestore cuando hay sesión iniciada.</p>' +
     '</div></div>' +
 
-    '<div class="card" style="margin-top:16px"><h3 class="sec-lbl">Backup y Datos</h3><div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">' +
-    '<button class="btn full" onclick="exportBackup()">📥 Descargar Backup (JSON)</button>' +
-    '<button class="btn full" onclick="importBackup()">📤 Restaurar Backup</button>' +
+    '<div class="card" style="margin-top:16px"><h3 class="sec-lbl">Backup y Datos</h3>' +
+    '<div id="backup-status" style="font-size:.8rem;color:var(--tx3);margin-top:8px;line-height:1.5">…</div>' +
+    '<div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">' +
+    '<button class="btn full" onclick="elegirCarpetaBackupUI()">📁 Backup automático a una carpeta…</button>' +
+    '<button class="btn full" onclick="exportBackup()">📥 Descargar backup ahora</button>' +
+    '<button class="btn full" onclick="importBackup()">📤 Restaurar desde archivo…</button>' +
+    '<button class="btn full" onclick="toggleCopiasLocales()">🕘 Copias automáticas locales</button>' +
+    '<button class="btn full" id="btn-deshacer-restore" style="display:none" onclick="deshacerRestoreUI()">↩️ Deshacer la última restauración</button>' +
     (cloud ? '<button class="btn full danger" onclick="clearCloudData()">🗑️ Borrar datos de la nube</button>' : "") +
-    '</div></div>' +
+    '</div>' +
+    '<div id="backup-copias" style="margin-top:8px"></div>' +
+    '</div>' +
 
     '<div class="card" style="margin-top:16px;background:var(--sur2)">' +
     '<h3 class="sec-lbl" style="font-size:0.85rem">📋 Firebase Spark Plan (Gratis)</h3>' +
@@ -6075,19 +6115,317 @@ function renderCloudSettings() {
     '</div></div>';
 
   updateConnStatus();
+  renderBackupStatus();
 }
 
+// ── BACKUP Y RESTAURACIÓN ───────────────────────────────────────────────────
+//
+// Tres capas, de menos a más resistente:
+//   1. localStorage          — la copia de trabajo (se pierde con "borrar datos
+//                              del sitio", actualizaciones o un disco lleno)
+//   2. IndexedDB (Dexie)     — historial automático, se recupera solo
+//   3. Carpeta en disco      — lo único que sobrevive a todo lo anterior
+//
+// Un backup que no se puede restaurar no es un backup, así que la restauración
+// valida el archivo, muestra qué va a reemplazar y deja una copia de seguridad
+// de lo actual para poder deshacer un restore equivocado.
+
+var BACKUP_SCHEMA = 2;              // v1 = { state, db } sin marca de esquema
+var MAX_COPIAS_LOCALES = 5;         // historial en IndexedDB
+var INTERVALO_BACKUP_MS = 24 * 60 * 60 * 1000;
+
+// Preferencias del dispositivo que NO viajan en el backup: cada equipo tiene la
+// suya (tema, sección abierta, si quiere sync) y pisarlas al restaurar confunde.
+var BACKUP_PRESERVA = ["section", "theme", "_cloudSyncEnabled"];
+
+// ── Conteo de lo que contiene un backup (para poder mostrarlo) ──────────────
+function resumenDatos(st, db) {
+  var s = st || {};
+  var proyectos = Array.isArray(s.projects) ? s.projects : [];
+  var presupuestos = 0;
+  var items = 0;
+  proyectos.forEach(function (p) {
+    (p.budgets || []).forEach(function (b) {
+      presupuestos++;
+      items += (b.items || []).length;
+    });
+  });
+  var cats = db && typeof db === "object" ? Object.keys(db) : [];
+  var rubros = 0;
+  cats.forEach(function (c) { rubros += Object.keys(db[c] || {}).length; });
+  return {
+    proyectos: proyectos.length,
+    presupuestos: presupuestos,
+    items: items,
+    clientes: (s.clients || []).length,
+    contratistas: (s.contractors || []).length,
+    jornaleros: (s.jornaleros || []).length,
+    proveedores: (s.suppliers || []).length,
+    categoriasPrecios: cats.length,
+    rubrosPrecios: rubros
+  };
+}
+
+// Texto legible del resumen, para confirmaciones y avisos.
+function resumenTexto(r) {
+  if (!r) {return "sin datos";}
+  return r.proyectos + " proyecto" + (r.proyectos === 1 ? "" : "s") +
+    " · " + r.presupuestos + " presupuesto" + (r.presupuestos === 1 ? "" : "s") +
+    " · " + r.items + " ítem" + (r.items === 1 ? "" : "s") +
+    " · " + r.clientes + " cliente" + (r.clientes === 1 ? "" : "s") +
+    " · " + r.contratistas + " contratista" + (r.contratistas === 1 ? "" : "s");
+}
+
+// ── Serialización ──────────────────────────────────────────────────────────
+
+// La base de precios vive en localStorage con tres claves de metadata que la
+// describen (versión, mes y origen). Sin ellas, restaurar una copia con precios
+// de la suscripción quedaría marcada como "compilada" y el arranque la pisaría.
+function metaPrecios() {
+  var m = { version: DB_VERSION, mes: (typeof DB_MES !== "undefined" ? DB_MES : null), source: null };
+  try {
+    m.version = localStorage.getItem("ppy_db_version") || m.version;
+    m.mes = localStorage.getItem("ppy_db_mes") || m.mes;
+    m.source = localStorage.getItem("ppy_db_source") || null;
+  } catch (e) {}
+  return m;
+}
+
+function aplicarMetaPrecios(meta) {
+  var m = meta || {};
+  try {
+    localStorage.setItem("ppy_db_version", String(m.version || DB_VERSION));
+    if (m.mes) {localStorage.setItem("ppy_db_mes", String(m.mes));}
+    else {localStorage.removeItem("ppy_db_mes");}
+    // Solo "remoto" mantiene viva la suscripción; cualquier otra cosa vuelve al
+    // canal normal para que el arranque migre a la compilada si corresponde.
+    if (m.source === "remoto") {localStorage.setItem("ppy_db_source", "remoto");}
+    else {localStorage.removeItem("ppy_db_source");}
+  } catch (e) {}
+}
+
+function serializarBackup() {
+  var meta = metaPrecios();
+  return {
+    app: "Puntero",
+    schema: BACKUP_SCHEMA,
+    version: meta.version,
+    mes: meta.mes,
+    meta: meta,
+    exportedAt: new Date().toISOString(),
+    resumen: resumenDatos(state, DB),
+    state: JSON.parse(JSON.stringify(state)),
+    db: JSON.parse(JSON.stringify(DB))
+  };
+}
+
+// ── Validación ─────────────────────────────────────────────────────────────
+// Un archivo equivocado (una imagen renombrada, un JSON de otra cosa) no debe
+// poder reemplazar los datos del trabajo de una obra entera.
+function validarBackup(obj) {
+  var errores = [];
+  var advertencias = [];
+  if (!obj || typeof obj !== "object" || Array.isArray(obj)) {
+    return { ok: false, errores: ["el archivo no contiene un backup"], advertencias: advertencias };
+  }
+  // Retrocompatibilidad: los .json viejos eran { state, db, exportedAt } sin marca
+  if (obj.app && obj.app !== "Puntero") {
+    errores.push("no es un backup de Puntero (app: " + obj.app + ")");
+  }
+  if (!obj.state || typeof obj.state !== "object" || Array.isArray(obj.state)) {
+    errores.push("falta la sección 'state'");
+  } else if (!Array.isArray(obj.state.projects)) {
+    errores.push("falta la lista de proyectos");
+  }
+  if (!obj.db || typeof obj.db !== "object" || Array.isArray(obj.db)) {
+    errores.push("falta la base de precios");
+  } else if (Object.keys(obj.db).length === 0) {
+    errores.push("la base de precios está vacía");
+  }
+  if (obj.schema != null && Number(obj.schema) > BACKUP_SCHEMA) {
+    advertencias.push("fue creado por una versión más nueva de Puntero");
+  }
+  if (obj.version && obj.version !== DB_VERSION) {
+    advertencias.push("precios de otra versión (" + obj.version + ")");
+  }
+  return { ok: errores.length === 0, errores: errores, advertencias: advertencias };
+}
+
+// ── Aplicar un backup (restauración segura) ────────────────────────────────
+function aplicarBackup(obj) {
+  var v = validarBackup(obj);
+  if (!v.ok) {return { ok: false, error: v.errores.join("; ")};}
+  // Copia de seguridad de lo actual ANTES de tocar nada: si el restore era un
+  // error (backup viejo, archivo equivocado), se puede deshacer.
+  guardarCopiaLocal("antes-de-restaurar");
+  window._backupParaDeshacer = {
+    fecha: Date.now(),
+    state: JSON.parse(JSON.stringify(state)),
+    db: JSON.parse(JSON.stringify(DB))
+  };
+  // Preferencias del dispositivo se conservan
+  var preserva = {};
+  BACKUP_PRESERVA.forEach(function (k) { if (state[k] !== undefined) {preserva[k] = state[k];} });
+  // Reemplazo COMPLETO (no merge): un backup es una foto, mezclarla con lo
+  // actual deja estados imposibles de explicarle a un cliente.
+  Object.keys(state).forEach(function (k) { delete state[k]; });
+  Object.assign(state, obj.state, preserva);
+  DB = obj.db;
+  // Metadata de precios del backup (versión/mes/origen)
+  aplicarMetaPrecios(obj.meta || (obj.version ? { version: obj.version, mes: obj.mes, source: null } : null));
+  // Migraciones SOLO si el backup es de una versión anterior (migratedV6 ausente).
+  // Un backup moderno se restaura tal cual: correr migrateToV7() sobre una copia
+  // sin obras le "inventaría" una obra fantasma y ya no sería una foto exacta.
+  if (obj.state && obj.state.migratedV6 !== true) {
+    try {
+      if (typeof migrateToMultiProject === "function") {migrateToMultiProject();}
+      if (typeof migrateToV7 === "function") {migrateToV7();}
+      if (typeof migrateToV9 === "function") {migrateToV9();}
+      if (typeof migrateToV10 === "function") {migrateToV10();}
+    } catch (e) { console.warn("[Backup] Migración:", e); }
+  }
+  state._localModifiedAt = Date.now();
+  save();
+  dexieSave();
+  return { ok: true, resumen: resumenDatos(state, DB), advertencias: v.advertencias };
+}
+
+// Deshace la última restauración con la copia que aplicarBackup dejó lista.
+function deshacerRestore() {
+  var b = window._backupParaDeshacer;
+  if (!b) {return false;}
+  Object.keys(state).forEach(function (k) { delete state[k]; });
+  Object.assign(state, b.state);
+  DB = b.db;
+  delete window._backupParaDeshacer;
+  state._localModifiedAt = Date.now();
+  save();
+  dexieSave();
+  return true;
+}
+
+// ── Historial automático en IndexedDB ──────────────────────────────────────
+// Es la capa que no pide nada al usuario y cubre el caso más común: alguien
+// borra "los datos del sitio" del navegador y se queda sin nada.
+function guardarCopiaLocal(tipo) {
+  if (!_DEXIE) {return Promise.resolve(false);}
+  var copia = {
+    ts: Date.now(),
+    tipo: tipo || "auto",
+    resumen: resumenDatos(state, DB),
+    meta: metaPrecios(),
+    state: JSON.parse(JSON.stringify(state)),
+    db: JSON.parse(JSON.stringify(DB))
+  };
+  return _DEXIE.copias.put(copia).then(function () {
+    // Se conservan solo las últimas N, más cualquier copia de seguridad explícita
+    return _DEXIE.copias.orderBy("ts").reverse().toArray();
+  }).then(function (todas) {
+    var auto = todas.filter(function (c) { return c.tipo !== "antes-de-restaurar"; });
+    var sobran = auto.slice(MAX_COPIAS_LOCALES);
+    return Promise.all(sobran.map(function (c) { return _DEXIE.copias.delete(c.ts); }));
+  }).catch(function (e) { console.warn("[Backup] Copia local:", e); return false; });
+}
+
+function listarCopiasLocales() {
+  if (!_DEXIE) {return Promise.resolve([]);}
+  return _DEXIE.copias.orderBy("ts").reverse().toArray()
+    .catch(function () { return []; });
+}
+
+function restaurarCopiaLocal(ts) {
+  if (!_DEXIE) {return Promise.resolve({ ok: false, error: "sin historial local" });}
+  return _DEXIE.copias.get(ts).then(function (c) {
+    if (!c) {return { ok: false, error: "copia no encontrada" };}
+    return aplicarBackup({
+      app: "Puntero", schema: BACKUP_SCHEMA, meta: c.meta,
+      version: (c.meta && c.meta.version) || DB_VERSION, state: c.state, db: c.db
+    });
+  });
+}
+
+// ── Backup automático a una carpeta del dispositivo ────────────────────────
+// El único formato que sobrevive a borrar los datos del sitio, formatear el
+// navegador o que el disco se llene. Se elige la carpeta UNA vez.
+async function elegirCarpetaBackup() {
+  if (!supportsFileSystemAccess()) {
+    return { ok: false, error: "Tu navegador no soporta escribir en carpetas. Usá Chrome o Edge." };
+  }
+  try {
+    var dir = await window.showDirectoryPicker({ mode: "readwrite" });
+    // El handle no es JSON: se guarda en IndexedDB, no en localStorage
+    if (_DEXIE) {await _DEXIE.state.put({ id: "backupFolder", data: dir });}
+    var escrito = await backupACarpeta(dir);
+    return { ok: escrito, carpeta: dir.name, error: escrito ? null : "sin permiso de escritura" };
+  } catch (e) {
+    if (e && e.name === "AbortError") {return { ok: false, cancelado: true };}
+    return { ok: false, error: (e && e.message) || "no se pudo usar la carpeta" };
+  }
+}
+
+function carpetaBackup() {
+  if (!_DEXIE) {return Promise.resolve(null);}
+  return _DEXIE.state.get("backupFolder").then(function (d) { return (d && d.data) || null; })
+    .catch(function () { return null; });
+}
+
+async function backupACarpeta(dir) {
+  var handle = dir || await carpetaBackup();
+  if (!handle) {return false;}
+  if (!(await verifyFolderPermission(handle, true))) {return false;}
+  var f = await handle.getFileHandle("puntero_backup_" + fechaCorta() + ".json", { create: true });
+  var w = await f.createWritable();
+  await w.write(JSON.stringify(serializarBackup()));
+  await w.close();
+  localStorage.setItem("ppy_last_backup", String(Date.now()));
+  return true;
+}
+
+function fechaCorta() {
+  var d = new Date();
+  var m = String(d.getMonth() + 1).padStart(2, "0");
+  var dia = String(d.getDate()).padStart(2, "0");
+  return d.getFullYear() + "-" + m + "-" + dia;
+}
+
+// Corre en cada arranque y de vez en cuando mientras la app esté abierta.
+// Nunca pide permisos ni descarga nada sin que el usuario lo haya autorizado.
+function backupAutomatico() {
+  guardarCopiaLocal("auto");
+  var ult = Number(localStorage.getItem("ppy_last_backup") || 0);
+  if (Date.now() - ult < INTERVALO_BACKUP_MS) {return;}
+  carpetaBackup().then(function (dir) {
+    if (!dir) {return;}
+    backupACarpeta(dir).then(function (ok) {
+      if (ok) {toast("💾 Backup guardado en " + dir.name + " ✓");}
+    }).catch(function () { /* sin permiso ahora: se reintenta en el próximo arranque */ });
+  });
+}
+
+function ultimoBackupTexto() {
+  var ts = Number(localStorage.getItem("ppy_last_backup") || 0);
+  if (!ts) {return "nunca";}
+  var dias = Math.floor((Date.now() - ts) / (24 * 60 * 60 * 1000));
+  if (dias === 0) {return "hoy";}
+  if (dias === 1) {return "ayer";}
+  return "hace " + dias + " días";
+}
+
+// ── Descarga manual (fallback donde no hay FileSystemAccess) ───────────────
 function exportBackup() {
-  var blob = new Blob([JSON.stringify({ state: state, db: DB, exportedAt: new Date().toISOString() })], { type: "application/json" });
+  var data = serializarBackup();
+  var blob = new Blob([JSON.stringify(data)], { type: "application/json" });
   var url = URL.createObjectURL(blob);
   var a = document.createElement("a");
   a.href = url;
-  a.download = "puntero_backup_" + new Date().toISOString().split("T")[0] + ".json";
+  a.download = "puntero_backup_" + fechaCorta() + ".json";
   a.click();
   URL.revokeObjectURL(url);
-  toast("Backup descargado ✓");
+  localStorage.setItem("ppy_last_backup", String(Date.now()));
+  toast("Backup descargado ✓ · " + resumenTexto(data.resumen));
 }
 
+// Restaurar desde un archivo, con validación y confirmación explícita.
 function importBackup() {
   var inp = document.createElement("input");
   inp.type = "file";
@@ -6097,18 +6435,126 @@ function importBackup() {
     if (!file) {return;}
     var reader = new FileReader();
     reader.onload = function (ev) {
-      try {
-        var d = JSON.parse(ev.target.result);
-        if (d.state) {Object.assign(state, d.state);}
-        if (d.db) {DB = d.db;}
-        save();
-        toast("Backup restaurado ✓");
-        setSection(state.section || "cloud");
-      } catch (err) { toast("Error al restaurar: " + err.message, false); }
+      var obj = null;
+      try { obj = JSON.parse(ev.target.result); } catch (err) {
+        return toast("No es un archivo JSON válido: " + err.message, false);
+      }
+      var v = validarBackup(obj);
+      if (!v.ok) {return toast("Archivo inválido: " + v.errores.join("; "), false);}
+      var r = resumenDatos(obj.state, obj.db);
+      var ahora = resumenDatos(state, DB);
+      var aviso = v.advertencias.length ? "\n\n⚠️ " + v.advertencias.join("; ") + "." : "";
+      var ok = confirm(
+        "¿Reemplazar los datos actuales por este backup?" +
+        "\n\n📦 Backup (" + (obj.exportedAt ? new Date(obj.exportedAt).toLocaleString("es-PY") : "sin fecha") + "):" +
+        "\n   " + resumenTexto(r) +
+        "\n\n💾 Ahora mismo tenés:" +
+        "\n   " + resumenTexto(ahora) +
+        "\n\nSe reemplaza TODO. Podés deshacerlo desde Cloud > Backup." + aviso
+      );
+      if (!ok) {return;}
+      var res = aplicarBackup(obj);
+      if (!res.ok) {return toast("No se pudo restaurar: " + res.error, false);}
+      toast("Backup restaurado ✓ · " + resumenTexto(res.resumen));
+      setSection(state.section || "cloud");
+      renderCloudSettings();
     };
     reader.readAsText(file);
   };
   inp.click();
+}
+
+// ── UI de backup ─────────────────────────────────────────────────────────────
+
+// Texto relativo para fechas de las copias ("hace 3 horas").
+function haceTexto(ts) {
+  if (!ts) {return "sin fecha";}
+  var seg = Math.floor((Date.now() - ts) / 1000);
+  if (seg < 60) {return "recién";}
+  if (seg < 3600) {return "hace " + Math.floor(seg / 60) + " min";}
+  if (seg < 86400) {return "hace " + Math.floor(seg / 3600) + " h";}
+  var d = Math.floor(seg / 86400);
+  return d === 1 ? "ayer" : "hace " + d + " días";
+}
+
+// Estado del panel de backup: carpeta vinculada, última copia, historial.
+async function renderBackupStatus() {
+  var btnUndo = document.getElementById("btn-deshacer-restore");
+  if (btnUndo) {btnUndo.style.display = window._backupParaDeshacer ? "" : "none";}
+  var el = document.getElementById("backup-status");
+  if (!el) {return;}
+  var carpeta = await carpetaBackup();
+  var copias = await listarCopiasLocales();
+  var lineas = [];
+  if (carpeta) {
+    lineas.push("📁 Backup automático a <b>" + escapeHtml(carpeta.name) + "</b> · último archivo: " + ultimoBackupTexto());
+  } else {
+    lineas.push("⚠️ Sin backup automático en disco. Elegí una carpeta y Puntero guarda una copia cada 24 h, sin que tengas que acordarte.");
+  }
+  lineas.push("🕘 " + copias.length + " copia(s) automática(s) local(es)" +
+    (copias.length ? ", la última " + haceTexto(copias[0].ts) : "") +
+    ". Se guardan solas si borrás los datos del navegador.");
+  el.innerHTML = lineas.join("<br>");
+}
+
+// Pide la carpeta y confirma que el primer archivo se pudo escribir.
+async function elegirCarpetaBackupUI() {
+  toast("Elegí la carpeta donde querés las copias (una vez)…");
+  var r = await elegirCarpetaBackup();
+  if (r.cancelado) {return;}
+  if (r.ok) {toast("✓ Copia de prueba escrita en «" + r.carpeta + "». Se repetirá cada 24 h.");}
+  else {toast("No se pudo usar la carpeta: " + r.error, false);}
+  renderBackupStatus();
+}
+
+// Lista el historial local para restaurar una copia puntual.
+async function toggleCopiasLocales() {
+  var box = document.getElementById("backup-copias");
+  if (!box) {return;}
+  if (box.innerHTML) {box.innerHTML = ""; return;}
+  var copias = await listarCopiasLocales();
+  if (!copias.length) {box.innerHTML = '<p style="font-size:.8rem;color:var(--tx3)">Todavía no hay copias locales. Se crean solas en cada arranque.</p>'; return;}
+  box.innerHTML = copias.map(function (c) {
+    var d = new Date(c.ts);
+    var label = (c.tipo === "antes-de-restaurar" ? "🛡️ " : "🕘 ") +
+      d.toLocaleDateString("es-PY") + " " + d.toLocaleTimeString("es-PY", { hour: "2-digit", minute: "2-digit" }) +
+      " · " + (c.tipo === "antes-de-restaurar" ? "antes de restaurar" : c.tipo) +
+      " · " + resumenTexto(c.resumen);
+    return '<div style="display:flex;gap:8px;align-items:center;font-size:.75rem;color:var(--tx3);border-top:1px solid var(--bd);padding:6px 0">' +
+      '<span style="flex:1">' + escapeHtml(label) + '</span>' +
+      '<button class="btn" style="padding:4px 10px;font-size:.7rem" onclick="restaurarCopiaLocalUI(' + c.ts + ')">Restaurar</button>' +
+      '</div>';
+  }).join("");
+}
+
+// Restaura una copia del historial, con la misma confirmación que un archivo.
+async function restaurarCopiaLocalUI(ts) {
+  var copias = await listarCopiasLocales();
+  var c = copias.find(function (x) { return x.ts === ts; });
+  if (!c) {return toast("Esa copia ya no existe", false);}
+  var ahora = resumenDatos(state, DB);
+  var ok = confirm(
+    "¿Reemplazar los datos actuales por esta copia?" +
+    "\n\n🕘 Copia del " + new Date(c.ts).toLocaleString("es-PY") + ":" +
+    "\n   " + resumenTexto(c.resumen) +
+    "\n\n💾 Ahora mismo tenés:" +
+    "\n   " + resumenTexto(ahora) +
+    "\n\nSe reemplaza TODO. Podés deshacerlo desde este mismo panel."
+  );
+  if (!ok) {return;}
+  var r = await restaurarCopiaLocal(ts);
+  if (!r.ok) {return toast("No se pudo restaurar: " + r.error, false);}
+  toast("Copia restaurada ✓ · " + resumenTexto(r.resumen));
+  renderCloudSettings();
+}
+
+// Deshace la última restauración (la copia que se guardó antes de aplicar).
+function deshacerRestoreUI() {
+  if (!window._backupParaDeshacer) {return toast("No hay ninguna restauración para deshacer", false);}
+  var ok = confirm("¿Deshacer la última restauración?\n\nVolvés a tener exactamente los datos que había antes de restaurar.");
+  if (!ok) {return;}
+  if (deshacerRestore()) {toast("Restauración deshecha ✓");}
+  renderCloudSettings();
 }
 
 async function clearCloudData() {

@@ -59,7 +59,20 @@ function bootstrap() {
   preciosInstalados: preciosInstalados,
   aplicarPreciosRemotos: aplicarPreciosRemotos,
   restaurarPreciosLocales: restaurarPreciosLocales,
-  checkPreciosUpdate: checkPreciosUpdate
+  checkPreciosUpdate: checkPreciosUpdate,
+  BACKUP_SCHEMA: BACKUP_SCHEMA,
+  MAX_COPIAS_LOCALES: MAX_COPIAS_LOCALES,
+  BACKUP_PRESERVA: BACKUP_PRESERVA,
+  resumenDatos: resumenDatos,
+  resumenTexto: resumenTexto,
+  serializarBackup: serializarBackup,
+  validarBackup: validarBackup,
+  aplicarBackup: aplicarBackup,
+  deshacerRestore: deshacerRestore,
+  metaPrecios: metaPrecios,
+  aplicarMetaPrecios: aplicarMetaPrecios,
+  haceTexto: haceTexto,
+  guardarCopiaLocal: guardarCopiaLocal
 };
 `;
 
