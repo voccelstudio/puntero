@@ -11,11 +11,11 @@
  * Actualizado: Marzo 2026
  */
 
-const DB_VERSION = "2026-10-saneamiento-mo-unidades";
+const DB_VERSION = "2026-10-saneamiento-mo-r2-rubros";
 // Mes de referencia de esta versión de precios ("YYYY-MM"). Es lo que compara la
 // app para decidir si hay una actualización más nueva disponible.
 const DB_MES     = "2026-10";
-const DB_FECHA   = "Octubre 2026 (saneamiento: elimina MO duplicada en rubros con MO embutida, corrige 17 unidades de mats y 1 precio)";
+const DB_FECHA   = "Octubre 2026 (saneamiento r2: revisión total de rubros — la MO ya incluida no se suma 2 veces en 130 rubros más, servicios = MO 100%)";
 
 // ── PRECIOS UNITARIOS DE MATERIALES (referencia interna) ──────────────────
 // Rango A-B documentado en comentarios para transparencia interna
@@ -574,8 +574,11 @@ const LABOR_PCT = {
   "ARTEFACTOS SANITARIOS":20,
   // A=45%  B=~45% → 45%
   "INSTALACIÓN ELÉCTRICA":45,
-  // A=30%  B=~30% → 30%
+  // A=30%  B=~30% → 30
   "VARIOS":               30,
+  // Demolición / excavación — servicios puros sin materiales (saneamiento
+  // Oct-2026): el precio guía `m` ya es el precio del servicio → MO = 100%.
+  "DEMOLICIONES":         100,
 
   // ─── NUEVAS CATEGORÍAS (Mayo 2026) ──────────────────────────────────────
   // PCI: tendido + colocación + pruebas, equipos pesan más → ~22%
@@ -596,8 +599,10 @@ const LABOR_PCT = {
   "IMPERMEABILIZACIONES":    38,
   // Escaleras y barandas: trabajo de herrería + instalación → ~28%
   "ESCALERAS Y BARANDAS":    28,
-  // Obra húmeda complementaria: trabajos finales → ~50%
-  "OBRA HÚMEDA COMPLEMENTARIA": 50,
+  // Obra húmeda complementaria — servicios (saneamiento Oct-2026): m = precio
+  // del servicio completo → MO ≈ total; los insumos (cintas, detergentes) van
+  // en la lista de mats para el pedido.
+  "OBRA HÚMEDA COMPLEMENTARIA": 100,
   // Tabiques durlock: estructura, placas, masilla, terminación → ~35%
   "TABIQUES DURLOCK":        35,
   // Cercos perimetrales: excavación, armado, colocación → ~32%
@@ -4349,14 +4354,27 @@ const DB_RAW = {
 }; // fin DB_RAW
 
 // ── RUBROS CUYO PRECIO GUÍA `m` YA INCLUYE LA MANO DE OBRA ──────────────
-// En estos rubros el costo fuente (Mandua Costeo, guía Mandua Mar-2026) costea
-// Mat + MO en un solo número, y ese total quedó cargado en `m`. Validado por:
-//   (a) el comentario de fuente "Mandua Costeo pág N: ₲X" (m ≈ total del costeo), y
-//   (b) de respaldo, Σ(q×precio de MAT_PRECIOS) ≈ m×(1−pctMO).
-// Antes buildDB() trataba `m` como "solo materiales" y le sumaba MO otra vez
-// (m×pct%), inflando el total un 30-40%. Ahora mat = m − MO y total = m.
-// NO aplica a los 19 rubros con MO explícita (campo `l`) ni a los rubros sin
-// comprobante (se conservan como estaban). Clave: "CATEGORÍA||Rubro".
+// (saneamiento Oct-2026 — fase 1 Mandua + fase 2 revisión total de rubros)
+// FASE 1: guía Mandua Costeo (Mar-2026) costea Mat+MO en un solo número
+//   cargado en `m`. Evidencia: (a) comentario de fuente "Mandua Costeo pág N:
+//   ₲X" con m ≈ total del costeo, y (b) de respaldo Σ(q×MAT_PRECIOS) ≈
+//   m×(1−pctMO).
+// FASE 2 (revisión de los 226 rubros restantes) — criterios de evidencia:
+//   (A) lenguaje de precio ENTREGADO en nombre o comentario (instalado/a,
+//       colocado/a, colocación, llave en mano, "material + MO"): el precio
+//       guía ya es el servicio completo; (B) comentario Mandua con
+//       m/ref ∈ [0,92–1,30] (consistencia con los 107 hermanos ya incluidos);
+//   (C) servicios puros sin materiales posibles (DEMOLICIONES, OBRA HÚMEDA
+//       COMPLEMENTARIA): m = precio del servicio; (D) obra/fabricación con
+//       Σmats/m ≤ 0,62 — los materiales no pueden explicar el precio, la MO
+//       está embutida; (E–H) familias ancladas por un hermano con evidencia
+//       explícita: blindex/ensamblajes de vidrios (cotización proveedor
+//       "entregada"), chapa termoacústica (ref Tecnimetal instalada),
+//       piscinas "completa" (ancla 5x3 "llave en mano"), cielo raso durlock
+//       c/ aislante (familia del "instalado" Clasipar).
+// Antes buildDB() trataba `m` como "solo materiales" y sumaba MO otra vez
+// (m×pct%), inflando el total 13–45%. Ahora mat = m − MO y total = m.
+// NO aplica a los 19 rubros con MO explícita (campo `l`). Clave: "CAT||Rubro".
 const MO_YA_INCLUIDA = new Set([
   // ESTRUCTURAS (11)
   "ESTRUCTURAS||Columna fck=21 MPa",
@@ -4397,21 +4415,29 @@ const MO_YA_INCLUIDA = new Set([
   "REVOQUES||Revoque 1 capa sin hidrófugo",
   "REVOQUES||Revoque cielorraso (1:4:12)",
   "REVOQUES||Revoque salpicado (1:3)",
-  // TECHOS (8)
+  // TECHOS (15)
   "TECHOS||Canaleta zinc Nº24 colocada",
   "TECHOS||Chapa Nº28 s/ caños metálicos",
   "TECHOS||Chapa Nº28 s/ varillas torsionadas",
+  "TECHOS||Chapa fibrocemento ondulada 6mm",
+  "TECHOS||Chapa termoacústica PUR 30mm (premium)",
+  "TECHOS||Chapa termoacústica colonial (imit. teja)",
+  "TECHOS||Chapa termoacústica trapez. EPS 30mm s/ estructura existente",
+  "TECHOS||Chapa termoacústica trapez. EPS 50mm s/ estructura existente",
   "TECHOS||Entrepiso de madera",
   "TECHOS||Techo metálico chapa trapezoidal",
   "TECHOS||Teja española s/ tejuelita",
   "TECHOS||Teja española s/ tejuelón c/ madera",
   "TECHOS||Teja francesa s/ machimbre",
-  // PISOS (8)
+  "TECHOS||Tinglado completo c/ estructura + chapa trapez.",
+  "TECHOS||Tinglado completo c/ estructura + termoacústica",
+  // PISOS (9)
   "PISOS||Baldosa calcárea 20x20cm",
   "PISOS||Cerámica Cecafi 45x45cm",
   "PISOS||Cerámica esmaltada Cecafi 32x57cm",
   "PISOS||Layota 28x28cm Yoayu",
   "PISOS||Mosaico granítico blanco 30x30cm",
+  "PISOS||Mosaico granítico gris 30x30cm",
   "PISOS||Paver táctil guía (accesibilidad)",
   "PISOS||Piedra losa rompecabeza",
   "PISOS||Porcelanato 60x60cm",
@@ -4453,8 +4479,10 @@ const MO_YA_INCLUIDA = new Set([
   "DESAGÜE CLOACAL||Pozo ciego Ø1.50m h=3.00m",
   "DESAGÜE CLOACAL||Registro 30x30x30cm",
   "DESAGÜE CLOACAL||Rejilla de piso sifonada 150x150mm",
-  // AGUA CORRIENTE (7)
+  // AGUA CORRIENTE (9)
   "AGUA CORRIENTE||Caño PVC roscable 1 pulgada",
+  "AGUA CORRIENTE||Caño PVC roscable 1/2 pulgada",
+  "AGUA CORRIENTE||Caño PVC roscable 3/4 pulgada",
   "AGUA CORRIENTE||Instalación agua fría - baño completo",
   "AGUA CORRIENTE||Instalación agua fría - baño servicio",
   "AGUA CORRIENTE||Instalación agua fría - baño social",
@@ -4483,63 +4511,190 @@ const MO_YA_INCLUIDA = new Set([
   "VARIOS||Moldura sencilla",
   "VARIOS||Parrilla boca 1.00m",
   "VARIOS||Tanque cisterna fibra de vidrio 1000lt (varios)",
-  // CIELO RASOS (4)
+  // DEMOLICIONES (12)
+  "DEMOLICIONES||Demolición cielorrasos armados",
+  "DEMOLICIONES||Demolición contrapisos",
+  "DEMOLICIONES||Demolición muro 0.15m con recuperación",
+  "DEMOLICIONES||Demolición muro 0.15m sin recuperación",
+  "DEMOLICIONES||Demolición muro 0.30m con recuperación",
+  "DEMOLICIONES||Demolición piso-revoques-revestimientos",
+  "DEMOLICIONES||Demolición techo madera-tejuelita-tejas",
+  "DEMOLICIONES||Demolición/desmonte de aberturas",
+  "DEMOLICIONES||Excavación para cimiento sin acarreo",
+  "DEMOLICIONES||Excavación para pozo ciego sin acarreo",
+  "DEMOLICIONES||Movimiento de suelo desmonte manual",
+  "DEMOLICIONES||Relleno y compactación manual",
+  // CIELO RASOS (15)
+  "CIELO RASOS||Cielo raso PVC blanco 6mm instalado",
+  "CIELO RASOS||Cielo raso PVC blanco 8mm instalado",
+  "CIELO RASOS||Cielo raso PVC color pino 8mm instalado",
   "CIELO RASOS||Cielo raso durlock RF 12.5mm (anti-fuego)",
   "CIELO RASOS||Cielo raso durlock RH 12.5mm (baño/cocina)",
+  "CIELO RASOS||Cielo raso durlock c/ aislante térmico",
+  "CIELO RASOS||Cielo raso durlock con luz indirecta (gargantas)",
+  "CIELO RASOS||Cielo raso durlock estándar 9.5mm",
+  "CIELO RASOS||Cielo raso machimbre c/ estructura madera",
+  "CIELO RASOS||Cielo raso metal desplegado c/ madera",
+  "CIELO RASOS||Cielo raso yeso aplicado (yesito) 1cm",
   "CIELO RASOS||Junta dilatación cielo raso (por ml)",
   "CIELO RASOS||Moldura yeso decorativa 8cm",
-  // TABIQUES DURLOCK (6)
+  "CIELO RASOS||Revoque horizontal cielorraso 1 capa",
+  "CIELO RASOS||Revoque horizontal cielorraso 2 capas",
+  // TABIQUES DURLOCK (10)
+  "TABIQUES DURLOCK||Cantonera durlock (esquina externa) colocada",
   "TABIQUES DURLOCK||Puerta trampa durlock 40x40cm con marco",
+  "TABIQUES DURLOCK||Reparación placa durlock (agujero <30cm)",
+  "TABIQUES DURLOCK||Reparación placa durlock (grieta >30cm)",
   "TABIQUES DURLOCK||Tabique durlock RF 12.5mm (garaje/cocheras)",
   "TABIQUES DURLOCK||Tabique durlock RH 12.5mm (baño/cocina)",
   "TABIQUES DURLOCK||Tabique durlock curvo 6.4mm (radio ≥1m)",
+  "TABIQUES DURLOCK||Tabique durlock curvo 6.4mm + 12.5mm (doble capa)",
   "TABIQUES DURLOCK||Tabique exterior Superboard 6mm (fachada liviana)",
   "TABIQUES DURLOCK||Tabique exterior Superboard 8mm (más resistencia)",
-  // VIDRIOS (6)
+  // REVESTIMIENTOS (4)
+  "REVESTIMIENTOS||Azulejo 15x15 / 20x20 / 30x30cm colocado",
+  "REVESTIMIENTOS||Escalón revestido con cerámica (1m ancho)",
+  "REVESTIMIENTOS||Ladrillejo cerámico 5x25cm",
+  "REVESTIMIENTOS||Madera machimbre cedro/guatambú clavada",
+  // VIDRIOS (22)
+  "VIDRIOS||Baranda blindex 10mm escalera/balcón con perfil U",
+  "VIDRIOS||Baranda blindex 12mm piscina con botones acero",
+  "VIDRIOS||Box esquinero baño blindex 8mm corredizo",
+  "VIDRIOS||Cerramiento blindex 10mm fachada por m²",
+  "VIDRIOS||DVH termopanel 3+9+3mm con marco aluminio",
   "VIDRIOS||Espejo 4mm colocado con clips/silicona",
+  "VIDRIOS||Espejo 6mm colocado con marco aluminio",
+  "VIDRIOS||Frente blindex 10mm 4 hojas 2.00x2.10m (2fijas+2corredizas)",
+  "VIDRIOS||Frente corrediza vidrio dulce 8mm 2.00x2.10m",
+  "VIDRIOS||Mampara baño blindex 8mm 1.50x2.00m fija",
+  "VIDRIOS||Mampara baño blindex 8mm con puerta batiente",
+  "VIDRIOS||Puerta batiente blindex 10mm 0.80x2.10m",
+  "VIDRIOS||Puerta batiente blindex 10mm 0.90x2.10m",
+  "VIDRIOS||Puerta corrediza blindex 10mm 1.50x2.10m",
   "VIDRIOS||Ventana abatible aluminio + vidrio dulce 5mm",
+  "VIDRIOS||Ventana corrediza blindex 8mm 1.50x1.00m",
+  "VIDRIOS||Ventana corrediza blindex 8mm por m²",
+  "VIDRIOS||Ventana fija blindex 8mm por m²",
   "VIDRIOS||Vidrio dulce 4mm colocado en abertura",
   "VIDRIOS||Vidrio dulce 5mm colocado en abertura",
   "VIDRIOS||Vidrio dulce 6mm colocado en abertura",
   "VIDRIOS||Vidrio laminado 3+3mm seguridad",
-  // PREVENCIÓN DE INCENDIOS (6)
+  // PREVENCIÓN DE INCENDIOS (11)
   "PREVENCIÓN DE INCENDIOS||Cartel salida emergencia fotolum.",
   "PREVENCIÓN DE INCENDIOS||Cartel salida emergencia luminoso",
   "PREVENCIÓN DE INCENDIOS||Cartel señalización extintor 20x40",
   "PREVENCIÓN DE INCENDIOS||Cañería incendio 1.5\" galvanizada",
+  "PREVENCIÓN DE INCENDIOS||Central alarma DSC 4 zonas instalada",
   "PREVENCIÓN DE INCENDIOS||Detector de humo autónomo (residencial)",
+  "PREVENCIÓN DE INCENDIOS||Detector humo/calor centralizado colocado",
+  "PREVENCIÓN DE INCENDIOS||Detector termovelocimétrico colocado",
   "PREVENCIÓN DE INCENDIOS||Luz de emergencia LED autónoma",
-  // CLIMATIZACIÓN (1)
+  "PREVENCIÓN DE INCENDIOS||Rociador sprinkler estándar colocado",
+  "PREVENCIÓN DE INCENDIOS||Sirena audiovisual colocada",
+  // CLIMATIZACIÓN (11)
+  "CLIMATIZACIÓN||Extractor aire baño 100mm instalado",
+  "CLIMATIZACIÓN||Split 12000 BTU instalado (12-18m²)",
+  "CLIMATIZACIÓN||Split 18000 BTU instalado (18-30m²)",
+  "CLIMATIZACIÓN||Split 24000 BTU instalado (30-40m²)",
+  "CLIMATIZACIÓN||Split 36000 BTU instalado (40-60m²)",
+  "CLIMATIZACIÓN||Split 9000 BTU instalado",
+  "CLIMATIZACIÓN||Split inverter 12000 BTU instalado",
+  "CLIMATIZACIÓN||Split inverter 18000 BTU instalado",
+  "CLIMATIZACIÓN||Split inverter 24000 BTU instalado",
   "CLIMATIZACIÓN||Ventilador de techo 132cm con luz",
-  // PAISAJISMO (1)
+  "CLIMATIZACIÓN||Ventilador industrial colocado",
+  // PISCINAS (6)
+  "PISCINAS||Piscina H°A° 5x3m completa",
+  "PISCINAS||Piscina H°A° 6x3m completa",
+  "PISCINAS||Piscina H°A° 7x3m completa",
+  "PISCINAS||Piscina H°A° 8x3m completa",
+  "PISCINAS||Reflector LED RGB submarino instalado",
+  "PISCINAS||Vaso piscina H°A° proyectado (m²)",
+  // PAISAJISMO (5)
+  "PAISAJISMO||Grama San Agustín en panes colocada",
+  "PAISAJISMO||Grama esmeralda en panes colocada",
+  "PAISAJISMO||Programador riego 4 zonas instalado",
+  "PAISAJISMO||Siembra grama Bahiana",
   "PAISAJISMO||Sistema riego por goteo (por ml)",
-  // MOVIMIENTO DE SUELO (3)
+  // MOVIMIENTO DE SUELO (7)
   "MOVIMIENTO DE SUELO||Cordón cuneta hormigón",
+  "MOVIMIENTO DE SUELO||Excavación a máquina (m³)",
+  "MOVIMIENTO DE SUELO||Excavación manual (m³)",
+  "MOVIMIENTO DE SUELO||Nivelación de terreno con topadora",
   "MOVIMIENTO DE SUELO||Pavimento adoquines hormigón colocado",
   "MOVIMIENTO DE SUELO||Relleno con suelo seleccionado compactado",
-  // SANITARIOS COMPLEMENTARIOS (10)
+  "MOVIMIENTO DE SUELO||Vereda hormigón 7cm con malla",
+  // BAJA CORRIENTE (10)
+  "BAJA CORRIENTE||Cámara IP domo interior 2MP instalada",
+  "BAJA CORRIENTE||Cámara IP exterior 4MP instalada",
+  "BAJA CORRIENTE||Motor portón basculante instalado",
+  "BAJA CORRIENTE||Motor portón corredizo 600kg instalado",
+  "BAJA CORRIENTE||Patch panel 24 puertos instalado",
+  "BAJA CORRIENTE||Portero eléctrico simple instalado",
+  "BAJA CORRIENTE||Punto de red cat6 con tomacorriente",
+  "BAJA CORRIENTE||Sensor PIR adicional instalado",
+  "BAJA CORRIENTE||Sistema alarma 8 zonas DSC instalado",
+  "BAJA CORRIENTE||Videoportero a color 7\" instalado",
+  // SANITARIOS COMPLEMENTARIOS (13)
   "SANITARIOS COMPLEMENTARIOS||Biodigestor 1300lt instalado",
   "SANITARIOS COMPLEMENTARIOS||Biodigestor 600lt instalado",
   "SANITARIOS COMPLEMENTARIOS||Bomba presurizadora 0.5HP instalada",
   "SANITARIOS COMPLEMENTARIOS||Bomba sumergible pozo 1HP instalada",
+  "SANITARIOS COMPLEMENTARIOS||Calefón eléctrico 150lt instalado",
+  "SANITARIOS COMPLEMENTARIOS||Calefón eléctrico 80lt instalado",
   "SANITARIOS COMPLEMENTARIOS||Cisterna fibra 2500lt enterrada",
   "SANITARIOS COMPLEMENTARIOS||Pozo absorbente 4 anillos H°",
   "SANITARIOS COMPLEMENTARIOS||Tanque polietileno 1000lt instalado",
   "SANITARIOS COMPLEMENTARIOS||Tanque polietileno 2000lt instalado",
   "SANITARIOS COMPLEMENTARIOS||Tanque polietileno 500lt instalado",
+  "SANITARIOS COMPLEMENTARIOS||Termotanque a gas 110lt instalado",
   "SANITARIOS COMPLEMENTARIOS||Termotanque solar 200lt completo",
-  // VEREDAS Y ACCESOS (1)
+  // CERCOS PERIMETRALES (5)
+  "CERCOS PERIMETRALES||Columna intermedia H°A° 20x20cm para cerco",
+  "CERCOS PERIMETRALES||Muro bloque hormigón 20cm h=2.00m",
+  "CERCOS PERIMETRALES||Muro ladrillo común 0.15m h=2.00m revocado",
+  "CERCOS PERIMETRALES||Muro premoldeado H° h=2.00m instalado",
+  "CERCOS PERIMETRALES||Muro premoldeado H° h=3.00m instalado",
+  // VEREDAS Y ACCESOS (8)
+  "VEREDAS Y ACCESOS||Acceso vehicular H°A° 12cm c/ malla Q-131",
+  "VEREDAS Y ACCESOS||Caminero piedra losa irregular",
+  "VEREDAS Y ACCESOS||Cordón de vereda premoldeado colocado",
+  "VEREDAS Y ACCESOS||Empedrado rústico piedra bola c/ junta cemento",
+  "VEREDAS Y ACCESOS||Piso hormigón helicopteado 10cm (industrial)",
   "VEREDAS Y ACCESOS||Rampa vehicular H°A° 12cm (hasta 3m ancho)",
-  // HERRERÍA ORNAMENTAL (3)
+  "VEREDAS Y ACCESOS||Vereda hormigón alisado 10cm c/ malla Q-92",
+  "VEREDAS Y ACCESOS||Vereda hormigón alisado 7cm s/ malla",
+  // PINTURAS INDUSTRIALES (7)
+  "PINTURAS INDUSTRIALES||Anticorrosivo + esmalte sintético s/ herrería",
+  "PINTURAS INDUSTRIALES||Convertidor óxido + esmalte s/ herrería vieja",
+  "PINTURAS INDUSTRIALES||Galvanizado en frío spray (retoque)",
+  "PINTURAS INDUSTRIALES||Pintura demarcación vial (línea)",
+  "PINTURAS INDUSTRIALES||Pintura epóxica piso c/ pulido previo",
+  "PINTURAS INDUSTRIALES||Pintura epóxica piso hormigón (2 manos)",
+  "PINTURAS INDUSTRIALES||Pintura poliuretánica piso (acabado UV)",
+  // HERRERÍA ORNAMENTAL (6)
+  "HERRERÍA ORNAMENTAL||Portón abatible 2 hojas 3.00x2.00m",
+  "HERRERÍA ORNAMENTAL||Portón corredizo chapa lisa 3.00x2.00m",
+  "HERRERÍA ORNAMENTAL||Portón corredizo chapa lisa 4.00x2.00m",
   "HERRERÍA ORNAMENTAL||Puerta peatonal metálica 0.90x2.10m",
   "HERRERÍA ORNAMENTAL||Pérgola metálica simple (por m²)",
   "HERRERÍA ORNAMENTAL||Reja tubular simple p/ ventana (caño 1\")",
   // IMPERMEABILIZACIONES (2)
   "IMPERMEABILIZACIONES||Imprimación asfáltica previa",
   "IMPERMEABILIZACIONES||Sellado estanco baño/terraza (Sika top 107)",
-  // ESCALERAS Y BARANDAS (2)
+  // ESCALERAS Y BARANDAS (5)
+  "ESCALERAS Y BARANDAS||Baranda tubo redondo 2\" simple",
+  "ESCALERAS Y BARANDAS||Escalera caracol metálica (por escalón)",
+  "ESCALERAS Y BARANDAS||Escalera metálica recta (por escalón)",
   "ESCALERAS Y BARANDAS||Escalón premoldeado hormigón",
   "ESCALERAS Y BARANDAS||Pasamano hierro forjado simple",
+  // OBRA HÚMEDA COMPLEMENTARIA (6)
+  "OBRA HÚMEDA COMPLEMENTARIA||Hidrolavado fachada (m²)",
+  "OBRA HÚMEDA COMPLEMENTARIA||Limpieza final de obra (m²)",
+  "OBRA HÚMEDA COMPLEMENTARIA||Prueba estanqueidad cloacal",
+  "OBRA HÚMEDA COMPLEMENTARIA||Prueba presión instalación agua",
+  "OBRA HÚMEDA COMPLEMENTARIA||Retape y retoque general",
+  "OBRA HÚMEDA COMPLEMENTARIA||Sellado juntas dilatación poliuretano",
 ]);
 
 // ── FUNCIÓN CONSTRUCTORA ──────────────────────────────────────────────

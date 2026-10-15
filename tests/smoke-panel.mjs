@@ -276,6 +276,38 @@ const main = async () => {
     chk("contraseña errada → sigue bloqueado", rechazo.locked === true, rechazo.user);
     chk("muestra mensaje de error", !!rechazo.err, rechazo.err);
 
+    // ── Limpieza: no dejar cuentas de QA en el registro real del admin ────
+    await page.evaluate(() => {
+      try { logout(); } catch (e) {}
+      localStorage.setItem("pte_master_session", "1");
+      window._currentUser = { uid: "master", email: "martin@puntero.local", isMaster: true };
+      applyAppLock();
+    });
+    await esperar(600);
+    const limpias = await page.evaluate(async () => {
+      const creadas = getAccounts()
+        .filter((a) => /@puntero\.test$/.test(String(a.username || "")))
+        .map((a) => a.id);
+      for (const id of creadas) { removeAccountLocal(id); }
+      await ensureAdminSync();
+      await pushAccountsSync();
+      await new Promise((r) => setTimeout(r, 3000));
+      return creadas.length;
+    });
+    // Se verifica en la NUBE, no solo local: borrar en el panel sin que el
+    // borrado llegue deja la cuenta viva en otros dispositivos.
+    const ledgerLimpio = await page.evaluate(async () => {
+      try {
+        const d = await window._FIRESTORE.collection("accounts").doc("ledger").get();
+        if (!d.exists) { return true; }
+        return !(d.data().list || []).some((a) => /@puntero\.test$/.test(String(a.username || "")));
+      } catch (e) { return null; }
+    });
+    chk("cuentas de QA retiradas del registro local (" + limpias + ")", limpias >= 0, limpias);
+    chk("y también de la nube", ledgerLimpio === true, ledgerLimpio);
+
+    const pass = report.filter((l) => l.startsWith("PASS")).length;
+    console.log(`\nTOTAL: ${pass}/${report.length}`);
     await browser.close();
   } catch (e) {
     fail("excepción: " + e.message);

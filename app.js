@@ -4993,6 +4993,14 @@ async function login() {
       return;
     }
     var okPaid = await verifyAccountPassword(paidAcc, pass);
+    if (!okPaid && !paidAcc.passwordHash && !paidAcc.password && paidAcc.firebase) {
+      // Registro sin con qué verificar (vino sanitizado de la nube). La cuenta
+      // está vinculada a Firebase, así que la contraseña la puede validar él.
+      try {
+        await window._AUTH.signInWithEmailAndPassword(paidAcc.username, pass);
+        okPaid = true;
+      } catch (e) { okPaid = false; }
+    }
     if (!okPaid) {
       if (errBox) { errBox.textContent = "Usuario o contraseña incorrectos"; errBox.style.display = ""; }
       return;
@@ -5724,10 +5732,17 @@ async function adminLinkFirebase(id) {
   if (!window._AUTH) {return toast("Sin conexión con Firebase. Probá cuando tengas internet.", false);}
   if (enc.firebase) {return toast("Esta cuenta ya está vinculada a la nube", false);}
 
-  var pass = prompt("Contraseña que va a usar el cliente para " + enc.username + "\n(mínimo 6 caracteres):", "");
+  var pass = prompt("Contraseña de la cuenta " + enc.username + "\n(la misma con la que va a entrar el cliente):", "");
   if (pass === null) {return;}
   pass = pass.trim();
   if (pass.length < 6) {return toast("Mínimo 6 caracteres", false);}
+  // Tiene que ser LA contraseña de la cuenta. Si el admin teclea otra, el
+  // cliente entraría en local pero Firebase rechazaría el ingreso y quedaría
+  // sin nube y sin entender por qué.
+  var coincide = await verifyAccountPassword(enc, pass);
+  if (!coincide) {
+    return toast("Esa no es la contraseña de " + enc.username + ". Usá la del panel (o reseteala con 🔑).", false);
+  }
 
   toast("Creando la cuenta en la nube...", true);
   try {
@@ -5778,14 +5793,16 @@ function adminToggleActive(id) {
   renderAccountsSettings();
 }
 
-function adminDeleteAccount(id) {
+async function adminDeleteAccount(id) {
   var a = getAccounts().find(function (x) { return x.id === id; });
   if (!a) {return;}
   if (!confirm("¿Eliminar la cuenta " + a.username + "?\n\nEl cliente pierde el acceso en todos los dispositivos.")) {return;}
   removeAccountLocal(id);
-  ensureAdminSync().then(function () { pushAccountsSync(); }).catch(function () {});
   renderAccountsSettings();
   toast("Cuenta eliminada ✓");
+  // Se empuja ya (best-effort): si la nube sigue teniendo la cuenta, cualquier
+  // otro dispositivo la seguiría viendo hasta la próxima sincronización.
+  try { await ensureAdminSync(); await pushAccountsSync(); } catch (e) {}
 }
 
 // ── SINCRONIZACIÓN DEL REGISTRO DE CUENTAS (ADMIN) ─────────────────────────
@@ -5795,7 +5812,7 @@ function adminDeleteAccount(id) {
 // cliente, así que crear cuentas no depende de que Firebase responda.
 // Las contraseñas NUNCA viajan en claro: cada cuenta guarda salt + SHA-256.
 var ADMIN_SYNC_EMAIL = "admin.sync@puntero.local";
-var ADMIN_SYNC_PASS = "K7xPq9wZ2mVb4rN6"; // solo transporte de sincronización
+var ADMIN_SYNC_PASS = "9L8mB&t7E$*RrajfZV5qirYZQ"; // solo transporte de sincronización
 window._isAdminSyncUser = false;
 window._lastAccountSync = 0;
 
@@ -5840,15 +5857,37 @@ function verifyAccountPassword(acc, pass) {
 // Quita una cuenta de la lista local (sin dialogo)
 function removeAccountLocal(id) {
   if (!id) {return;}
+  // Tombstone: sin esto, un pull de la nube que corra justo después puede
+  // resucitar la cuenta porque el merge la ve como "local faltante" y la
+  // re-agrega. Dura poco: es solo para cubrir la ventana de la escritura.
+  _cuentasBorradas[id] = Date.now();
   setAccounts(getAccounts().filter(function (a) { return a.id !== id; }));
 }
 
-// Versión del ledger apta para Firestore: sin contraseña en claro; las demos
-// llevan el hash (o lo calculan al vuelo).
+// ids borrados recientemente, para que el merge con la nube no los traiga de
+// vuelta. Se limpian solos a los 10 minutos.
+var _cuentasBorradas = {};
+function _esBorradaReciente(id) {
+  var ts = _cuentasBorradas[id];
+  if (!ts) {return false;}
+  if (Date.now() - ts > 10 * 60000) {delete _cuentasBorradas[id]; return false;}
+  return true;
+}
+
+// Versión del ledger apta para Firestore: sin contraseña en claro.
+//
+// El registro es de LECTURA PÚBLICA (así un dispositivo nuevo descubre la
+// licencia), por eso no se publica el hash de las cuentas que pueden validar
+// la contraseña ellas mismas en Firebase: exponerlo habilita un ataque offline
+// sobre contraseñas débiles. Solo llevan hash las que NO tienen identidad en
+// la nube (creadas sin conexión) y las demos, que son efímeras.
 async function _sanitizeAccountForLedger(a) {
   var copy = {};
   Object.keys(a).forEach(function (k) { if (k !== "password") {copy[k] = a[k];} });
-  if (a.type === "demo" && !copy.passwordHash) {
+  if (copy.firebase) {
+    delete copy.passwordHash;
+    delete copy.salt;
+  } else if (a.type === "demo" && !copy.passwordHash) {
     copy.salt = a.salt || accSalt();
     copy.passwordHash = await hashAccountPassword(a.password || "", copy.salt);
   }
@@ -5868,7 +5907,7 @@ function _pruneExpiredDemos(list) {
 function _mergeRemoteAccounts(remote, local, remoteTs) {
   var byLocal = {};
   (local || []).forEach(function (a) { byLocal[a.id] = a; });
-  var merged = (remote || []).map(function (r) {
+  var merged = (remote || []).filter(function (r) { return !_esBorradaReciente(r.id); }).map(function (r) {
     var l = byLocal[r.id];
     if (l && l.password && !r.password) {r = Object.assign({}, r, { password: l.password });}
     return r;
@@ -5928,8 +5967,17 @@ async function pullAccounts() {
   } catch (e) { console.warn("pull cuentas:", e.code || e.message); }
 }
 
+// ¿Estamos identificados como la cuenta técnica de sync del admin?
+// Se consulta en vivo y no se usa el flag cacheado: un signOut (o cualquier
+// cambio de estado de auth) lo pone en false y el panel dejaría de sincronizar
+// en silencio.
+function _esCuentaSyncAdmin() {
+  var u = window._AUTH && window._AUTH.currentUser;
+  return !!(u && String(u.email || "").toLowerCase() === ADMIN_SYNC_EMAIL);
+}
+
 async function pushAccountsSync() {
-  if (!window._isAdminSyncUser || !window._FIRESTORE) {return;}
+  if (!_esCuentaSyncAdmin() || !window._FIRESTORE) {return;}
   try {
     var now = Date.now();
     var local = getAccounts().map(function (a) { return Object.assign({}, a, { updatedAt: a.updatedAt || now }); });

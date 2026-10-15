@@ -52,7 +52,9 @@ npm run smoke           # los 3 smoke tests en navegador real
 npm run smoke:clientes  # clientes y vinculación a obras
 npm run smoke:panel     # panel de control, planes, suscripción y login
 npm run smoke:precios   # flujo pagado de actualización de precios
+npm run smoke:nube      # nube real: cuenta PRO creada, vinculada y sincronizada
 npm run precios:build   # regenera precios/manifest.json desde precios/db.json
+node tools/ver_ledger.mjs   # qué cuentas hay en la nube (sin iniciar sesión)
 ```
 
 ## Cómo funcionan los tests
@@ -72,6 +74,7 @@ con las tasas de IVA invertidas pasaba sin fallar. Ahora se testea la implementa
 - `tests/smoke-panel.mjs` — flujo real en navegador: panel de control, planes, suscripción y login
 - `tests/smoke-clients.mjs` — flujo real en navegador: clientes, alta de obra, PDF de vinculación
 - `tests/smoke-precios.mjs` — flujo real en navegador: detectar precios nuevos, aplicarlos conservando ediciones, y que el plan usuario no reciba nada
+- `tests/smoke-nube.mjs` — contra Firebase real: el panel crea una cuenta PRO, la vincula a Firebase, un dispositivo limpio la descubre sin sesión y su obra llega a la nube
 
 ## Modelo de datos (resumen)
 
@@ -101,11 +104,22 @@ el documento, así que sin sesión la escritura se rechazaría y el sync fallar�
 Por eso `isCloudUser()` apaga en lugar de fingir. El efecto práctico:
 
 - Al crear una cuenta PRO desde el panel, se la **vincula a Firebase** (botón ☁️ si se creó
-  sin conexión). Sin eso, el cliente trabaja en local igual pero sin nube.
+  sin conexión). El panel pide la contraseña de la cuenta y **la verifica contra el hash
+  local** antes de crear el usuario: si el admin teclea otra, el cliente entraría en local
+  y quedaría sin nube sin entender por qué, así que se rechaza.
 - Al iniciar sesión, la app usa la contraseña tecleada para abrir también la sesión de
   Firebase (best-effort): si Firebase está caído, **la app sigue funcionando**.
 - La **cuenta maestra** necesita su propia sesión de Firebase para tener nube propia; sin
   ella es VIP con todo habilitado pero guardando en el dispositivo.
+
+**El registro de cuentas es de lectura pública** (así cualquier dispositivo descubre la
+licencia), así que va sanitizado: nunca contraseñas en claro, y tampoco el hash de las
+cuentas que pueden validar la contraseña en Firebase — publicarlo habilitaría un ataque
+offline sobre contraseñas débiles. Solo llevan hash las cuentas creadas sin conexión (que
+no tienen identidad en la nube) y las demos, que son efímeras.
+
+Las eliminaciones dejan un *tombstone* de 10 minutos para que un pull concurrente no
+resucite la cuenta recién borrada.
 
 ## Actualización de precios por suscripción
 
