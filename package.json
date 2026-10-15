@@ -13,6 +13,7 @@
     "smoke:precios": "node tests/smoke-precios.mjs",
     "smoke:nube": "node tests/smoke-nube.mjs",
     "smoke:backup": "node tests/smoke-backup.mjs",
+    "smoke:vivo": "node tests/verify-login-vivo.mjs",
     "precios:build": "node tools/build_precios.js"
   },
   "devDependencies": {

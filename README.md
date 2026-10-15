@@ -54,6 +54,7 @@ npm run smoke:panel     # panel de control, planes, suscripción y login
 npm run smoke:precios   # flujo pagado de actualización de precios
 npm run smoke:nube      # nube real: cuenta PRO creada, vinculada y sincronizada
 npm run smoke:backup    # pérdida de datos del navegador y recuperación
+npm run smoke:vivo      # contra el SITIO PUBLICADO: código sin secretos y login real
 npm run precios:build   # regenera precios/manifest.json desde precios/db.json
 node tools/ver_ledger.mjs   # qué cuentas hay en la nube (sin iniciar sesión)
 # Los smokes que ESCRIBEN en el registro (panel y nube) necesitan las
@@ -86,6 +87,9 @@ con las tasas de IVA invertidas pasaba sin fallar. Ahora se testea la implementa
 - `tests/smoke-precios.mjs` — flujo real en navegador: detectar precios nuevos, aplicarlos conservando ediciones, y que el plan usuario no reciba nada
 - `tests/smoke-nube.mjs` — contra Firebase real: el panel crea una cuenta PRO, la vincula a Firebase, un dispositivo limpio la descubre sin sesión y su obra llega a la nube
 - `tests/smoke-backup.mjs` — pérdida de datos del navegador: se recuperan solos de IndexedDB, y si se borra todo vuelven desde el archivo de backup (con deshacer)
+- `tests/verify-login-vivo.mjs` — contra el **sitio publicado**: el código servido no
+  tiene secretos, la contraseña incorrecta la rechaza Firebase Auth y con la correcta
+  queda la sesión del dueño (9 checks, sin escribir nada en la nube)
 
 ## Modelo de datos (resumen)
 
