@@ -5399,18 +5399,40 @@ function findDemoAccountByUsername(username) {
   return getAccounts().find(function (a) { return a.type === "demo" && String(a.username).trim().toLowerCase() === nu; });
 }
 
+var DEMOS_BASE = [
+  { id: "demo-invitado01", username: "invitado01", password: "invitado01" },
+  { id: "demo-invitadoclara", username: "invitado clara", password: "invitado clara" }
+];
+
+// Demos que el DUEÑO borró a propósito. Sin esto no se puede eliminar una demo:
+// seedDemoAccounts() la vuelve a crear apenas se borra (se llama en cada render
+// del panel y en cada pull del registro) y el borrado no servía de nada. Es una
+// decisión del dueño, así que vive solo en SU equipo; los clientes no la tienen
+// y siguen recibiendo las demos del registro tal cual.
+var DEMOS_BORRADAS_KEY = "pte_demos_borradas";
+function _demoBorrada(slug) {
+  try { return JSON.parse(localStorage.getItem(DEMOS_BORRADAS_KEY) || "[]").indexOf(slug) !== -1; }
+  catch (e) { return false; }
+}
+function _marcarDemoBorrada(username) {
+  var slug = accUserNameSlug(username);
+  var lista = [];
+  try { lista = JSON.parse(localStorage.getItem(DEMOS_BORRADAS_KEY) || "[]"); } catch (e) {}
+  if (lista.indexOf(slug) === -1) {lista.push(slug);}
+  localStorage.setItem(DEMOS_BORRADAS_KEY, JSON.stringify(lista));
+}
+
 function seedDemoAccounts() {
   // Cuentas base de invitado: se aseguran en cada carga. Si no existen se
   // agregan, y si vencieron se renuevan por otras 72h. Así siempre funcionan,
   // sin importar el estado previo de la lista de cuentas.
-  var defaults = [
-    { id: "demo-invitado01", username: "invitado01", password: "invitado01" },
-    { id: "demo-invitadoclara", username: "invitado clara", password: "invitado clara" }
-  ];
+  // Excepción: las que el dueño borró no se re-crean (DEMOS_BORRADAS_KEY).
+  var defaults = DEMOS_BASE;
   var list = getAccounts();
   var changed = false;
   defaults.forEach(function (d) {
     var slug = accUserNameSlug(d.username);
+    if (_demoBorrada(slug)) {return;}
     var existing = list.find(function (a) { return a.type === "demo" && accUserNameSlug(a.username) === slug; });
     if (!existing) {
       list.push({ id: d.id, username: d.username, password: d.password, type: "demo", created: Date.now(), expiresAt: Date.now() + GUEST_TTL_MS, firebase: false });
@@ -5925,6 +5947,9 @@ async function adminDeleteAccount(id) {
     }
   }
   removeAccountLocal(id);
+  // Las demos base se re-crean solas en cada render/pull: si el dueño la borró
+  // a propósito, hay que recordarlo para que no vuelva en el próximo ciclo.
+  if (a.type === "demo") {_marcarDemoBorrada(a.username);}
   renderAccountsSettings();
   toast("Cuenta eliminada ✓");
 }
@@ -6042,7 +6067,11 @@ function _pruneExpiredDemos(list) {
 function _mergeRemoteAccounts(remote, local, remoteTs) {
   var byLocal = {};
   (local || []).forEach(function (a) { byLocal[a.id] = a; });
-  var merged = (remote || []).filter(function (r) { return !_esBorradaReciente(r.id); }).map(function (r) {
+  // Además del tombstone de sesión, se respetan las demos que el dueño borró:
+  // el registro de la nube las sigue trayendo, y sin esto reaparecerían.
+  var merged = (remote || []).filter(function (r) {
+    return !_esBorradaReciente(r.id) && !(r.type === "demo" && _demoBorrada(accUserNameSlug(r.username)));
+  }).map(function (r) {
     var l = byLocal[r.id];
     if (l && l.password && !r.password) {r = Object.assign({}, r, { password: l.password });}
     return r;

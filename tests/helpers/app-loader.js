@@ -76,7 +76,16 @@ function bootstrap() {
   metaPrecios: metaPrecios,
   aplicarMetaPrecios: aplicarMetaPrecios,
   haceTexto: haceTexto,
-  guardarCopiaLocal: guardarCopiaLocal
+  guardarCopiaLocal: guardarCopiaLocal,
+  accUserNameSlug: accUserNameSlug,
+  seedDemoAccounts: seedDemoAccounts,
+  _mergeRemoteAccounts: _mergeRemoteAccounts,
+  _pruneExpiredDemos: _pruneExpiredDemos,
+  removeAccountLocal: removeAccountLocal,
+  adminDeleteAccount: adminDeleteAccount,
+  _marcarDemoBorrada: _marcarDemoBorrada,
+  _demoBorrada: _demoBorrada,
+  _esBorradaReciente: _esBorradaReciente
 };
 `;
 
