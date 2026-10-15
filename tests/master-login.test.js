@@ -155,3 +155,105 @@ describe("el registro de cuentas: sin secretos en el cliente ni en las reglas", 
     expect(src).toMatch(/if \(!_esSesionDuenio\(\)\) \{\s*return toast\("Para vincular/);
   });
 });
+
+describe("eliminar una cuenta: el borrado se confirma RECIÉN cuando quedó escrito en la nube", () => {
+  // Regresión real: adminDeleteAccount borraba en local, avisaba "eliminada" y
+  // empujaba a la nube sin esperar. Si el push fallaba (o se cerraba la
+  // pestaña), la nube seguía con la cuenta y el próximo pull la resucitaba.
+  let escrituras;
+  let avisos;
+
+  function firestoreQue(setea) {
+    return {
+      collection: () => ({
+        doc: () => ({
+          set: async (data) => {
+            escrituras.push(data);
+            if (!setea) {
+              const e = new Error("permission-denied");
+              e.code = "permission-denied";
+              throw e;
+            }
+          },
+        }),
+      }),
+    };
+  }
+
+  beforeEach(() => {
+    escrituras = [];
+    avisos = [];
+    localStorage.setItem("pte_accounts", JSON.stringify([
+      { id: "acc-qa-borrar", username: "qa.borrar", type: "pro", active: true, updatedAt: Date.now() },
+      { id: "acc-qa-quedarse", username: "qa.quedarse", type: "pro", active: true, updatedAt: Date.now() },
+    ]));
+    window.confirm = () => true;
+    window.toast = (msg, ok) => { avisos.push({ msg: String(msg), ok: ok !== false }); };
+    window._currentUser = { isMaster: true };
+  });
+
+  afterEach(() => {
+    delete window._FIRESTORE;
+    delete window._AUTH;
+    delete window.confirm;
+    delete window.toast;
+    delete window._currentUser;
+    localStorage.removeItem("pte_accounts");
+  });
+
+  it("espera el push a Firestore: sin eso no avisa ni borra en local", async () => {
+    let setLlamado = false;
+    let resolvio = false;
+    window._FIRESTORE = {
+      collection: () => ({
+        doc: () => ({
+          set: async (data) => {
+            escrituras.push(data);
+            setLlamado = true;
+            await new Promise((r) => setTimeout(r, 30));
+            resolvio = true;
+          },
+        }),
+      }),
+    };
+    window._AUTH = { get currentUser() { return { uid: app.MASTER_UID }; } };
+
+    const p = window.adminDeleteAccount("acc-qa-borrar");
+    await new Promise((r) => setTimeout(r, 5));
+    // Aún no terminó el push: la cuenta sigue local y no se avisó "eliminada"
+    expect(setLlamado).toBe(true);
+    expect(resolvio).toBe(false);
+    expect(app.getAccounts().some((a) => a.id === "acc-qa-borrar")).toBe(true);
+    expect(avisos.some((t) => /eliminada/i.test(t.msg))).toBe(false);
+
+    await p;
+    // Terminó: la nube quedó sin la cuenta, y recién ahí se borra y se avisa
+    expect(resolvio).toBe(true);
+    expect(escrituras[0].list.some((x) => x.id === "acc-qa-borrar")).toBe(false);
+    expect(escrituras[0].list.some((x) => x.id === "acc-qa-quedarse")).toBe(true);
+    expect(app.getAccounts().some((a) => a.id === "acc-qa-borrar")).toBe(false);
+    expect(avisos.some((t) => /eliminada/i.test(t.msg) && t.ok)).toBe(true);
+  });
+
+  it("si el push a la nube falla, no se borra en local y se avisa el error", async () => {
+    window._FIRESTORE = firestoreQue(false);
+    window._AUTH = { get currentUser() { return { uid: app.MASTER_UID }; } };
+
+    await window.adminDeleteAccount("acc-qa-borrar");
+
+    // Nada se tocó: el borrado no es real si no llegó a la nube
+    expect(app.getAccounts().some((a) => a.id === "acc-qa-borrar")).toBe(true);
+    expect(avisos.some((t) => /eliminada/i.test(t.msg))).toBe(false);
+    expect(avisos.some((t) => t.ok === false && /nube/i.test(t.msg))).toBe(true);
+  });
+
+  it("sin sesión del dueño no se escribe (la regla lo rechazaría) y se mantiene la cuenta", async () => {
+    window._FIRESTORE = firestoreQue(true);
+    window._AUTH = { get currentUser() { return { uid: "otro-uid" }; } };
+
+    await window.adminDeleteAccount("acc-qa-borrar");
+
+    expect(escrituras).toHaveLength(0);
+    expect(app.getAccounts().some((a) => a.id === "acc-qa-borrar")).toBe(true);
+  });
+});

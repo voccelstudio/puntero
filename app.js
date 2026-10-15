@@ -5888,12 +5888,36 @@ async function adminDeleteAccount(id) {
   var a = getAccounts().find(function (x) { return x.id === id; });
   if (!a) {return;}
   if (!confirm("¿Eliminar la cuenta " + a.username + "?\n\nEl cliente pierde el acceso en todos los dispositivos.")) {return;}
+  // Primero se empuja el registro SIN la cuenta, y recién entonces se borra
+  // localmente. Antes el push era fire-and-forget: la UI avisaba "eliminada"
+  // mientras la nube seguía con la cuenta, y un reload (o un pull posterior)
+  // la resucitaba — el borrado nunca había llegado a Firestore.
+  var sinLaCuenta = getAccounts().filter(function (x) { return x.id !== id; });
+  if (window._FIRESTORE) {
+    var synced = false;
+    if (_esSesionDuenio()) {
+      try {
+        var now = Date.now();
+        var local = sinLaCuenta.map(function (x) { return Object.assign({}, x, { updatedAt: x.updatedAt || now }); });
+        var sanitized = [];
+        for (var i = 0; i < local.length; i++) {sanitized.push(await _sanitizeAccountForLedger(local[i]));}
+        sanitized = _pruneExpiredDemos(sanitized);
+        await window._FIRESTORE.collection("accounts").doc("ledger").set({ list: sanitized, updatedAt: now });
+        synced = true;
+      } catch (e) {
+        console.warn("push cuentas (borrado):", e.code || e.message);
+      }
+    }
+    if (!synced) {
+      // Sin la escritura confirmada el borrado no es real: la cuenta volvería
+      // en el próximo pull. No se toca nada y se avisa, para poder reintentar.
+      toast("⚠️ No se pudo sincronizar el borrado con la nube. Reintentá estando en línea.", false);
+      return;
+    }
+  }
   removeAccountLocal(id);
   renderAccountsSettings();
   toast("Cuenta eliminada ✓");
-  // Se empuja ya (best-effort): si la nube sigue teniendo la cuenta, cualquier
-  // otro dispositivo la seguiría viendo hasta la próxima sincronización.
-  try { await ensureAdminSync(); await pushAccountsSync(); } catch (e) {}
 }
 
 // ── SINCRONIZACIÓN DEL REGISTRO DE CUENTAS (ADMIN) ─────────────────────────

@@ -223,9 +223,9 @@ const main = async () => {
     await fresh.evaluate(async () => { try { await logout(); } catch (e) {} });
     await page.evaluate(async ({ id }) => {
       if (!id) { return; }
-      adminDeleteAccount(id);
-      await new Promise((r) => setTimeout(r, 1500));
-      await pushAccountsSync();
+      // adminDeleteAccount espera a que el registro quede escrito en la nube:
+      // recién después borra en local y avisa.
+      await adminDeleteAccount(id);
       await new Promise((r) => setTimeout(r, 2500));
     }, { id: creada && creada.id });
     const limpio = await page.evaluate(({ id }) => !getAccounts().some((x) => x.id === id), { id: creada && creada.id });
