@@ -184,6 +184,8 @@ const fmt = n => {
   return symbol + new Intl.NumberFormat("es-PY", { minimumFractionDigits: dec, maximumFractionDigits: dec }).format(val);
 };
 const fmtD = (n, d = 2) => +n.toFixed(d);
+// Pluralización simple en español: plural(1,"proyecto") → "1 proyecto"; plural(2,"proyecto") → "2 proyectos".
+const plural = (n, sing, plur) => `${n} ${n === 1 ? sing : (plur || sing + "s")}`;
 
 // ── HELPERS DE FECHAS (todo PY: dd/mm/yyyy) ──────────────────────────────
 /**
@@ -952,7 +954,7 @@ function renderGlobalDashboard() {
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px">
             <div>
                 <h2 class="sec-lbl" style="margin:0">PANEL GENERAL</h2>
-                <p style="color:var(--tx3); font-size:0.9rem">${activeProjects.length} proyecto(s) activo(s)</p>
+                <p style="color:var(--tx3); font-size:0.9rem">${plural(activeProjects.length, "proyecto activo", "proyectos activos")}</p>
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap">
                 <button class="btn primary" onclick="showModal('new_project')">+ Nuevo Proyecto</button>
@@ -1471,7 +1473,7 @@ function renderProjects() {
                     <div style="background:var(--sur2); padding:10px; border-radius:var(--rad); margin-bottom:12px">
                         <div style="font-size:0.7rem; color:var(--tx3); text-transform:uppercase; margin-bottom:2px">Inversión Total</div>
                         <div style="font-weight:800; font-size:1.2rem; color:var(--acc)">${fmt(total)}</div>
-                        <div style="font-size:0.75rem; color:var(--tx3); margin-top:4px">${p.budgets.length} Presupuesto(s)</div>
+                        <div style="font-size:0.75rem; color:var(--tx3); margin-top:4px">${plural(p.budgets.length, "Presupuesto", "Presupuestos")}</div>
                     </div>
 
                     <div style="margin-top:12px; display:flex; gap:6px; flex-wrap:wrap">
@@ -1513,20 +1515,35 @@ function shareProjectWhatsApp(id) {
 }
 
 // Recordatorio no intrusivo de Backup (cada 3 días). Nunca descarga archivos solo.
+// Se muestra como banner descartable (no como toast rojo: no es un error).
 async function checkBackupReminder() {
   // Con backup automático a carpeta configurado, no hay nada que recordar.
   var carpeta = await carpetaBackup();
   if (carpeta) {return;}
   const last = localStorage.getItem("ppy_last_backup") || 0;
+  const seen = localStorage.getItem("pte_backup_banner_seen") || 0;
   const now = Date.now();
-  if (now - last > 3 * 24 * 60 * 60 * 1000) {
+  const TRES_DIAS = 3 * 24 * 60 * 60 * 1000;
+  if (now - last > TRES_DIAS && now - seen > TRES_DIAS) {
     setTimeout(() => {
       var u = window._currentUser;
       if (!u || u.isGuest === true) { return; }
       if (state._requireAccount !== false && !masteredOrVerified(u)) { return; }
-      toast("💾 No tenés backup automático. Configuralo en ☁️ Cloud > Backup y Datos.", false);
+      var b = document.getElementById("backup-banner");
+      if (b) {b.style.display = "flex";}
     }, 3000);
   }
+}
+
+// Acciones del banner de backup.
+function descartarBannerBackup() {
+  localStorage.setItem("pte_backup_banner_seen", Date.now());
+  var b = document.getElementById("backup-banner");
+  if (b) {b.style.display = "none";}
+}
+function irABackup() {
+  descartarBannerBackup();
+  setSection("cloud");
 }
 
 // ── DEXIE (IndexedDB) ────────────────────────────────────────────────
@@ -1880,6 +1897,7 @@ function setSection(s) {
     if (_qea) {_qea.innerHTML = "";}
   }
   const titles = { 
+    global_dashboard: "Panel General",
     budget: "Presupuesto de Obra", 
     ot: "Orden de Trabajo", 
     schedule: "Cronograma de Ejecución", 
@@ -1900,6 +1918,8 @@ function setSection(s) {
     clients: "Base de Clientes",
     folder: "Carpeta del Proyecto",
     cajachica: "Caja Chica",
+    computo: "Cómputo de Materiales",
+    aftercare: "Garantía y Ajustes",
     computo_rapido: "Cómputo Rápido",
     accounts: "Gestión de Cuentas",
     cloud: "☁️ Cloud"

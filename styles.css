@@ -196,6 +196,8 @@ input.sm{padding:5px 9px;font-size:.875rem}
 .btn.ok-btn:hover{background:var(--ok);color:var(--bg)}
 .btn.pdf-btn{background:rgba(var(--acc-rgb),.12);color:var(--acc);border-color:rgba(var(--acc-rgb),.3)}
 .btn.pdf-btn:hover{background:var(--acc);color:var(--bg)}
+/* Foco visible para teclado (los inputs ya tienen :focus propio arriba) */
+.btn:focus-visible,.nbtn:focus-visible,.cat-hdr:focus-visible,.cat-item:focus-visible,.addbtn:focus-visible,.fab:focus-visible,summary:focus-visible,a:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 
 /* ═══════════════════════════════════════════ CATALOG ═══ */
 .srch{position:relative;margin-bottom:10px}
@@ -417,7 +419,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:.9rem}
 .stat-val{font-size:.9rem;font-weight:700}
 
 /* ═══════════════════════════════════════════ SPECIALIZED ═══ */
-.custom-item-row{display:flex;gap:6px;align-items:center;padding:9px;background:var(--ivabg);border:1px dashed var(--iva);border-radius:var(--rad);margin-bottom:7px}
+.custom-item-row{display:flex;gap:6px;align-items:center;padding:9px;background:rgba(var(--acc-rgb),.05);border:1px dashed rgba(var(--acc-rgb),.45);border-radius:var(--rad);margin-bottom:7px}
 .custom-item-row input{flex:1;font-size:.85rem}
 .custom-item-row input.price{width:110px;flex:none}
 .custom-item-row input.unit{width:55px;flex:none}
@@ -611,6 +613,11 @@ table.tbl{width:100%;border-collapse:collapse;font-size:.9rem}
 
 /* ═══════════════════════════════════ CONEXIÓN / ESTADO DE SYNC ═══ */
 .conn-banner{position:fixed;top:0;left:0;right:0;z-index:600;background:var(--warn);color:#0f172a;font-size:.78rem;font-weight:700;padding:8px 12px;display:flex;align-items:center;justify-content:center;gap:8px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,.25)}
+/* Recordatorio de backup: tarjeta discreta abajo-izquierda (no tapa el FAB ni es un error) */
+.backup-banner{position:fixed;bottom:16px;left:16px;z-index:650;background:var(--sur);border:1px solid var(--bor);border-left:4px solid var(--warn);border-radius:var(--rad);padding:10px 12px;display:flex;align-items:center;gap:10px;font-size:.85rem;color:var(--tx);box-shadow:var(--sh);max-width:min(420px,calc(100vw - 96px))}
+.backup-banner .backup-msg{flex:1;line-height:1.3}
+.backup-banner .backup-acts{display:flex;gap:6px;flex-shrink:0}
+@media(max-width:560px){.backup-banner{bottom:84px;right:16px;max-width:none}}
 .sync-chip{font-size:.7rem;font-weight:700;padding:4px 9px;border-radius:999px;border:1px solid var(--bor);background:var(--sur);color:var(--tx3);white-space:nowrap;display:inline-flex;align-items:center;gap:5px;line-height:1.2}
 .sync-chip.online{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 40%,transparent)}
 .sync-chip.offline{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 40%,transparent);background:var(--sur2)}

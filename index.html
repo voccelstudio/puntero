@@ -31,6 +31,15 @@
   <span>📡 Sin conexión — tus cambios se guardan en este dispositivo y se suben cuando vuelva la señal.</span>
 </div>
 
+<!-- Recordatorio de backup: no es un error, se descarta y vuelve a los 3 días -->
+<div id="backup-banner" class="backup-banner" style="display:none" role="status">
+  <span class="backup-msg">💾 Todavía no tenés backup automático.</span>
+  <span class="backup-acts">
+    <button class="btn sm" onclick="irABackup()">Configurar ahora</button>
+    <button class="btn sm" onclick="descartarBannerBackup()" aria-label="Descartar aviso">✕</button>
+  </span>
+</div>
+
 <div id="app" class="app-layout">
   <aside class="sidebar">
     <div class="side-logo" onclick="setSection('budget')">
@@ -60,7 +69,7 @@
     <div class="side-scroll">
       <div class="nav-group">
         <div class="nav-label">Organización</div>
-        <button id="btn-global-dashboard" class="nbtn on" onclick="setSection('global_dashboard')">🚀 Panel General</button>
+        <button id="btn-global_dashboard" class="nbtn on" onclick="setSection('global_dashboard')">🚀 Panel General</button>
         <button id="btn-projects" class="nbtn" onclick="setSection('projects')">🏢 Mis Proyectos</button>
         <button id="btn-clients" class="nbtn" onclick="setSection('clients')">👥 Clientes</button>
         <button id="btn-budget" class="nbtn" onclick="setSection('budget')">📋 Presupuesto</button>
