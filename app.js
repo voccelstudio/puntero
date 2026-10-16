@@ -2985,7 +2985,7 @@ function renderBudget() {
   el.innerHTML = `
     <div class="adenda-bar" style="background:var(--sur2); padding:10px; border-radius:var(--rad); margin-bottom:15px; display:flex; align-items:center; gap:10px; border:1px solid var(--bor)">
         <span style="font-weight:700; font-size:0.85rem">Adenda Activa:</span>
-        <select style="flex:1" onchange="state.activeAdendaId=this.value; save(); renderBudget()">
+        <select onchange="state.activeAdendaId=this.value; save(); renderBudget()">
             ${p.budgets.map(b => `<option value="${b.id}" ${b.id === adenda.id ? 'selected' : ''}>${b.name}</option>`).join("")}
         </select>
         <button class="btn sm" onclick="addAdenda()">+ Nueva Adenda</button>
