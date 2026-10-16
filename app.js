@@ -9,7 +9,7 @@ const VALID_SECTIONS = [
   "global_dashboard", "budget", "ot", "schedule", "contractors", "jornaleros",
   "contratos", "prices", "dashboard", "themes", "logs", "materials", "finances",
   "cajachica", "performance", "documents", "suppliers", "resources", "projects",
-  "clients", "aftercare", "computo", "folder", "accounts", "cloud",
+  "clients", "aftercare", "computo", "computo_rapido", "folder", "accounts", "cloud",
 ];
 
 // ══════════════════════════════════════════════════════════════════════
@@ -412,6 +412,8 @@ const state = {
   clientFilter: "",  // [NUEVO] Filtro de la sección Clientes
   clientFilterProj: null, // [NUEVO] Filtro de proyectos por cliente
   phaseIdSeq: 1,     // [NUEVO] Secuencia de ids de fases
+  quickBudgets: [],  // [NUEVO] Computos rapidos: presupuestos sueltos sin cliente ni ejecucion
+  quickEditingId: null, // id del computo rapido en edicion (solo en memoria, no persiste)
 };
 
 // Load state from localStorage (fast cache)
@@ -426,6 +428,11 @@ try {
   migrateToMultiProject();
   if (typeof ensureClients === "function") {ensureClients();}
 } catch (e) { }
+
+// El computo rapido en edicion es un "modo" que vive solo en memoria (el
+// wrapper _quickProj no se serializa): si quedo activo de una sesion anterior
+// (recarga), se limpia para no apuntar a un borrador inexistente.
+state.quickEditingId = null;
 
 // Init Dexie and try to load authoritative data from IndexedDB
 //
@@ -1338,7 +1345,15 @@ function migrateToV7() {
     save();
 }
 
+// Wrapper vivo del computo rapido en edicion. Se declara aca (y no en el bloque
+// de funciones de mas abajo) para que getActiveProject()/getActiveAdenda() lo
+// vean inicializado aunque alguien pida el proyecto activo durante la carga.
+var _quickProj = null;
+
 function getActiveProject() {
+    // Computo rapido en edicion: toda la maquinaria del presupuesto (catalogo,
+    // tabla, totales, items, cronograma por item) trabaja sobre el borrador.
+    if (state.quickEditingId && _quickProj) {return _quickProj;}
     if (!state.activeProjectId && state.projects.length > 0) {
         state.activeProjectId = state.projects[0].id;
     }
@@ -1346,6 +1361,7 @@ function getActiveProject() {
 }
 
 function getActiveAdenda() {
+    if (state.quickEditingId && _quickProj) {return _quickProj.budgets[0];}
     const p = getActiveProject();
     if (!p) {return null;}
     if (!p.budgets || p.budgets.length === 0) {return null;}
@@ -1847,6 +1863,22 @@ function setSection(s) {
   state.section = s;
   // Cerrar drawer automáticamente al navegar (UX mobile)
   if (typeof closeSidebar === 'function') {closeSidebar();}
+  // Higiene de DOM: #catalog, #table-area y #totals-area existen en Presupuesto
+  // y también en Cómputo Rápido; si quedaran pintados en ambos habría ids
+  // repetidos y getElementById apuntaría al contenedor equivocado.
+  if (s !== "budget") {
+    var _bma = document.getElementById("budget-main-area");
+    if (_bma) {_bma.innerHTML = "";}
+  }
+  // El computo rapido en edicion es un modo: al salir de la seccion se desactiva
+  // para que Presupuesto y el resto vuelvan a operar sobre el proyecto real.
+  // Se conserva al ir a Computo de Materiales, que es la vista de materiales del
+  // mismo presupuesto (el boton "Ver Computo" del editor).
+  if (s !== "computo_rapido" && s !== "computo") {cerrarComputoRapido();}
+  if (s !== "computo_rapido") {
+    var _qea = document.getElementById("section-computo_rapido");
+    if (_qea) {_qea.innerHTML = "";}
+  }
   const titles = { 
     budget: "Presupuesto de Obra", 
     ot: "Orden de Trabajo", 
@@ -1868,6 +1900,7 @@ function setSection(s) {
     clients: "Base de Clientes",
     folder: "Carpeta del Proyecto",
     cajachica: "Caja Chica",
+    computo_rapido: "Cómputo Rápido",
     accounts: "Gestión de Cuentas",
     cloud: "☁️ Cloud"
   };
@@ -1886,6 +1919,7 @@ function setSection(s) {
   if (s === "budget") {renderBudget();}
   if (s === "ot") {renderOT();}
   if (s === "computo") {renderComputoSection();}
+  if (s === "computo_rapido") {renderComputoRapido();}
   if (s === "aftercare") {renderAftercare();}
   if (s === "prices") {renderPrices();}
   if (s === "themes") {renderThemes();}
@@ -2515,8 +2549,10 @@ function itemLineTotal(item, ivaEnabled) {
   const iva = ivaEnabled ? calcIVA(Number(item.matCost) || 0, Number(item.laborCost) || 0, qty).ivaTotal : 0;
   return ep * qty + iva;
 }
-function getTotals() {
-  const adenda = getActiveAdenda();
+// Totales de una adenda. Sin argumento usa la adenda activa; con argumento
+// calcula sobre esa (se usa para el listado de computos rapidos).
+function getTotals(adenda) {
+  adenda = adenda || getActiveAdenda();
   if (!adenda) {return { totalMats:0, totalLabor:0, subtotal:0, ivaMat:0, ivaLab:0, ivaTotal:0, profitAmt:0, total:0 };}
   
   const totalMats = adenda.items.reduce((s, i) => s + (Number(i.matCost) || 0) * (1 - (i.disc || 0) / 100) * (Number(i.qty) || 0), 0);
@@ -2956,6 +2992,294 @@ function setBudgetClient(id) {
   adenda.clientId = id || null;
   save(); renderBudget();
 }
+
+// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═
+// CÓMPUTO RÁPIDO — presupuestos sueltos, sin cliente ni ejecución
+// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═
+// Para armar un presupuesto en dos minutos —sin crear un proyecto ni cargar
+// cliente u obreros— y después, si sirve, convertirlo en un proyecto real con
+// su cliente y su propia ejecución (cronograma, obra, finanzas).
+//
+// Los borradores viven en state.quickBudgets: se guardan, respaldan y
+// sincronizan con la nube igual que todo el state.
+//
+// Reuso: mientras se edita uno, getActiveProject()/getActiveAdenda() lo
+// devuelven a él (override _quickProj), así el catálogo de precios, la tabla
+// de ítems, los totales y hasta el cronograma por ítem funcionan tal cual. El
+// wrapper solo existe en memoria y se desactiva al salir de la sección.
+
+function getQuickBudgets() {
+  if (!Array.isArray(state.quickBudgets)) {state.quickBudgets = [];}
+  return state.quickBudgets;
+}
+function findQuickBudget(id) {
+  return getQuickBudgets().find(q => q.id === id);
+}
+
+function nuevoComputoRapido() {
+  const now = Date.now();
+  const d = {
+    id: "qk_" + now.toString(36) + Math.floor(Math.random() * 1000),
+    name: "Cómputo rápido " + formatDatePY(new Date()),
+    items: [], schedules: {},
+    profitPct: 0, ivaEnabled: false, notes: "", clientId: null,
+    createdAt: now, updatedAt: now
+  };
+  getQuickBudgets().push(d);
+  save();
+  abrirComputoRapido(d.id);
+}
+
+function abrirComputoRapido(id) {
+  const d = findQuickBudget(id);
+  if (!d) {return toast("No se encontró ese cómputo rápido", false);}
+  if (!Array.isArray(d.items)) {d.items = [];}
+  if (!d.schedules || typeof d.schedules !== "object") {d.schedules = {};}
+  // budgets[0] y execution.schedules son referencias AL MISMO borrador: todo lo
+  // que se edite cae en state.quickBudgets y se guarda solo.
+  _quickProj = {
+    id: d.id, name: d.name, quick: true,
+    budgets: [d],
+    execution: { schedules: d.schedules, projectStartDate: "" }
+  };
+  state.quickEditingId = d.id;
+  renderComputoRapido();
+}
+
+function cerrarComputoRapido() {
+  if (!state.quickEditingId) {return;}
+  state.quickEditingId = null;
+  _quickProj = null;
+  save();
+}
+
+function volverAListaQuick() {
+  const d = state.quickEditingId ? findQuickBudget(state.quickEditingId) : null;
+  if (d) {d.updatedAt = Date.now();}
+  cerrarComputoRapido();
+  renderComputoRapido();
+}
+
+function limpiarComputoRapido() {
+  const d = findQuickBudget(state.quickEditingId);
+  if (!d) {return;}
+  if ((d.items || []).length && !confirm("¿Vaciar este cómputo rápido? Se borrarán los ítems.")) {return;}
+  (d.items || []).forEach(i => {
+    if (_quickProj && _quickProj.execution && _quickProj.execution.schedules) {delete _quickProj.execution.schedules[i.id];}
+  });
+  d.items = [];
+  d.schedules = {};
+  if (_quickProj) {_quickProj.execution.schedules = d.schedules;}
+  renderTable(); save(); toast("Cómputo vaciado ✓");
+}
+
+function borrarComputoRapido(id) {
+  const d = findQuickBudget(id);
+  if (!d) {return;}
+  if (!confirm("¿Eliminar el cómputo rápido \"" + d.name + "\"? (" + (d.items || []).length + " ítems)")) {return;}
+  if (state.quickEditingId === id) {cerrarComputoRapido();}
+  state.quickBudgets = getQuickBudgets().filter(q => q.id !== id);
+  save();
+  renderComputoRapido();
+  toast("Cómputo rápido eliminado ✓");
+}
+
+function duplicarComputoRapido(id) {
+  const d = findQuickBudget(id);
+  if (!d) {return;}
+  const copia = JSON.parse(JSON.stringify(d));
+  copia.id = "qk_" + Date.now().toString(36) + Math.floor(Math.random() * 1000);
+  copia.name = (d.name || "Cómputo rápido") + " (copia)";
+  copia.createdAt = Date.now();
+  copia.updatedAt = Date.now();
+  getQuickBudgets().push(copia);
+  save();
+  renderComputoRapido();
+  toast("Copia creada ✓");
+}
+
+// Convertir el borrador en un proyecto real con cliente y ejecución propia.
+function convertirQuickModal(id) {
+  const d = findQuickBudget(id);
+  if (!d) {return;}
+  if (!(d.items || []).length) {return toast("Agregá al menos un ítem antes de convertirlo en proyecto", false);}
+  window.modals = window.modals || {};
+  window.modals.quick_to_project = function () {
+    const n = d.items.length;
+    return '<div class="modal-title">Convertir en proyecto<button class="delbtn" onclick="closeModal()">✕</button></div>' +
+      '<div class="info-box" style="margin-bottom:12px">' +
+        '<p style="margin:0"><strong>' + escapeHtml(d.name || "Sin nombre") + '</strong> · ' + n + ' ítem' + (n !== 1 ? "s" : "") + ' · ₱ ' + fmt(getTotals(d).total) + '</p>' +
+        '<p style="margin:6px 0 0;font-size:.85rem;color:var(--tx3)">Se crea un proyecto nuevo con este presupuesto y su propia ejecución. El cómputo rápido pasa a la lista de Mis Proyectos.</p>' +
+      '</div>' +
+      '<label class="stat-lbl">Cliente del proyecto</label>' +
+      '<select id="qk-client-id">' + clientOptionsHtml("") + '</select>' +
+      '<input id="qk-new-client" placeholder="…o creá un cliente ahora: nombre" style="width:100%;margin-top:8px">' +
+      '<div class="modal-acts">' +
+        '<button class="btn" onclick="closeModal()">Cancelar</button>' +
+        '<button class="btn primary" onclick="convertirQuickAProyecto(\'' + d.id + '\')">Crear proyecto ✓</button>' +
+      '</div>';
+  };
+  showModal("quick_to_project");
+}
+
+function convertirQuickAProyecto(id) {
+  const d = findQuickBudget(id);
+  if (!d) {return;}
+  if (!(d.items || []).length) {
+    if (document.getElementById("modal-area")) {closeModal();}
+    return toast("Este cómputo no tiene ítems", false);
+  }
+  const nuevoNombre = String((document.getElementById("qk-new-client") || {}).value || "").trim();
+  const selId = String((document.getElementById("qk-client-id") || {}).value || "");
+  let cli = null;
+  if (nuevoNombre) {
+    cli = { id: "cli_" + Date.now().toString(36), name: nuevoNombre, phone: "", email: "", ruc: "", address: "", note: "", createdAt: Date.now() };
+    getClients().push(cli);
+  } else if (selId) {
+    cli = getClients().find(c => c.id === selId) || null;
+  }
+
+  const nuevo = {
+    id: "p_" + Date.now(),
+    name: d.name || "Cómputo rápido",
+    client: cli ? cli.name : "",
+    clientId: cli ? cli.id : null,
+    phone: cli ? (cli.phone || "") : "",
+    email: cli ? (cli.email || "") : "",
+    address: cli ? (cli.address || "") : "",
+    ruc: cli ? (cli.ruc || "") : "",
+    date: formatDatePY(new Date()),
+    status: "active", archived: false, activeAdendaId: "main",
+    budgets: [{
+      id: "main",
+      name: "Presupuesto Principal",
+      items: d.items,
+      profitPct: d.profitPct || 0,
+      ivaEnabled: !!d.ivaEnabled,
+      notes: d.notes || "",
+      phases: Array.isArray(d.phases) ? JSON.parse(JSON.stringify(d.phases)) : [],
+      clientId: cli ? cli.id : null
+    }],
+    execution: {
+      schedules: d.schedules || {},   // el cronograma por ítem viene listo (pendiente)
+      dailyLogs: [], materialOrders: [],
+      finances: { income: [], expenses: [] },
+      documents: [], aftercare: [],
+      projectStartDate: "", projectEndDate: "",
+      folderHandle: null, folderPath: "", folderCategories: []
+    }
+  };
+
+  state.projects.push(nuevo);
+  state.quickBudgets = getQuickBudgets().filter(q => q.id !== id);
+  state.quickEditingId = null;
+  _quickProj = null;
+  state.activeProjectId = nuevo.id;
+  state.activeAdendaId = "main";
+  if (document.getElementById("modal-area")) {closeModal();}
+  save();
+  setSection("budget");
+  toast(cli ? "Proyecto creado para " + cli.name + " ✓" : "Proyecto creado ✓");
+  return nuevo;
+}
+
+function renderComputoRapido() {
+  const el = document.getElementById("section-computo_rapido");
+  if (!el) {return;}
+  if (state.quickEditingId && _quickProj) {renderQuickEditor(el); return;}
+  renderQuickList(el);
+}
+
+function renderQuickList(el) {
+  const list = getQuickBudgets().slice().sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
+  const cards = list.map(d => {
+    const n = (d.items || []).length;
+    return '<div class="card" style="margin-bottom:12px">' +
+      '<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">' +
+        '<div style="flex:1;min-width:190px">' +
+          '<div style="font-weight:800;font-size:1.02rem">' + escapeHtml(d.name || "Sin nombre") + '</div>' +
+          '<div style="font-size:.8rem;color:var(--tx3);margin-top:3px">' + n + ' ítem' + (n !== 1 ? "s" : "") +
+            ' · ' + (d.ivaEnabled ? "IVA inc." : "sin IVA") +
+            (d.profitPct ? " · honorarios " + d.profitPct + "%" : "") +
+            ' · modif. ' + (d.updatedAt || d.createdAt ? formatDatePY(new Date(d.updatedAt || d.createdAt)) : "—") +
+          '</div>' +
+        '</div>' +
+        '<div style="text-align:right;font-weight:800;color:var(--acc);font-size:1.05rem">₱ ' + fmt(getTotals(d).total) + '</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">' +
+        '<button class="btn sm primary" style="flex:1" onclick="abrirComputoRapido(\'' + d.id + '\')">✏️ Editar</button>' +
+        '<button class="btn sm" style="flex:1" onclick="convertirQuickModal(\'' + d.id + '\')">➡️ Convertir en proyecto</button>' +
+        '<button class="btn sm" onclick="duplicarComputoRapido(\'' + d.id + '\')" title="Duplicar">📄</button>' +
+        '<button class="btn sm danger" onclick="borrarComputoRapido(\'' + d.id + '\')" title="Eliminar">🗑️</button>' +
+      '</div>' +
+    '</div>';
+  }).join("");
+
+  el.innerHTML = '<div style="max-width:900px;margin:0 auto">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px">' +
+      '<div style="flex:1;min-width:240px">' +
+        '<h2 style="margin:0;font-size:1.15rem">⚡ Cómputo Rápido</h2>' +
+        '<p style="color:var(--tx3);font-size:.88rem;margin:4px 0 0">Armá un presupuesto en minutos, sin cliente ni proyecto. Si sirve, convertilo en un proyecto con su propia ejecución.</p>' +
+      '</div>' +
+      '<button class="btn primary" onclick="nuevoComputoRapido()">+ Nuevo cómputo rápido</button>' +
+    '</div>' +
+    (cards || '<div class="empty"><div class="empty-ico">⚡</div><div>No hay cómputos rápidos todavía.<br>Creá uno y agregá rubros del catálogo de precios.</div></div>') +
+  '</div>';
+}
+
+function renderQuickEditor(el) {
+  const d = findQuickBudget(state.quickEditingId);
+  if (!d) {cerrarComputoRapido(); renderQuickList(el); return;}
+  const nm = String(d.name || "").replace(/"/g, '&quot;');
+  const srch = String(state.search || "").replace(/"/g, '&quot;');
+  el.innerHTML = '<div style="max-width:1100px;margin:0 auto">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">' +
+      '<div style="display:flex;gap:8px;align-items:center;flex:1;min-width:230px">' +
+        '<button class="btn sm" onclick="volverAListaQuick()" title="Volver a la lista">← Volver</button>' +
+        '<input value="' + nm + '" style="flex:1;font-weight:700" oninput="getActiveAdenda().name=this.value;save()">' +
+      '</div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
+        '<span class="iva-badge" style="background:var(--sur2);color:var(--tx2)">BORRADOR · SIN CLIENTE</span>' +
+        '<button class="btn sm" onclick="convertirQuickModal(\'' + d.id + '\')">➡️ Convertir en proyecto</button>' +
+      '</div>' +
+    '</div>' +
+    '<div style="display:flex;flex-direction:column;gap:12px">' +
+      '<div class="card">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">' +
+          '<div style="display:flex;align-items:center;gap:6px">' +
+            '<span style="font-size:.85rem;color:var(--tx2)">Honorarios:</span>' +
+            '<input class="sm" type="number" min="0" max="999" value="' + (d.profitPct || 0) + '" style="width:60px" oninput="getActiveAdenda().profitPct=parseFloat(this.value)||0;renderTotals();save()">' +
+            '<span style="font-size:.85rem;color:var(--tx2)">%</span>' +
+          '</div>' +
+          '<label style="display:flex;align-items:center;gap:6px;font-size:.85rem;color:var(--tx2);cursor:pointer">' +
+            '<span class="toggle"><input type="checkbox" ' + (d.ivaEnabled ? "checked" : "") + ' onchange="getActiveAdenda().ivaEnabled=this.checked;renderTable();save()"><span class="tslider"></span></span>' +
+            'Incluir IVA (10% mat. / 5% mano de obra)' +
+          '</label>' +
+          '<button class="btn sm danger" onclick="limpiarComputoRapido()">🗑️ Vaciar</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="card">' +
+        '<div class="srch"><span class="srch-ico">🔍</span><input placeholder="Buscar rubro..." value="' + srch + '" oninput="state.search=this.value;debouncedRenderCatalog()"></div>' +
+        '<div class="cat-scroll" id="catalog"></div>' +
+      '</div>' +
+      '<div class="card">' +
+        '<div class="custom-item-row">' +
+          '<input id="ci-name" placeholder="Descripción del ítem personalizado..." style="font-size:.875rem">' +
+          '<input id="ci-price" type="number" placeholder="₱ precio" class="price sm" min="0">' +
+          '<input id="ci-unit" placeholder="und." class="unit sm" value="gl">' +
+          '<button class="btn sm primary" onclick="addCustomItem()">+ Agregar</button>' +
+        '</div>' +
+        '<div id="table-area"></div>' +
+        '<div id="totals-area"></div>' +
+        '<textarea placeholder="Notas / aclaraciones del presupuesto..." style="width:100%;margin-top:12px;min-height:60px" oninput="getActiveAdenda().notes=this.value;save()">' + escapeHtml(d.notes || "") + '</textarea>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+  renderCatalog();
+  renderTable();
+}
+
+// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═// ═
 
 // ── PRICES SECTION ────────────────────────────────────────────────────
 // ── Actualización manual de precios (botón en la Base de Precios) ─────────

@@ -23,6 +23,8 @@ function bootstrap() {
 ;globalThis.${NAMESPACE} = {
   state: state,
   getTotals: getTotals,
+  addItem: addItem,
+  setSection: setSection,
   calcIVA: calcIVA,
   calcMaterials: calcMaterials,
   calcItemMaterials: calcItemMaterials,
@@ -89,7 +91,19 @@ function bootstrap() {
   adminCreateAccount: adminCreateAccount,
   _publicarRegistro: _publicarRegistro,
   adminToggleActive: adminToggleActive,
-  adminExtendPro: adminExtendPro
+  adminExtendPro: adminExtendPro,
+  getQuickBudgets: getQuickBudgets,
+  findQuickBudget: findQuickBudget,
+  nuevoComputoRapido: nuevoComputoRapido,
+  abrirComputoRapido: abrirComputoRapido,
+  cerrarComputoRapido: cerrarComputoRapido,
+  volverAListaQuick: volverAListaQuick,
+  limpiarComputoRapido: limpiarComputoRapido,
+  borrarComputoRapido: borrarComputoRapido,
+  duplicarComputoRapido: duplicarComputoRapido,
+  convertirQuickModal: convertirQuickModal,
+  convertirQuickAProyecto: convertirQuickAProyecto,
+  renderComputoRapido: renderComputoRapido
 };
 `;
 
@@ -113,6 +127,8 @@ export function loadApp() {
     api.state.activeAdendaId = null;
     api.state.currency = "PYG";
     api.state.exchangeRate = 7500;
+    api.state.quickBudgets = [];
+    api.state.quickEditingId = null;
   };
 
   /** Crea un proyecto con una sola adenda y devuelve la referencia viva. */
