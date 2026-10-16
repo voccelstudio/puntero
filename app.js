@@ -1896,8 +1896,33 @@ function stopWorkspaceListener() {
   }
 }
 
+// Fonts extra por tema: solo se piden a Google Fonts cuando el tema las usa
+// (blueprint/obsidian → IBM Plex Mono; elegant/sand → Playfair; neon/crimson → Sora).
+// El mapa vive dentro de la función: applyTheme corre en el arranque, antes de
+// cualquier declaración const de este punto del archivo (temporal dead zone).
+function ensureThemeFonts(t) {
+  const fonts = {
+    blueprint: "IBM+Plex+Mono:wght@400;600",
+    obsidian: "IBM+Plex+Mono:wght@400;600",
+    elegant: "Playfair+Display:wght@700;800",
+    sand: "Playfair+Display:wght@700;800",
+    neon: "Sora:wght@400;700;800",
+    crimson: "Sora:wght@400;700;800"
+  };
+  var fam = fonts[t];
+  var link = document.getElementById("theme-fonts");
+  if (!fam) {if (link) {link.remove();} return;}
+  var href = "https://fonts.googleapis.com/css2?family=" + fam + "&display=swap";
+  if (link && link.href === href) {return;}
+  if (link) {link.remove();}
+  var l = document.createElement("link");
+  l.id = "theme-fonts"; l.rel = "stylesheet"; l.href = href;
+  document.head.appendChild(l);
+}
 function applyTheme(t) {
-  document.documentElement.setAttribute("data-theme", t || "slate");
+  t = t || "slate";
+  document.documentElement.setAttribute("data-theme", t);
+  ensureThemeFonts(t);
 }
 
 let _tt = null;
@@ -2723,17 +2748,17 @@ function renderCatalog() {
       const en = name.replace(/'/g, "\\'");
       const { ivaMat, ivaLab } = calcIVA(data.matCost, data.laborCost);
       const totalDisp = data.total + ivaMat + ivaLab;
-      h += `<div class="cat-item" onclick="addItem('${ec}','${en}')">
+      h += `<button class="cat-item" onclick="addItem('${ec}','${en}')">
         <span class="iname">${name}</span>
-        <div class="pchips">
+        <span class="pchips">
           <span class="ptot">₲${fmt(totalDisp)}</span>
           <span class="pmat">${fmt(data.matCost)}</span>
           <span class="plab">${fmt(data.laborCost)}</span>
           ${ivaActive ? `<span class="iva-badge">IVA ₲${fmt(ivaMat + ivaLab)}</span>` : ""}
-        </div>
+        </span>
         <span class="utag">${data.unit}</span>
-        <button class="addbtn" onclick="event.stopPropagation();addItem('${ec}','${en}')">+</button>
-      </div>`;
+        <span class="addbtn" aria-hidden="true">+</span>
+      </button>`;
     }}
   }
   const el = document.getElementById("catalog"); if (el) {el.innerHTML = h;}

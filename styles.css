@@ -208,6 +208,7 @@ input.sm{padding:5px 9px;font-size:.875rem}
 .cat-hdr:hover,.cat-hdr.on{background:var(--labbg);color:var(--acc)}
 .cat-item{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:var(--rad);cursor:pointer;margin-left:6px;transition:background .15s;flex-wrap:wrap}
 .cat-item:hover{background:var(--sur2)}
+button.cat-item{width:100%;text-align:left;background:transparent;border:none;font-family:inherit;font-size:inherit;color:inherit}
 .iname{font-size:.9rem;color:var(--tx2);flex:1 1 200px;line-height:1.3;min-width:0;word-break:break-word}
 .pchips{display:flex;flex-direction:column;gap:2px;align-items:flex-end;flex-shrink:0}
 .ptot{font-size:.9rem;font-weight:700;color:var(--acc)}
