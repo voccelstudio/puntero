@@ -472,6 +472,17 @@ table.tbl{width:100%;border-collapse:collapse;font-size:.9rem}
 .proj-dash-total{font-family:var(--font-display);font-size:1.3rem;font-weight:800;color:var(--acc)}
 .proj-dash-actions{display:flex;flex-wrap:wrap;gap:6px;padding-top:10px;border-top:1px solid var(--bor)}
 .proj-dash-actions .btn{font-size:.72rem;padding:5px 9px;min-height:30px;flex:1 1 auto;min-width:0}
+/* Avance de obra en la tarjeta del panel */
+.proj-prog-wrap{display:flex;align-items:center;gap:8px;margin-top:8px}
+.proj-prog{flex:1;height:6px;background:var(--sur2);border:1px solid var(--bor);border-radius:999px;overflow:hidden}
+.proj-prog-bar{height:100%;background:var(--acc);border-radius:999px}
+.proj-prog-lbl{font-size:.7rem;font-weight:800;color:var(--tx3);min-width:34px;text-align:right}
+/* Menú ⋯ de la tarjeta: menos acciones frecuentes */
+.proj-more{position:relative}
+.proj-more>summary{list-style:none;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;min-width:38px}
+.proj-more>summary::-webkit-details-marker{display:none}
+.proj-more-menu{position:absolute;right:0;top:calc(100% + 4px);z-index:40;background:var(--sur);border:1px solid var(--bor);border-radius:var(--rad);box-shadow:var(--sh);padding:6px;display:flex;flex-direction:column;gap:4px;min-width:190px}
+.proj-more-menu .btn{width:100%;justify-content:flex-start}
 .dash-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:18px}
 .dash-card{background:var(--sur);border:1px solid var(--bor);border-radius:var(--rad);padding:16px}
 .dash-num{font-family:var(--font-display);font-size:1.8rem;font-weight:800;color:var(--acc)}

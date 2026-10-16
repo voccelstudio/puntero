@@ -949,6 +949,25 @@ function renderGlobalDashboard() {
         });
     });
 
+    // % de avance por proyecto: ítems con cronograma terminado / en curso.
+    const progPct = (pp) => {
+        const items = pp.budgets.reduce((acc, b) => acc.concat(b.items || []), []);
+        if (!items.length) {return 0;}
+        const sch = (pp.execution && pp.execution.schedules) || {};
+        let done = 0;
+        items.forEach(i => {
+            const s = sch[i.id];
+            if (s && s.status === 'done') {done++;}
+            else if (s && s.status === 'progress') {done += 0.5;}
+        });
+        return Math.round((done / items.length) * 100);
+    };
+    // KPIs: 0 pendientes es bueno (verde); el color de alerta solo si hay pendiente.
+    const kpiColor = (n, alerta) => n > 0 ? alerta : 'var(--ok)';
+    const nPagos = urgentItems.filter(i => i.type.includes('💰')).length;
+    const nRetrasos = urgentItems.filter(i => i.type.includes('⚠️')).length;
+    const nGarantia = urgentItems.filter(i => i.type.includes('🔧')).length;
+
     const h = `
     <div class="prices-wrap">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px">
@@ -967,6 +986,7 @@ function renderGlobalDashboard() {
                 const total = p.budgets.reduce((s, b) => s + b.items.reduce((ss, i) => ss + (i.unitPrice * i.qty), 0), 0);
                 const pid = p.id.replace(/'/g, "\\'");
                 const itemsCount = p.budgets.reduce((s, b) => s + b.items.length, 0);
+                const prog = progPct(p);
                 return `
                 <div class="proj-dash-card" onclick="openProjectSection('${pid}','dashboard')">
                     <div class="proj-dash-hdr">
@@ -977,32 +997,50 @@ function renderGlobalDashboard() {
                         <span class="ichip mat">📦 ${itemsCount} items</span>
                         <span class="proj-dash-total">${fmt(total)}</span>
                     </div>
+                    <div class="proj-prog-wrap">
+                        <div class="proj-prog"><div class="proj-prog-bar" style="width:${prog}%"></div></div>
+                        <span class="proj-prog-lbl">${prog}%</span>
+                    </div>
                     <div class="proj-dash-actions">
                         <button class="btn sm" onclick="event.stopPropagation(); openProjectSection('${pid}','budget')">📋 Presupuesto</button>
                         <button class="btn sm" onclick="event.stopPropagation(); openProjectSection('${pid}','schedule')">📅 Cronograma</button>
-                        <button class="btn sm" onclick="event.stopPropagation(); openProjectSection('${pid}','ot')">📄 OT</button>
-                        <button class="btn sm" onclick="event.stopPropagation(); openProjectSection('${pid}','contractors')">👷 Contratistas</button>
-                        ${/* [OCULTO] Documentos <button class="btn sm" onclick="event.stopPropagation(); openProjectSection('${pid}','documents')">📁 Documentos</button> */""}
-                        <button class="btn sm" onclick="event.stopPropagation(); openProjectSection('${pid}','materials')">🧱 Materiales</button>
                         <button class="btn sm" onclick="event.stopPropagation(); openProjectSection('${pid}','finances')">💰 Finanzas</button>
-                        <button class="btn sm" onclick="event.stopPropagation(); openProjectSection('${pid}','logs')">📔 Libro</button>
-                        <button class="btn sm" onclick="event.stopPropagation(); openProjectSection('${pid}','jornaleros')">👤 Jornaleros</button>
+                        <button class="btn sm" onclick="event.stopPropagation(); openProjectSection('${pid}','ot')">📄 OT</button>
+                        ${/* [OCULTO] Documentos <button class="btn sm" onclick="event.stopPropagation(); openProjectSection('${pid}','documents')">📁 Documentos</button> */""}
+                        <details class="proj-more" onclick="event.stopPropagation()">
+                            <summary class="btn sm" title="Más acciones">⋯</summary>
+                            <div class="proj-more-menu">
+                                <button class="btn sm" onclick="event.stopPropagation(); openProjectSection('${pid}','contractors')">👷 Contratistas</button>
+                                <button class="btn sm" onclick="event.stopPropagation(); openProjectSection('${pid}','materials')">🧱 Materiales</button>
+                                <button class="btn sm" onclick="event.stopPropagation(); openProjectSection('${pid}','logs')">📔 Libro de Obra</button>
+                                <button class="btn sm" onclick="event.stopPropagation(); openProjectSection('${pid}','jornaleros')">👤 Jornaleros</button>
+                            </div>
+                        </details>
                     </div>
                 </div>`;
-            }).join("") || '<div class="empty" style="padding:40px; text-align:center">No hay proyectos activos. <button class="btn sm primary" onclick="showModal(\'new_project\')">+ Crear proyecto</button></div>'}
+            }).join("") || `
+                <div class="empty" style="padding:44px 20px;text-align:center;grid-column:1/-1">
+                    <div style="font-size:2rem;margin-bottom:8px">🏗️</div>
+                    <div style="font-family:var(--font-display);font-weight:800;font-size:1.05rem;margin-bottom:4px">Todavía no hay proyectos activos</div>
+                    <p style="color:var(--tx3);font-size:.9rem;margin:0 0 14px">Creá tu primer proyecto o armá un presupuesto suelto en dos minutos con el Cómputo Rápido.</p>
+                    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+                        <button class="btn primary" onclick="showModal('new_project')">+ Nuevo Proyecto</button>
+                        <button class="btn" onclick="setSection('computo_rapido')">⚡ Cómputo Rápido</button>
+                    </div>
+                </div>`}
         </div>
 
         <div class="dash-grid" style="margin-top:24px">
-            <div class="dash-card" style="border-top:4px solid var(--err)">
-                <div class="dash-num">${urgentItems.filter(i => i.type.includes('💰')).length}</div>
+            <div class="dash-card" style="border-top:4px solid ${kpiColor(nPagos, 'var(--err)')}">
+                <div class="dash-num">${nPagos}</div>
                 <div class="dash-lbl">Pagos Pendientes</div>
             </div>
-            <div class="dash-card" style="border-top:4px solid var(--lab)">
-                <div class="dash-num">${urgentItems.filter(i => i.type.includes('⚠️')).length}</div>
+            <div class="dash-card" style="border-top:4px solid ${kpiColor(nRetrasos, 'var(--lab)')}">
+                <div class="dash-num">${nRetrasos}</div>
                 <div class="dash-lbl">Retrasos Detectados</div>
             </div>
-            <div class="dash-card" style="border-top:4px solid var(--acc)">
-                <div class="dash-num">${urgentItems.filter(i => i.type.includes('🔧')).length}</div>
+            <div class="dash-card" style="border-top:4px solid ${kpiColor(nGarantia, 'var(--warn)')}">
+                <div class="dash-num">${nGarantia}</div>
                 <div class="dash-lbl">Garantía / Reclamos</div>
             </div>
         </div>
@@ -1428,9 +1466,9 @@ function renderProjects() {
                 <p style="color:var(--tx3); font-size:0.9rem">Gestión y clasificación de obras</p>
             </div>
             <div style="display:flex; gap:10px; flex-wrap:wrap">
-                <div class="srch" style="margin:0; min-width:200px">
+                <div class="srch" style="margin:0; flex:1 1 240px; min-width:220px; max-width:400px">
                     <span class="srch-ico">🔍</span>
-                    <input placeholder="Buscar por nombre o cliente..." value="${state.projectFilter}" oninput="state.projectFilter=this.value; renderProjects()">
+                    <input placeholder="Buscar proyecto o cliente..." value="${state.projectFilter}" oninput="state.projectFilter=this.value; renderProjects()">
                 </div>
                 <button class="btn primary" onclick="showModal('new_project')">+ Nuevo Proyecto</button>
             </div>
@@ -1477,15 +1515,18 @@ function renderProjects() {
                     </div>
 
                     <div style="margin-top:12px; display:flex; gap:6px; flex-wrap:wrap">
-                        <button class="btn sm" style="flex:1; background:rgba(var(--acc-rgb),0.1); border-color:rgba(var(--acc-rgb),0.3)" onclick="event.stopPropagation(); switchProject('${p.id}')">📋 Abrir</button>
+                        <button class="btn sm primary" style="flex:1" onclick="event.stopPropagation(); switchProject('${p.id}')">📋 Abrir</button>
                         <button class="btn sm" style="flex:1" onclick="event.stopPropagation(); showModal('edit_project','${p.id}')">✏️ Editar</button>
-                        ${p.archived 
-                            ? `<button class="btn sm" style="flex:1" onclick="event.stopPropagation(); unarchiveProject('${p.id}')">♻️ Restaurar</button>` 
-                            : `<button class="btn sm" style="flex:1" onclick="event.stopPropagation(); archiveProject('${p.id}')">📦 Archivar</button>`}
-                    </div>
-                    <div style="margin-top:6px; display:flex; gap:6px; flex-wrap:wrap">
-                        <button class="btn sm" style="flex:1" onclick="event.stopPropagation(); shareProjectWhatsApp('${p.id}')">📤 Compartir</button>
-                        <button class="btn sm danger" style="flex:1" onclick="event.stopPropagation(); deleteProject('${p.id}')">✕ Eliminar</button>
+                        <details class="proj-more" onclick="event.stopPropagation()">
+                            <summary class="btn sm" title="Más acciones">⋯</summary>
+                            <div class="proj-more-menu">
+                                ${p.archived 
+                                    ? `<button class="btn sm" onclick="event.stopPropagation(); unarchiveProject('${p.id}')">♻️ Restaurar</button>` 
+                                    : `<button class="btn sm" onclick="event.stopPropagation(); archiveProject('${p.id}')">📦 Archivar</button>`}
+                                <button class="btn sm" onclick="event.stopPropagation(); shareProjectWhatsApp('${p.id}')">📤 Compartir</button>
+                                <button class="btn sm danger" onclick="event.stopPropagation(); deleteProject('${p.id}')">✕ Eliminar</button>
+                            </div>
+                        </details>
                     </div>
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; padding-top:8px; border-top:1px solid var(--bor)">
                         <div style="display:flex; gap:6px">
@@ -3010,6 +3051,10 @@ function toggleBudgetToolbar(ev) {
 document.addEventListener("click", function (e) {
   var t = document.getElementById("budget-toolbar");
   if (t && !t.contains(e.target)) {t.classList.remove("open");}
+  // Menús ⋯ de las tarjetas de proyecto: se cierran al tocar fuera.
+  document.querySelectorAll(".proj-more[open]").forEach(function (d) {
+    if (!d.contains(e.target)) {d.removeAttribute("open");}
+  });
 });
 // Configuración del presupuesto: colapsable para que la tabla quede arriba.
 function toggleCfgCard() {
