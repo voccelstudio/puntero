@@ -234,6 +234,37 @@ input.sm{padding:5px 9px;font-size:.875rem}
 .tslider:before{content:"";position:absolute;width:12px;height:12px;left:3px;bottom:3px;background:var(--bg);border-radius:50%;transition:.2s}
 .toggle input:checked+.tslider:before{transform:translateX(14px)}
 
+/* ── Presupuesto: toolbar, adenda, config colapsable y totales sticky ── */
+.budget-toolbar{display:flex;justify-content:flex-end;gap:10px;margin-bottom:10px;flex-wrap:wrap;position:relative}
+.tb-overflow{display:none;min-width:44px}
+.adenda-bar select{min-width:0}
+.cfg-card .cfg-hdr{display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;font-family:var(--font-display);font-weight:800;font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:var(--tx3);padding:2px 0 8px;user-select:none}
+.cfg-card .cfg-hdr:hover{color:var(--acc)}
+.cfg-caret{transition:transform .2s;font-size:.9rem}
+.cfg-card.collapsed .cfg-body{display:none}
+.cfg-card.collapsed .cfg-caret{transform:rotate(-90deg)}
+.prof-field{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.prof-field label{font-size:.875rem;font-weight:600;white-space:nowrap}
+.prof-field .unit-lbl{font-size:.875rem;color:var(--tx3)}
+.total-bar{position:sticky;bottom:0;z-index:80;background:var(--sur);border-top:1px solid var(--bor);padding:10px 24px;display:flex;align-items:center;gap:16px;box-shadow:0 -6px 18px rgba(0,0,0,.10)}
+.total-bar .tb-total{font-family:var(--font-display);font-weight:800;font-size:1.05rem;color:var(--acc);margin-left:auto;white-space:nowrap}
+.total-bar .tb-meta{font-size:.78rem;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.total-bar .tb-chip{font-size:.7rem;font-weight:700;background:rgba(var(--acc-rgb),.1);color:var(--acc);border-radius:999px;padding:2px 8px;white-space:nowrap}
+@media(max-width:768px){
+  .budget-toolbar .tb-overflow{display:inline-flex}
+  .budget-toolbar .tb-actions{display:none;position:absolute;top:calc(100% + 6px);right:0;flex-direction:column;background:var(--sur);border:1px solid var(--bor);border-radius:var(--rad);box-shadow:var(--sh);padding:8px;z-index:90;min-width:230px}
+  .budget-toolbar.open .tb-actions{display:flex}
+  .budget-toolbar .tb-actions .btn{width:100%;justify-content:flex-start}
+  .adenda-bar{flex-wrap:wrap}
+  .adenda-bar select{flex:1 0 100%;order:-1}
+  .budget-col .cfg-card{order:3}
+  .budget-col .items-card{order:2}
+  .budget-col .catalog-col{order:1}
+  .total-bar{padding:9px 16px 9px 12px;padding-right:84px;gap:10px}
+  .total-bar .tb-total{font-size:.95rem}
+  .total-bar .tb-meta{display:none}
+}
+
 /* ═══════════════════════════════════════════ TABLES ═══ */
 .bud-hdr{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
 table.tbl{width:100%;border-collapse:collapse;font-size:.9rem}

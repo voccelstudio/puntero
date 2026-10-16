@@ -1959,6 +1959,8 @@ function setSection(s) {
   // [OCULTO] if (s === "folder") renderFolder();
   if (s === "accounts") {renderAccountsSettings();}
   if (s === "cloud") {renderCloudSettings();}
+  // La barra sticky de totales solo vive en Presupuesto y en el editor del Cómputo Rápido.
+  updateTotalBar();
 }
 
 function renderDashboard() {
@@ -2717,6 +2719,7 @@ function renderTotals() {
     <div class="disc">Precios incluyen materiales y mano de obra${adenda.ivaEnabled ? ", con IVA incluido" : ""} — Válido ${state.validDays || 15} días desde la fecha de emisión</div>
   </div>`;
   el.innerHTML = h;
+  updateTotalBar();
 }
 
 // ── TABLE RENDER ─────────────────────────────────────────────────────
@@ -2914,7 +2917,7 @@ function renderBudget() {
   const adenda = getActiveAdenda();
 
   el.innerHTML = `
-    <div style="background:var(--sur2); padding:10px; border-radius:var(--rad); margin-bottom:15px; display:flex; align-items:center; gap:10px; border:1px solid var(--bor)">
+    <div class="adenda-bar" style="background:var(--sur2); padding:10px; border-radius:var(--rad); margin-bottom:15px; display:flex; align-items:center; gap:10px; border:1px solid var(--bor)">
         <span style="font-weight:700; font-size:0.85rem">Adenda Activa:</span>
         <select style="flex:1" onchange="state.activeAdendaId=this.value; save(); renderBudget()">
             ${p.budgets.map(b => `<option value="${b.id}" ${b.id === adenda.id ? 'selected' : ''}>${b.name}</option>`).join("")}
@@ -2923,12 +2926,14 @@ function renderBudget() {
     </div>
 
     <div class="main">
-    <div class="card">
+    <div class="card catalog-card catalog-col">
       <div class="srch"><span class="srch-ico">🔍</span><input placeholder="Buscar rubro..." value="${state.search.replace(/"/g, '&quot;')}" oninput="state.search=this.value;debouncedRenderCatalog()"></div>
       <div class="cat-scroll" id="catalog"></div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:11px">
-      <div class="card">
+    <div class="budget-col" style="display:flex;flex-direction:column;gap:11px">
+      <div class="card cfg-card">
+        <div class="cfg-hdr" onclick="toggleCfgCard()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleCfgCard()}">Configuración del presupuesto <span class="cfg-caret">▾</span></div>
+        <div class="cfg-body">
         <div class="grid2">
           <div class="fullcol flex gap6">
             <input placeholder="Nombre de este presupuesto" value="${adenda.name.replace(/"/g, '&quot;')}" oninput="getActiveAdenda().name=this.value;save()" style="flex:1">
@@ -2942,12 +2947,16 @@ function renderBudget() {
           </div>
         </div>
         <div class="prof-row">
-          <span style="font-size:.875rem;font-weight:600;white-space:nowrap">Honorarios:</span>
-          <input class="sm" type="number" min="0" max="999" value="${adenda.profitPct}" style="width:52px" oninput="getActiveAdenda().profitPct=parseFloat(this.value)||0;renderTotals();save()">
-          <span style="font-size:.875rem;color:var(--tx3)">%</span>
-          <span style="font-size:.875rem;font-weight:600;white-space:nowrap;margin-left:8px">Superficie:</span>
-          <input class="sm" type="number" value="${p.m2Area||0}" style="width:70px" oninput="getActiveProject().m2Area=parseFloat(this.value)||0;renderTable();save()">
-          <span style="font-size:.875rem;color:var(--tx3)">m²</span>
+          <div class="prof-field">
+            <label for="bd-profit">Honorarios:</label>
+            <input id="bd-profit" class="sm" type="number" min="0" max="999" value="${adenda.profitPct}" style="width:52px" oninput="getActiveAdenda().profitPct=parseFloat(this.value)||0;renderTotals();save()">
+            <span class="unit-lbl">%</span>
+          </div>
+          <div class="prof-field" style="margin-left:8px">
+            <label for="bd-m2">Superficie:</label>
+            <input id="bd-m2" class="sm" type="number" value="${p.m2Area||0}" style="width:70px" oninput="getActiveProject().m2Area=parseFloat(this.value)||0;renderTable();save()">
+            <span class="unit-lbl">m²</span>
+          </div>
         </div>
         <div class="opt-row">
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
@@ -2965,8 +2974,9 @@ function renderBudget() {
             <button class="btn sm" onclick="addPhase()">+ Fase</button>
           </div>
         </div>
+        </div>
       </div>
-      <div class="card">
+      <div class="card items-card">
         <div class="custom-item-row">
           <input id="ci-name" placeholder="Descripción del ítem personalizado..." style="font-size:.875rem">
           <input id="ci-price" type="number" placeholder="₲ precio" class="price sm" min="0">
@@ -2982,7 +2992,49 @@ function renderBudget() {
       </div>
     </div>
   </div>`;
-  renderCatalog(); renderTable(); updateBadge();
+  // En móvil la configuración arranca colapsada: lo primero que se ve es el catálogo y la tabla.
+  if (window.innerWidth <= 768) {
+    var cfg = el.querySelector(".cfg-card");
+    if (cfg) {cfg.classList.add("collapsed");}
+  }
+  renderCatalog(); renderTable(); updateBadge(); updateTotalBar();
+}
+
+// Toolbar del presupuesto: en móvil se pliega en un menú ⋯ (no ocupa la primera pantalla).
+function toggleBudgetToolbar(ev) {
+  if (ev) {ev.stopPropagation();}
+  var t = document.getElementById("budget-toolbar");
+  if (t) {t.classList.toggle("open");}
+}
+// Se cierra al tocar fuera del menú.
+document.addEventListener("click", function (e) {
+  var t = document.getElementById("budget-toolbar");
+  if (t && !t.contains(e.target)) {t.classList.remove("open");}
+});
+// Configuración del presupuesto: colapsable para que la tabla quede arriba.
+function toggleCfgCard() {
+  var c = document.querySelector("#budget-main-area .cfg-card, #section-computo_rapido .cfg-card");
+  if (c) {c.classList.toggle("collapsed");}
+}
+// Barra sticky con el total siempre visible mientras se edita
+// (Presupuesto y editor del Cómputo Rápido).
+function updateTotalBar() {
+  var bar = document.getElementById("total-bar");
+  if (!bar) {return;}
+  var visible = state.section === "budget" || state.section === "computo_rapido";
+  var totalsEl = document.getElementById("totals-area");
+  var adenda = getActiveAdenda();
+  if (!visible || !totalsEl || !adenda) {bar.style.display = "none"; return;}
+  var t = getTotals(adenda);
+  var n = (adenda.items || []).length;
+  var bits = [plural(n, "ítem", "ítems")];
+  if (adenda.profitPct) {bits.push("honorarios " + adenda.profitPct + "%");}
+  if (adenda.ivaEnabled) {bits.push("IVA incluido");}
+  bar.innerHTML = `
+    <span class="tb-meta">${bits.join(" · ")}</span>
+    <span class="tb-total">₲ ${fmt(t.total)}</span>
+    <button class="btn sm" onclick="var ta=document.getElementById('totals-area'); if(ta){ta.scrollIntoView({behavior:'smooth',block:'center'})}">Desglose</button>`;
+  bar.style.display = "flex";
 }
 
 function phaseChipsHtml(adenda) {
@@ -3263,8 +3315,8 @@ function renderQuickEditor(el) {
         '<button class="btn sm" onclick="convertirQuickModal(\'' + d.id + '\')">➡️ Convertir en proyecto</button>' +
       '</div>' +
     '</div>' +
-    '<div style="display:flex;flex-direction:column;gap:12px">' +
-      '<div class="card">' +
+    '<div class="budget-col" style="display:flex;flex-direction:column;gap:12px">' +
+      '<div class="card cfg-card">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">' +
           '<div style="display:flex;align-items:center;gap:6px">' +
             '<span style="font-size:.85rem;color:var(--tx2)">Honorarios:</span>' +
@@ -3278,11 +3330,11 @@ function renderQuickEditor(el) {
           '<button class="btn sm danger" onclick="limpiarComputoRapido()">🗑️ Vaciar</button>' +
         '</div>' +
       '</div>' +
-      '<div class="card">' +
+      '<div class="card catalog-col catalog-card">' +
         '<div class="srch"><span class="srch-ico">🔍</span><input placeholder="Buscar rubro..." value="' + srch + '" oninput="state.search=this.value;debouncedRenderCatalog()"></div>' +
         '<div class="cat-scroll" id="catalog"></div>' +
       '</div>' +
-      '<div class="card">' +
+      '<div class="card items-card">' +
         '<div class="custom-item-row">' +
           '<input id="ci-name" placeholder="Descripción del ítem personalizado..." style="font-size:.875rem">' +
           '<input id="ci-price" type="number" placeholder="₱ precio" class="price sm" min="0">' +
