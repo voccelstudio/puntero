@@ -121,13 +121,20 @@ const main = async () => {
       chk("guía de inserción visible durante el arrastre", guia);
       await shot(page, "drag-indicador");
       await page.mouse.up();
-      await esperar(400);
+      await esperar(180);
+      const flash = await page.evaluate(() => !!document.querySelector("#table-area tr.row-moved"));
+      chk("feedback tras soltar: destello en la fila movida", flash);
+      await shot(page, "movido-feedback");
+      await esperar(420);
       const orden = await page.evaluate(() => getActiveAdenda().items.map((x) => x.id).join(","));
       chk("soltar debajo reordena (i1 → después de i2)", orden === "i2,i1", orden);
       // Teclado: con foco en el asa, ↑↓ reordenan (vuelve a i1,i2).
       await page.evaluate(() => { const h = document.querySelector('tr[data-item-id="i2"] .drag-handle'); if (h) { h.focus(); } });
       await page.keyboard.press("ArrowDown");
-      await esperar(400);
+      await esperar(180);
+      const flash2 = await page.evaluate(() => !!document.querySelector("#table-area tr.row-moved"));
+      chk("feedback también al reordenar con ↑↓", flash2);
+      await esperar(420);
       const orden2 = await page.evaluate(() => getActiveAdenda().items.map((x) => x.id).join(","));
       chk("flechas ↑↓ con el foco en el asa reordenan", orden2 === "i1,i2", orden2);
     } else {

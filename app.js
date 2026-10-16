@@ -3006,7 +3006,9 @@ function moveItemTo(dragId, targetItemId, side) {
   let ai = adenda.items.indexOf(anchor);
   if (ai < 0) {ai = adenda.items.length - 1;}
   adenda.items.splice(ai + (side === "after" ? 1 : 0), 0, item);
+  const prevTop = _rowTopOf(item.id); // posición vieja ANTES del re-render
   renderTable(); save();
+  _flashMoved(_findItemRow(item.id), prevTop);
 }
 
 function moveItemToCat(dragId, cat, phase) {
@@ -3022,7 +3024,43 @@ function moveItemToCat(dragId, cat, phase) {
   if (from > -1) {adenda.items.splice(from, 1);}
   const ai = adenda.items.indexOf(anchor);
   adenda.items.splice(ai < 0 ? adenda.items.length : ai, 0, item);
+  const prevTop = _rowTopOf(item.id);
   renderTable(); save();
+  _flashMoved(_findItemRow(item.id), prevTop);
+}
+
+// Feedback visual tras reordenar: renderTable re-renderiza toda la tabla, así
+// que la fila "nueva" no deja rastro del cambio. Se captura la posición vieja
+// antes y se pega un destello (clase .row-moved) + un desliz corto desde donde
+// estaba, para que se vea exactamente dónde quedó el ítem o el bloque.
+function _findItemRow(id) {
+  return [...document.querySelectorAll("#table-area tr[data-item-id]")]
+    .find(r => r.getAttribute("data-item-id") == id) || null;
+}
+function _findCatRow(cat, phase) {
+  return [...document.querySelectorAll("#table-area tr.cat-row")]
+    .find(r => (r.getAttribute("data-cat") || "") === cat && (r.getAttribute("data-phase") || "") === (phase || "")) || null;
+}
+function _rowTopOf(id) { const tr = _findItemRow(id); return tr ? tr.getBoundingClientRect().top : null; }
+function _catTopOf(cat, phase) { const tr = _findCatRow(cat, phase); return tr ? tr.getBoundingClientRect().top : null; }
+
+function _markMoved(tr) {
+  if (!tr) {return;}
+  tr.classList.add("row-moved");
+  window.setTimeout(() => tr.classList.remove("row-moved"), 1300);
+}
+
+function _flashMoved(tr, prevTop) {
+  _markMoved(tr);
+  if (!tr || prevTop == null || typeof tr.animate !== "function") {return;}
+  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {return;}
+  const delta = prevTop - tr.getBoundingClientRect().top;
+  if (Math.abs(delta) > 1) {
+    tr.animate(
+      [{ transform: "translateY(" + delta + "px)" }, { transform: "translateY(0)" }],
+      { duration: 380, easing: "cubic-bezier(.2,.75,.3,1)" }
+    );
+  }
 }
 
 function moveCatGroup(srcCat, srcPhase, tgtCat, tgtPhase, side) {
@@ -3042,7 +3080,13 @@ function moveCatGroup(srcCat, srcPhase, tgtCat, tgtPhase, side) {
   });
   rest.splice(at, 0, ...moved);
   adenda.items = rest;
+  // Destello en todo el bloque movido (encabezado + sus ítems), con desliz
+  // desde donde estaba cada uno.
+  const prevTops = new Map(moved.map(x => [x.id, _rowTopOf(x.id)]));
+  const prevTop = _catTopOf(srcCat, srcPhase);
   renderTable(); save();
+  moved.forEach(x => _flashMoved(_findItemRow(x.id), prevTops.get(x.id)));
+  _flashMoved(_findCatRow(tgtCat, tgtPhase), prevTop);
 }
 
 function _dragItemBy(dragId, dir) {
