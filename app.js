@@ -988,7 +988,7 @@ function renderGlobalDashboard() {
                 const itemsCount = p.budgets.reduce((s, b) => s + b.items.length, 0);
                 const prog = progPct(p);
                 return `
-                <div class="proj-dash-card" onclick="openProjectSection('${pid}','dashboard')">
+                <div class="proj-dash-card" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openProjectSection('${pid}','dashboard')}" onclick="openProjectSection('${pid}','dashboard')">
                     <div class="proj-dash-hdr">
                         <div class="proj-dash-name">${escapeHtml(p.name)}</div>
                         <div class="proj-dash-client">👤 ${escapeHtml(p.client || 'Sin cliente')} · 📍 ${escapeHtml(p.address || '')}</div>
@@ -2200,7 +2200,7 @@ function renderDashboard() {
                 const areaId = typeof ph === 'object' ? (ph.areaId || '') : '';
                 const areaName = areaId && typeof getAreaName === 'function' ? getAreaName(areaId) : '';
                 return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px">
-                    <div style="aspect-ratio:1;width:100%;background:url(${photoUrl}) center/cover;border-radius:4px;border:1px solid var(--bor);cursor:pointer" onclick="previewImage('${photoUrl.replace(/'/g, "\\'")}')"></div>
+                    <button type="button" style="aspect-ratio:1;width:100%;background:url(${photoUrl}) center/cover;border-radius:4px;border:1px solid var(--bor);cursor:pointer;padding:0" onclick="previewImage('${photoUrl.replace(/'/g, "\\'")}')" aria-label="Ver foto"></button>
                     ${areaName ? `<span style="font-size:0.55rem;padding:0 4px;border-radius:6px;background:var(--sur2);color:var(--tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;text-align:center">${areaName}</span>` : ''}
                 </div>`;
             }).join("") || '<div style="grid-column: 1/-1; text-align:center; padding:20px; color:var(--tx3); font-size:0.85rem">Sin fotos registradas aún.</div>'}
@@ -2917,14 +2917,14 @@ function renderTable() {
   <table class="tbl budget-tbl"><thead><tr><th>Descripción</th><th>U.</th><th>Cant.</th><th>Desc.%</th><th>P. Unit.</th>${ivaEnabled ? "<th style='color:var(--iva)'>IVA</th>" : ""}<th>Total</th><th></th></tr></thead><tbody>`;
 
   const renderCat = (cat, ci, phaseId) => {
-    h += `<tr class="tbl-cat cat-row"><td colspan="${colSpanFull}">${cat}</td></tr>`;
+    h += `<tr class="tbl-cat cat-row" data-cat="${escapeHtml(cat)}" data-phase="${phaseId || ""}"><td colspan="${colSpanFull}"><button type="button" class="drag-handle" data-drag-cat="1" title="Arrastrar para mover la categoría (↑↓ con el foco)" aria-label="Reordenar categoría ${escapeHtml(cat)}">⠿</button>${cat}</td></tr>`;
     let catSubtotal = 0;
     for (const item of ci) {
       const ep = effPrice(item);
       const iva = ivaEnabled ? calcIVA(Number(item.matCost) || 0, Number(item.laborCost) || 0, Number(item.qty) || 0).ivaTotal : 0;
       const totalItem = ep * (Number(item.qty) || 0) + iva;
       catSubtotal += totalItem;
-      h += `<tr>
+      h += `<tr data-item-id="${item.id}">
         <td data-label="Item">
           <input value="${item.name.replace(/"/g, '&quot;')}" style="font-weight:600;color:var(--tx);font-size:.875rem;border:none;background:transparent;width:100%;padding:0;outline:none;" oninput="const i=getActiveAdenda().items.find(x=>x.id==${item.id});if(i){i.name=this.value;save();}">
           <div style="display:flex;gap:4px;margin-top:2px;flex-wrap:wrap">
@@ -2942,6 +2942,7 @@ function renderTable() {
         ${ivaEnabled ? `<td data-label="IVA" style="font-size:.95rem;color:var(--iva);font-weight:600"><span id="it-iva-${item.id}">₲${fmt(iva)}</span></td>` : ""}
         <td data-label="Total" style="font-weight:700;color:var(--acc);font-size:1rem"><span id="it-tot-${item.id}">₲${fmt(totalItem)}</span></td>
         <td data-label="">
+          <button type="button" class="drag-handle" data-drag-item="${item.id}" title="Arrastrar para reordenar (↑↓ con el foco)" aria-label="Reordenar ítem">⠿</button>
           ${(item.mats && item.mats.length) ? `<button class="btn sm" title="Ver cómputo de materiales de este rubro" onclick="showItemMaterials(${item.id})">🧱</button>` : ""}
           <button class="delbtn" onclick="removeItem(${item.id})">✕</button>
         </td>
@@ -2974,6 +2975,217 @@ function renderTable() {
   el.innerHTML = h; renderM2Panel(); renderTotals();
 }
 
+// ── REORDENAR ARRASTRANDO (presupuesto y cómputo rápido) ──────────────
+// El orden del array adenda.items es el que ven la tabla, el PDF y el CSV
+// (todo agrupa por categoría preservando el orden relativo). Se arrastra desde
+// el asa ⠿: soltar sobre una fila = insertar antes/después (si cae en otra
+// categoría, el ítem pasa a esa categoría y a la fase del destino); sobre un
+// encabezado de categoría = mover esa fila a ese grupo. Con el foco en el asa,
+// ↑↓ reordenan con teclado (mismo motor). Todo el drag usa pointer events:
+// funciona igual con mouse y con dedo en móvil.
+const _drag = { active: false, kind: null, id: null, cat: null, phase: null, handle: null, tbl: null, target: null, pid: null, x: 0, y: 0, raf: 0 };
+
+// Fase efectiva de un ítem: la del config si es válida, si no "" (igual que
+// getPhaseLayout, que agrupa los ítems con fase vieja en "Etapa final / otros").
+function _ctxPhase(adenda, item) {
+  const cfg = getPhaseConfig(adenda);
+  return cfg.some(p => p.id === item.phase) ? (item.phase || "") : "";
+}
+
+function moveItemTo(dragId, targetItemId, side) {
+  const adenda = getActiveAdenda();
+  if (!adenda) {return;}
+  const item = adenda.items.find(x => x.id == dragId);
+  const anchor = adenda.items.find(x => x.id == targetItemId);
+  if (!item || !anchor || item === anchor) {return;}
+  item.cat = anchor.cat;
+  const ph = _ctxPhase(adenda, anchor);
+  if (ph) {item.phase = ph;} else {delete item.phase;}
+  const from = adenda.items.indexOf(item);
+  if (from > -1) {adenda.items.splice(from, 1);}
+  let ai = adenda.items.indexOf(anchor);
+  if (ai < 0) {ai = adenda.items.length - 1;}
+  adenda.items.splice(ai + (side === "after" ? 1 : 0), 0, item);
+  renderTable(); save();
+}
+
+function moveItemToCat(dragId, cat, phase) {
+  const adenda = getActiveAdenda();
+  if (!adenda || !cat) {return;}
+  const item = adenda.items.find(x => x.id == dragId);
+  if (!item) {return;}
+  const anchor = adenda.items.find(x => x !== item && x.cat === cat && _ctxPhase(adenda, x) === (phase || ""));
+  if (!anchor) {return;} // ya es el único ítem de ese grupo: nada que mover
+  item.cat = cat;
+  if (phase) {item.phase = phase;} else {delete item.phase;}
+  const from = adenda.items.indexOf(item);
+  if (from > -1) {adenda.items.splice(from, 1);}
+  const ai = adenda.items.indexOf(anchor);
+  adenda.items.splice(ai < 0 ? adenda.items.length : ai, 0, item);
+  renderTable(); save();
+}
+
+function moveCatGroup(srcCat, srcPhase, tgtCat, tgtPhase, side) {
+  const adenda = getActiveAdenda();
+  if (!adenda || !srcCat || !tgtCat) {return;}
+  if (srcCat === tgtCat && (srcPhase || "") === (tgtPhase || "")) {return;}
+  const inSrc = (x) => x.cat === srcCat && _ctxPhase(adenda, x) === (srcPhase || "");
+  const moved = adenda.items.filter(inSrc);
+  if (!moved.length) {return;}
+  const rest = adenda.items.filter(x => !inSrc(x));
+  const dst = rest.filter(x => x.cat === tgtCat && _ctxPhase(adenda, x) === (tgtPhase || ""));
+  if (!dst.length) {return;}
+  const at = side === "after" ? rest.indexOf(dst[dst.length - 1]) + 1 : rest.indexOf(dst[0]);
+  moved.forEach(x => {
+    x.cat = tgtCat;
+    if (tgtPhase) {x.phase = tgtPhase;} else {delete x.phase;}
+  });
+  rest.splice(at, 0, ...moved);
+  adenda.items = rest;
+  renderTable(); save();
+}
+
+function _dragItemBy(dragId, dir) {
+  const rows = [...document.querySelectorAll("#table-area tr[data-item-id]")];
+  const idx = rows.findIndex(r => r.getAttribute("data-item-id") == dragId);
+  if (idx < 0 || !rows[idx + dir]) {return;}
+  moveItemTo(dragId, rows[idx + dir].getAttribute("data-item-id"), dir < 0 ? "before" : "after");
+  const h = document.querySelector('#table-area [data-drag-item="' + dragId + '"]');
+  if (h) {h.focus();}
+}
+
+function _dragCatBy(srcCat, srcPhase, dir) {
+  const rows = [...document.querySelectorAll("#table-area tr.cat-row")];
+  const idx = rows.findIndex(r => (r.getAttribute("data-cat") || "") === srcCat && (r.getAttribute("data-phase") || "") === (srcPhase || ""));
+  if (idx < 0 || !rows[idx + dir]) {return;}
+  const t = rows[idx + dir];
+  moveCatGroup(srcCat, srcPhase, t.getAttribute("data-cat") || "", t.getAttribute("data-phase") || "", dir < 0 ? "before" : "after");
+  const after = document.querySelectorAll("#table-area tr.cat-row")[idx + dir];
+  const h = after && after.querySelector(".drag-handle");
+  if (h) {h.focus();}
+}
+
+function _dragClearIndicator() {
+  if (!_drag.tbl) {return;}
+  _drag.tbl.querySelectorAll(".drop-before,.drop-after,.drop-cat").forEach(tr => tr.classList.remove("drop-before", "drop-after", "drop-cat"));
+}
+
+function _dragPickTarget(x, y) {
+  const el = document.elementFromPoint(x, y);
+  const tr = el && el.closest ? el.closest("tr") : null;
+  _dragClearIndicator();
+  if (!tr || !tr.closest || tr.closest("table") !== _drag.tbl) {_drag.target = null; return;}
+  const r = tr.getBoundingClientRect();
+  const side = y < r.top + r.height / 2 ? "before" : "after";
+
+  if (_drag.kind === "cat") {
+    if (!tr.classList.contains("cat-row")) {_drag.target = null; return;}
+    _drag.target = { cat: tr.getAttribute("data-cat") || "", phase: tr.getAttribute("data-phase") || "", side };
+    tr.classList.add(side === "before" ? "drop-before" : "drop-after");
+    return;
+  }
+  // Arrastre de ítem: sobre un encabezado = entrar a ese grupo por el inicio.
+  if (tr.classList.contains("cat-row")) {
+    _drag.target = { cat: tr.getAttribute("data-cat") || "", phase: tr.getAttribute("data-phase") || "", side: "before" };
+    tr.classList.add("drop-cat");
+    return;
+  }
+  const id = tr.getAttribute("data-item-id");
+  if (!id || id === String(_drag.id)) {_drag.target = null; return;}
+  _drag.target = { id, side };
+  tr.classList.add(side === "before" ? "drop-before" : "drop-after");
+}
+
+function _dragStep() {
+  if (!_drag.active) {return;}
+  // Auto-scroll al acercarse a los bordes del shell scrolleable.
+  const sc = document.querySelector(".main-content");
+  if (sc) {
+    const r = sc.getBoundingClientRect();
+    if (_drag.y < r.top + 70) {sc.scrollTop -= 16;}
+    else if (_drag.y > r.bottom - 70) {sc.scrollTop += 16;}
+  }
+  _dragPickTarget(_drag.x, _drag.y);
+}
+
+function _dragCommit() {
+  const t = _drag.target;
+  if (!t) {return;}
+  if (_drag.kind === "item") {
+    if (t.id) {moveItemTo(_drag.id, t.id, t.side);}
+    else {moveItemToCat(_drag.id, t.cat, t.phase);}
+  } else if (_drag.kind === "cat") {
+    moveCatGroup(_drag.cat, _drag.phase, t.cat, t.phase, t.side);
+  }
+}
+
+function _dragTeardown() {
+  document.removeEventListener("pointermove", _onDragMove);
+  document.removeEventListener("pointerup", _onDragUp);
+  document.removeEventListener("pointercancel", _onDragUp);
+  if (_drag.handle && _drag.pid != null) { try {_drag.handle.releasePointerCapture(_drag.pid);} catch (e) {} }
+  if (_drag.tbl) {
+    _drag.tbl.querySelectorAll(".dragging,.drop-before,.drop-after,.drop-cat")
+      .forEach(x => x.classList.remove("dragging", "drop-before", "drop-after", "drop-cat"));
+  }
+  document.body.classList.remove("drag-active");
+  _drag.active = false; _drag.kind = null; _drag.id = null; _drag.cat = null; _drag.phase = null;
+  _drag.handle = null; _drag.tbl = null; _drag.target = null; _drag.pid = null;
+  if (_drag.raf) {cancelAnimationFrame(_drag.raf); _drag.raf = 0;}
+}
+
+function _onDragMove(e) {
+  if (!_drag.active || (_drag.pid != null && e.pointerId !== _drag.pid)) {return;}
+  _drag.x = e.clientX; _drag.y = e.clientY;
+  if (!_drag.raf) {_drag.raf = requestAnimationFrame(() => {_drag.raf = 0; _dragStep();});}
+}
+
+function _onDragUp(e) {
+  if (!_drag.active || (_drag.pid != null && e.pointerId !== _drag.pid)) {return;}
+  if (e.type === "pointerup") {_dragPickTarget(_drag.x, _drag.y);}
+  _dragCommit();
+  _dragTeardown();
+}
+
+function _onDragPointerDown(e) {
+  if (e.button !== undefined && e.button !== 0) {return;}
+  if (!e.isPrimary) {return;}
+  const handle = e.target && e.target.closest ? e.target.closest("[data-drag-item],[data-drag-cat]") : null;
+  if (!handle) {return;}
+  const tr = handle.closest("tr");
+  const tbl = tr && tr.closest("table");
+  if (!tbl) {return;}
+  e.preventDefault();
+  _drag.active = true;
+  _drag.kind = handle.hasAttribute("data-drag-item") ? "item" : "cat";
+  _drag.id = handle.getAttribute("data-drag-item");
+  _drag.cat = _drag.kind === "cat" ? (tr.getAttribute("data-cat") || "") : null;
+  _drag.phase = _drag.kind === "cat" ? (tr.getAttribute("data-phase") || "") : null;
+  _drag.handle = handle; _drag.tbl = tbl; _drag.target = null;
+  _drag.pid = e.pointerId; _drag.x = e.clientX; _drag.y = e.clientY;
+  tr.classList.add("dragging");
+  document.body.classList.add("drag-active");
+  try {handle.setPointerCapture(e.pointerId);} catch (err) {}
+  document.addEventListener("pointermove", _onDragMove);
+  document.addEventListener("pointerup", _onDragUp);
+  document.addEventListener("pointercancel", _onDragUp);
+}
+
+document.addEventListener("pointerdown", _onDragPointerDown);
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "ArrowUp" && e.key !== "ArrowDown") {return;}
+  const handle = e.target && e.target.closest ? e.target.closest("[data-drag-item],[data-drag-cat]") : null;
+  if (!handle) {return;}
+  e.preventDefault();
+  const dir = e.key === "ArrowUp" ? -1 : 1;
+  if (handle.hasAttribute("data-drag-item")) {
+    _dragItemBy(handle.getAttribute("data-drag-item"), dir);
+  } else {
+    const tr = handle.closest("tr");
+    _dragCatBy(tr.getAttribute("data-cat") || "", tr.getAttribute("data-phase") || "", dir);
+  }
+});
+
 // ── BUDGET SECTION ────────────────────────────────────────────────────
 function renderBudget() {
   const el = document.getElementById("budget-main-area");
@@ -2998,7 +3210,7 @@ function renderBudget() {
     </div>
     <div class="budget-col" style="display:flex;flex-direction:column;gap:11px">
       <div class="card cfg-card">
-        <div class="cfg-hdr" onclick="toggleCfgCard()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleCfgCard()}">Configuración del presupuesto <span class="cfg-caret">▾</span></div>
+        <button type="button" class="cfg-hdr" onclick="toggleCfgCard()">Configuración del presupuesto <span class="cfg-caret">▾</span></button>
         <div class="cfg-body">
         <div class="grid2">
           <div class="fullcol flex gap6">
@@ -3579,7 +3791,7 @@ function renderThemes() {
 
   const appCards = THEMES.map(t => {
     const p = t.prev; const isActive = state.theme === t.id;
-    return `<div class="theme-card${isActive ? " active" : ""}" onclick="selectTheme('${t.id}')" style="background:${p.sur};border-color:${isActive ? "var(--acc)" : "transparent"}">
+    return `<button type="button" class="theme-card${isActive ? " active" : ""}" onclick="selectTheme('${t.id}')" style="background:${p.sur};border-color:${isActive ? "var(--acc)" : "transparent"}">
       <div class="theme-preview" style="background:${p.bg}">
         <div class="theme-preview-hdr" style="background:${p.sur}"></div>
         <div class="theme-preview-body">
@@ -3595,12 +3807,12 @@ function renderThemes() {
         <div><div style="font-weight:700;font-size:0.95rem">${t.name}</div><div style="font-size:0.95rem;opacity:0.7;margin-top:1px">${t.desc}</div></div>
         <div class="theme-check" style="border-color:${p.acc};background:${isActive ? p.acc : "transparent"};color:${p.bg}">${isActive ? "✓" : ""}</div>
       </div>
-    </div>`;
+    </button>`;
   }).join("");
 
   const pdfCards = PDF_THEMES.map(t => {
     const isA = state.pdfTheme === t.id;
-    return `<div class="pdf-theme-card${isA ? " active" : ""}" onclick="state.pdfTheme='${t.id}';save();renderThemes();" style="background:${t.sur};border-color:${isA ? "var(--acc)" : "var(--bor)"}; padding: 10px; border-radius: 8px; border: 2px solid transparent; cursor: pointer">
+    return `<button type="button" class="pdf-theme-card${isA ? " active" : ""}" onclick="state.pdfTheme='${t.id}';save();renderThemes();" style="background:${t.sur};border-color:${isA ? "var(--acc)" : "var(--bor)"}; padding: 10px; border-radius: 8px; border: 2px solid transparent; cursor: pointer; width:100%; text-align:left; font-family:inherit; color:inherit">
       <div class="pdf-preview" style="background:${t.bg}; height: 60px; border-radius: 4px; position: relative; overflow: hidden; margin-bottom: 8px">
         <div style="background:${t.sur}20; height: 15px; width: 100%"></div>
         <div style="background:${t.sur}40; height: 2px; width: 70%; margin: 6px"></div>
@@ -3609,7 +3821,7 @@ function renderThemes() {
       </div>
       <div style="font-weight:700; font-size: 0.85rem">${t.name}</div>
       <div style="font-size: 0.75rem; opacity: 0.7">${t.desc}</div>
-    </div>`;
+    </button>`;
   }).join("");
 
   el.innerHTML = `<div class="theme-wrap">
@@ -4567,8 +4779,8 @@ function showModal(type, arg) {
     el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:480px">
       <div class="modal-title">Exportar Presupuesto<button class="delbtn" onclick="closeModal()">✕</button></div>
       <div class="export-options">
-        <div class="export-card" onclick="exportXLS()"><div class="export-icon">📊</div><div class="export-name">Excel / CSV</div><div class="export-desc">Abre con doble clic en Excel o LibreOffice</div></div>
-        <div class="export-card" onclick="exportToGoogleSheets()"><div class="export-icon">📋</div><div class="export-name">Google Sheets</div><div class="export-desc">Archivo → Abrir → Subir en Google Sheets</div></div>
+        <button type="button" class="export-card" onclick="exportXLS()" style="width:100%;font-family:inherit;font-size:inherit;color:inherit"><div class="export-icon">📊</div><div class="export-name">Excel / CSV</div><div class="export-desc">Abre con doble clic en Excel o LibreOffice</div></button>
+        <button type="button" class="export-card" onclick="exportToGoogleSheets()" style="width:100%;font-family:inherit;font-size:inherit;color:inherit"><div class="export-icon">📋</div><div class="export-name">Google Sheets</div><div class="export-desc">Archivo → Abrir → Subir en Google Sheets</div></button>
       </div>
       <p style="font-size:.95rem;color:var(--tx3);text-align:center;font-style:italic">Incluye ítems, desglose mat/MO, cómputo de materiales y notas.</p>
       <div class="modal-acts"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn success" onclick="exportXLS()">Descargar</button></div>
@@ -4692,7 +4904,7 @@ function showModal(type, arg) {
     ];
     const pdfCards = pdfThemes.map(t => {
       const isA = state.pdfTheme === t.id;
-      return `<div class="pdf-theme-card${isA ? " active" : ""}" onclick="state.pdfTheme='${t.id}';save();this.closest('.modal').querySelectorAll('.pdf-theme-card').forEach(c=>c.classList.remove('active'));this.classList.add('active')" style="background:${t.sur};border-color:${isA ? "var(--acc)" : "var(--bor)"}">
+      return `<button type="button" class="pdf-theme-card${isA ? " active" : ""}" onclick="state.pdfTheme='${t.id}';save();this.closest('.modal').querySelectorAll('.pdf-theme-card').forEach(c=>c.classList.remove('active'));this.classList.add('active')" style="background:${t.sur};border-color:${isA ? "var(--acc)" : "var(--bor)"};width:100%;text-align:left;font-family:inherit;color:inherit">
         <div class="pdf-preview" style="background:${t.bg}">
           <div class="pdf-preview-hdr" style="background:${t.sur}20"></div>
           <div class="pdf-preview-row" style="background:${t.sur}40"></div>
@@ -4703,7 +4915,7 @@ function showModal(type, arg) {
           <div><div style="font-weight:700">${t.name}</div><div style="font-size:1rem;opacity:.7">${t.desc}</div></div>
           <div style="width:13px;height:13px;border-radius:50%;border:2px solid ${t.acc};background:${isA ? t.acc : "transparent"};display:flex;align-items:center;justify-content:center;font-size:.875rem;color:#fff">${isA ? "✓" : ""}</div>
         </div>
-      </div>`;
+      </button>`;
     }).join("");
     el.innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:560px">
       <div class="modal-title">Perfil del Profesional<button class="delbtn" onclick="closeModal()">✕</button></div>
@@ -4716,20 +4928,22 @@ function showModal(type, arg) {
         <div><div class="slbl">RUC</div><input id="p-ruc" value="${(p.ruc || "").replace(/"/g, '&quot;')}" placeholder="00000000-0" class="mb7"></div>
       </div>
       <div class="two-col">
-        <div style="display:flex;gap:4px"><input id="p-phone" value="${(p.phone || "").replace(/"/g, '&quot;')}" placeholder="Teléfono" class="mb7" style="flex:1">${p.phone ? `<button class="btn sm" onclick="window.open(waLink('${p.phone.replace(/'/g, "\\'")}'), '_blank')" style="padding:0 8px;background:#25D366;color:white;border:none;margin-bottom:7px" title="WhatsApp">💬</button>` : ''}</div>
-        <input id="p-email" value="${(p.email || "").replace(/"/g, '&quot;')}" placeholder="Email" class="mb7">
+        <div><div class="slbl">Teléfono</div><div style="display:flex;gap:4px"><input id="p-phone" value="${(p.phone || "").replace(/"/g, '&quot;')}" placeholder="Teléfono" class="mb7" style="flex:1">${p.phone ? `<button class="btn sm" onclick="window.open(waLink('${p.phone.replace(/'/g, "\\'")}'), '_blank')" style="padding:0 8px;background:#25D366;color:white;border:none;margin-bottom:7px" title="WhatsApp">💬</button>` : ''}</div></div>
+        <div><div class="slbl">Email</div><input id="p-email" value="${(p.email || "").replace(/"/g, '&quot;')}" placeholder="Email" class="mb7"></div>
       </div>
+      <div class="slbl">Dirección del estudio</div>
       <input id="p-address" value="${(p.address || "").replace(/"/g, '&quot;')}" placeholder="Dirección del estudio" class="mb7">
       <div class="slbl">Redes Sociales</div>
       <div class="two-col">
-        <input id="p-ig" value="${(p.instagram || "").replace(/"/g, '&quot;')}" placeholder="Instagram: @usuario" class="mb7">
-        <div style="display:flex;gap:4px"><input id="p-wa" value="${(p.whatsapp || "").replace(/"/g, '&quot;')}" placeholder="WhatsApp: +595 9XX XXXXXX" class="mb7" style="flex:1">${p.whatsapp ? `<button class="btn sm" onclick="window.open(waLink('${p.whatsapp.replace(/'/g, "\\'")}'), '_blank')" style="padding:0 8px;background:#25D366;color:white;border:none;margin-bottom:7px" title="Probar link">💬</button>` : ''}</div>
+        <div><div class="slbl" style="margin-top:0">Instagram</div><input id="p-ig" value="${(p.instagram || "").replace(/"/g, '&quot;')}" placeholder="@usuario" class="mb7"></div>
+        <div><div class="slbl" style="margin-top:0">WhatsApp</div><div style="display:flex;gap:4px"><input id="p-wa" value="${(p.whatsapp || "").replace(/"/g, '&quot;')}" placeholder="+595 9XX XXXXXX" class="mb7" style="flex:1">${p.whatsapp ? `<button class="btn sm" onclick="window.open(waLink('${p.whatsapp.replace(/'/g, "\\'")}'), '_blank')" style="padding:0 8px;background:#25D366;color:white;border:none;margin-bottom:7px" title="Probar link">💬</button>` : ''}</div></div>
       </div>
-      <input id="p-web" value="${(p.website || "").replace(/"/g, '&quot;')}" placeholder="Sitio web: www.tuestudio.com.py" class="mb7">
+      <div class="slbl">Sitio web</div>
+      <input id="p-web" value="${(p.website || "").replace(/"/g, '&quot;')}" placeholder="www.tuestudio.com.py" class="mb7">
       <div class="slbl">Logo del Estudio (aparece en el PDF)</div>
-      <div class="logo-upload-area" onclick="document.getElementById('logo-file-input').click()">
+      <button type="button" class="logo-upload-area" onclick="document.getElementById('logo-file-input').click()" style="width:100%;font-family:inherit;font-size:inherit;color:inherit">
         ${state.logoDataUrl ? `<img src="${state.logoDataUrl}" class="logo-preview" alt="Logo">` : '<div class="logo-placeholder">📷 Hacé clic para subir tu logo<br><span style="font-size:.75rem">PNG, JPG — recomendado 300x100px</span></div>'}
-      </div>
+      </button>
       <input type="file" id="logo-file-input" accept="image/*" style="display:none" onchange="uploadLogo(this)">
       ${state.logoDataUrl ? `<button class="btn sm danger" onclick="state.logoDataUrl='';save();showModal('profile')" style="margin-bottom:12px">✕ Quitar logo</button>` : ''}
       <div class="slbl">Tema del PDF</div>

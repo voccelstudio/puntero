@@ -26,7 +26,7 @@ function renderSuppliers() {
             ${suppliers.map(s => {
                 const phoneClean = (s.phone || '').replace(/[^\d+]/g, '');
                 return `
-                <div class="card con-card" onclick="viewSupplier('${s.id}')">
+                <div class="card con-card" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();viewSupplier('${s.id}')}" onclick="viewSupplier('${s.id}')">
                     <div class="con-name">${s.name}</div>
                     <div class="con-meta">
                         <span>📞 ${s.phone || 'S/T'}</span>

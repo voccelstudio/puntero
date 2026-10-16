@@ -94,11 +94,11 @@ function renderContractors() {
         h += `<div class="con-card">
             <div class="con-header">
                 <div class="con-name">${con.name}</div>
-                <div class="con-rating-badge" onclick="event.stopPropagation(); rateFromCard('${con.id}')">
-                    ${rating.count > 0 
+                <button type="button" class="con-rating-badge" onclick="event.stopPropagation(); rateFromCard('${con.id}')">
+                    ${rating.count > 0
                         ? renderStarsHTML(rating.avg, false, con.id) + '<span class="rating-text">' + rating.avg + ' (' + rating.count + ')</span>'
                         : '<span class="rating-unrated" onclick="event.stopPropagation(); rateFromCard(\'' + con.id + '\')">Sin calificar ★</span>'}
-                </div>
+                </button>
             </div>
             <div class="con-meta">
                 <span>📱 ${con.phone || 'S/T'}</span>

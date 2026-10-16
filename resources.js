@@ -25,12 +25,12 @@ function renderResources() {
     }).join("");
 
     const tmplCards = (window._TEMPLATES || []).map((t, idx) => `
-        <div class="tmpl-card" onclick="applyTemplate(${idx})">
+        <button type="button" class="tmpl-card" onclick="applyTemplate(${idx})">
             <div class="tmpl-icon">${t.icon}</div>
             <div class="tmpl-name">${t.name}</div>
             <div class="tmpl-desc">${t.desc}</div>
             <div class="tmpl-meta">${t.meta}</div>
-        </div>
+        </button>
     `).join("");
 
     el.innerHTML = `

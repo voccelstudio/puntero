@@ -31,11 +31,11 @@ function renderLogs() {
 
     // Si es móvil, mostrar un acceso rápido a "Nuevo recorrido"
     if (isMobile) {
-        h += '<div style="background:var(--acc);border-radius:var(--rad);padding:15px;margin-bottom:18px;text-align:center;cursor:pointer" onclick="showWalkthroughModal()">' +
+        h += '<button type="button" style="width:100%;display:block;background:var(--acc);border:none;border-radius:var(--rad);padding:15px;margin-bottom:18px;text-align:center;cursor:pointer;font-family:inherit;color:inherit" onclick="showWalkthroughModal()">' +
             '<div style="font-size:1.5rem">📸</div>' +
             '<div style="font-weight:700;color:white;margin-top:6px">Iniciar Recorrido de Obra</div>' +
             '<div style="font-size:0.8rem;color:rgba(255,255,255,0.7)">Fotos + checklist + ubicación</div>' +
-            '</div>';
+            '</button>';
     }
 
     h += '<div class="log-timeline">';
@@ -71,7 +71,7 @@ function renderLogs() {
                 if (areaId && typeof getAreaName === 'function') { areaName = getAreaName(areaId); areaColor = getAreaColor(areaId); }
                 var escapedUrl = photoUrl.replace(/'/g, "\\'");
                 h += '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0">' +
-                    '<div onclick="previewImage(\'' + escapedUrl + '\')" style="min-width:72px;height:72px;border-radius:6px;background:url(' + escapedUrl + ') center/cover;border:1px solid var(--bor);cursor:pointer"></div>' +
+                    '<button type="button" onclick="previewImage(\'' + escapedUrl + '\')" style="min-width:72px;height:72px;padding:0;border-radius:6px;background:url(' + escapedUrl + ') center/cover;border:1px solid var(--bor);cursor:pointer" aria-label="Ver foto"></button>' +
                     (areaName ? '<span style="font-size:0.6rem;padding:1px 6px;border-radius:8px;background:' + areaColor + '30;color:' + areaColor + ';font-weight:600;white-space:nowrap">' + escapeHtml(areaName) + '</span>' : '') +
                 '</div>';
             }

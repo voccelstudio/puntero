@@ -307,7 +307,7 @@ function renderGanttChart() {
         var color = sch.status === "done" ? "var(--ok)" : sch.status === "progress" ? "var(--blue)" : sch.status === "blocked" ? "var(--err)" : "var(--bor)";
         var globalIdx = adenda.items.indexOf(item);
         var selectedClass = (window._selectedSchRow === globalIdx) ? " sch-row-selected" : "";
-        h += '<div class="gantt-row' + selectedClass + '" data-sch-row="' + globalIdx + '" style="display:grid;grid-template-columns:200px repeat(' + daysTotal + ',minmax(28px,1fr));border-bottom:1px solid var(--bor);font-size:0.75rem;cursor:default" onclick="toggleSchRow(' + globalIdx + ')">' +
+        h += '<button type="button" class="gantt-row' + selectedClass + '" data-sch-row="' + globalIdx + '" style="display:grid;grid-template-columns:200px repeat(' + daysTotal + ',minmax(28px,1fr));border-bottom:1px solid var(--bor);font-size:0.75rem;cursor:pointer" onclick="toggleSchRow(' + globalIdx + ')">' +
             '<div style="padding:6px 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;border-right:1px solid var(--bor)">' + escapeHtml(item.name) + '</div>';
         var startIdx = -1, span = 0;
         if (sch.start && sch.end) {
@@ -323,7 +323,7 @@ function renderGanttChart() {
                 h += '<div style="border-right:1px solid var(--bor)"></div>';
             }
         }
-        h += '</div>';
+        h += '</button>';
     });
     return h + '</div>';
 }

@@ -197,7 +197,7 @@ input.sm{padding:5px 9px;font-size:.875rem}
 .btn.pdf-btn{background:rgba(var(--acc-rgb),.12);color:var(--acc);border-color:rgba(var(--acc-rgb),.3)}
 .btn.pdf-btn:hover{background:var(--acc);color:var(--bg)}
 /* Foco visible para teclado (los inputs ya tienen :focus propio arriba) */
-.btn:focus-visible,.nbtn:focus-visible,.cat-hdr:focus-visible,.cat-item:focus-visible,.addbtn:focus-visible,.fab:focus-visible,summary:focus-visible,a:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.btn:focus-visible,.nbtn:focus-visible,.cat-hdr:focus-visible,.cat-item:focus-visible,.addbtn:focus-visible,.fab:focus-visible,button:focus-visible,[role=button]:focus-visible,summary:focus-visible,a:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 
 /* ═══════════════════════════════════════════ CATALOG ═══ */
 .srch{position:relative;margin-bottom:10px}
@@ -239,7 +239,7 @@ button.cat-item{width:100%;text-align:left;background:transparent;border:none;fo
 .budget-toolbar{display:flex;justify-content:flex-end;gap:10px;margin-bottom:10px;flex-wrap:wrap;position:relative}
 .tb-overflow{display:none;min-width:44px}
 .adenda-bar select{flex:1;min-width:0}
-.cfg-card .cfg-hdr{display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;font-family:var(--font-display);font-weight:800;font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:var(--tx3);padding:2px 0 8px;user-select:none}
+.cfg-card .cfg-hdr{display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;font-family:var(--font-display);font-weight:800;font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:var(--tx3);padding:2px 0 8px;user-select:none;background:transparent;border:none;width:100%;text-align:left}
 .cfg-card .cfg-hdr:hover{color:var(--acc)}
 .cfg-caret{transition:transform .2s;font-size:.9rem}
 .cfg-card.collapsed .cfg-body{display:none}
@@ -357,7 +357,15 @@ table.tbl{width:100%;border-collapse:collapse;font-size:.9rem}
 .modal-row{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:var(--rad);margin-bottom:4px;background:var(--sur2)}
 .modal-name{font-size:.95rem;font-weight:600;flex:1}
 .modal-meta{font-size:.85rem;color:var(--tx3)}
-.modal-acts{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+/* Footer pegajoso de modal: sin padding inferior propio — el sticky se clava
+   contra el borde de CONTENIDO del modal y, con padding, el contenido se
+   colaría por la franja que queda debajo del footer. */
+.modal:has(>.modal-acts:last-child){padding-bottom:0}
+@media(max-width:768px){
+  .modal:has(>.modal-acts:last-child){padding-bottom:0!important}
+  .modal:has(>.modal-acts:last-child)>.modal-acts{padding-bottom:calc(12px + env(safe-area-inset-bottom))}
+}
+.modal-acts{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;margin-left:-24px;margin-right:-24px;padding:12px 24px;position:sticky;bottom:0;background:var(--sur);border-top:1px solid var(--bor);z-index:5}
 .slbl{font-family:var(--font-display);font-size:.85rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--tx3);margin:10px 0 6px}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
 .three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px}
@@ -387,6 +395,24 @@ table.tbl{width:100%;border-collapse:collapse;font-size:.9rem}
 .pdf-theme-lbl{padding:6px 10px;font-size:.8rem;font-weight:600;display:flex;justify-content:space-between;align-items:center}
 .export-options{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}
 .export-card{background:var(--sur2);border:1px solid var(--bor);border-radius:var(--rad);padding:16px;cursor:pointer;transition:all .2s;text-align:center}
+/* Cards/zonas convertidas a <button> (accesibilidad): conservan su look de tarjeta */
+button.theme-card,button.pdf-theme-card,button.export-card,button.logo-upload-area,button.tmpl-card{font-family:inherit;font-size:inherit;color:inherit}
+button.theme-card,button.pdf-theme-card,button.logo-upload-area,button.tmpl-card{width:100%;text-align:left}
+button.export-card{width:100%}
+button.logo-upload-area{background:transparent}
+button.gantt-row{width:100%;font-family:inherit;color:inherit;text-align:left;background:transparent;border:none}
+button.con-rating-badge{background:transparent;border:none;font-family:inherit;font-size:inherit;color:inherit}
+/* Reordenar arrastrando (presupuesto y cómputo rápido): asa ⠿, fila arrastrada
+   atenuada y guía de inserción en la fila destino. */
+.drag-handle{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;padding:0;margin:0 6px 0 0;border:1px solid var(--bor);border-radius:6px;background:var(--sur2);color:var(--tx3);cursor:grab;font-size:.95rem;line-height:1;touch-action:none;user-select:none;-webkit-user-select:none;vertical-align:middle;flex:none}
+.drag-handle:hover{color:var(--acc);border-color:var(--acc);background:var(--sur)}
+.drag-handle:active{cursor:grabbing}
+tr.dragging>td{opacity:.45}
+body.drag-active{user-select:none;-webkit-user-select:none;cursor:grabbing}
+tr.drop-before>td{box-shadow:inset 0 3px 0 -1px var(--acc)}
+tr.drop-after>td{box-shadow:inset 0 -3px 0 -1px var(--acc)}
+tr.drop-cat>td{background:var(--sur2);box-shadow:inset 0 3px 0 -1px var(--acc)}
+@media print{.drag-handle{display:none}}
 .export-card:hover{border-color:var(--acc)}
 .export-icon{font-size:1.8rem;margin-bottom:8px}
 .export-name{font-size:.9rem;font-weight:600;color:var(--tx);margin-bottom:4px}
@@ -605,7 +631,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:.9rem}
   .modal{width:100%!important;max-width:100%!important;max-height:92vh!important;margin:0!important;border-radius:16px 16px 0 0!important;padding:16px!important;overflow-y:auto;position:relative}
   .modal::before{content:"";position:absolute;top:6px;left:50%;transform:translateX(-50%);width:38px;height:4px;background:var(--bor);border-radius:2px}
   .modal-title{margin-top:8px;font-size:1rem}
-  .modal-acts{flex-direction:column-reverse;gap:8px}
+  .modal-acts{flex-direction:column-reverse;gap:8px;margin-left:-16px;margin-right:-16px;padding:12px 16px}
   .modal-acts .btn{width:100%;justify-content:center}
 
   .gantt-wrap{display:none}
@@ -658,6 +684,9 @@ table.tbl{width:100%;border-collapse:collapse;font-size:.9rem}
 .conn-banner{position:fixed;top:0;left:0;right:0;z-index:600;background:var(--warn);color:#0f172a;font-size:.78rem;font-weight:700;padding:8px 12px;display:flex;align-items:center;justify-content:center;gap:8px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,.25)}
 /* Recordatorio de backup: tarjeta discreta abajo-izquierda (no tapa el FAB ni es un error) */
 .backup-banner{position:fixed;bottom:16px;left:16px;z-index:650;background:var(--sur);border:1px solid var(--bor);border-left:4px solid var(--warn);border-radius:var(--rad);padding:10px 12px;display:flex;align-items:center;gap:10px;font-size:.85rem;color:var(--tx);box-shadow:var(--sh);max-width:min(420px,calc(100vw - 96px))}
+/* Con un modal abierto el banner se esconde: taparía el footer (Guardar) en
+   móvil. !important porque checkBackupReminder() lo muestra con estilo inline. */
+body:has(.overlay) .backup-banner{display:none!important}
 .backup-banner .backup-msg{flex:1;line-height:1.3}
 .backup-banner .backup-acts{display:flex;gap:6px;flex-shrink:0}
 @media(max-width:560px){.backup-banner{bottom:84px;right:16px;max-width:none}}

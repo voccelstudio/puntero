@@ -103,7 +103,10 @@ function bootstrap() {
   duplicarComputoRapido: duplicarComputoRapido,
   convertirQuickModal: convertirQuickModal,
   convertirQuickAProyecto: convertirQuickAProyecto,
-  renderComputoRapido: renderComputoRapido
+  renderComputoRapido: renderComputoRapido,
+  moveItemTo: moveItemTo,
+  moveItemToCat: moveItemToCat,
+  moveCatGroup: moveCatGroup
 };
 `;
 
