@@ -413,6 +413,10 @@ tr.drop-before>td{box-shadow:inset 0 3px 0 -1px var(--acc)}
 tr.drop-after>td{box-shadow:inset 0 -3px 0 -1px var(--acc)}
 tr.drop-cat>td{background:var(--sur2);box-shadow:inset 0 3px 0 -1px var(--acc)}
 @media print{.drag-handle{display:none}}
+/* Celda de acciones del ítem: asa, cómputo (🧱) y eliminar (✕) con aire
+   entre botones (sin esto se apilaban pegados por el display:flex de .delbtn). */
+.row-acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.row-acts .drag-handle{margin:0}
 .export-card:hover{border-color:var(--acc)}
 .export-icon{font-size:1.8rem;margin-bottom:8px}
 .export-name{font-size:.9rem;font-weight:600;color:var(--tx);margin-bottom:4px}

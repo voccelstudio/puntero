@@ -2941,7 +2941,7 @@ function renderTable() {
         <td data-label="P. Unit." style="font-size:.875rem;color:var(--tx3)"><span id="it-uni-${item.id}">₲${fmt(ep)}</span></td>
         ${ivaEnabled ? `<td data-label="IVA" style="font-size:.95rem;color:var(--iva);font-weight:600"><span id="it-iva-${item.id}">₲${fmt(iva)}</span></td>` : ""}
         <td data-label="Total" style="font-weight:700;color:var(--acc);font-size:1rem"><span id="it-tot-${item.id}">₲${fmt(totalItem)}</span></td>
-        <td data-label="">
+        <td data-label="" class="row-acts">
           <button type="button" class="drag-handle" data-drag-item="${item.id}" title="Arrastrar para reordenar (↑↓ con el foco)" aria-label="Reordenar ítem">⠿</button>
           ${(item.mats && item.mats.length) ? `<button class="btn sm" title="Ver cómputo de materiales de este rubro" onclick="showItemMaterials(${item.id})">🧱</button>` : ""}
           <button class="delbtn" onclick="removeItem(${item.id})">✕</button>
